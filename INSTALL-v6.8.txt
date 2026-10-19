@@ -1,0 +1,20 @@
+AGCORE v6.8 INSTALLATION
+
+1. Replace the project files with this package.
+2. In Supabase SQL Editor, run:
+   supabase/migrations/202610020001_farm_records_scanner_and_pricing.sql
+3. In Vercel > Project > Settings > Environment Variables, add:
+   OPENAI_API_KEY = your private OpenAI API key
+   OPENAI_SCANNER_MODEL = gpt-4o-mini   (optional)
+4. Redeploy the Production deployment.
+
+New in v6.8
+- Diesel Logbook with Equipment, Activity and Field dropdowns, L/hour tracking and Excel export.
+- Manual rainfall gauges, daily readings and seasonal history.
+- AI Scanner review workflow for Transport delivery notes and Inventory receipts.
+- Farmer planning price per crop and season, combined with signed grain contracts for revenue forecasts.
+
+Important
+- Never add OPENAI_API_KEY as NEXT_PUBLIC_OPENAI_API_KEY. It must remain a server-only secret.
+- The scanner always requires a farmer to review and confirm extracted information.
+- The diesel export supports record keeping; confirm tax requirements with a qualified practitioner.

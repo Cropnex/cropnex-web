@@ -1,0 +1,12 @@
+AGCORE v6.8.2 UPDATE
+
+1. Replace the project files with this package.
+2. No additional SQL is required if the v6.8 migration was already run.
+3. Commit and push the replaced files.
+
+Scanner improvements
+- Inventory receipts now return every visible product line.
+- Each product can be reviewed, edited, included or excluded.
+- Each line must be matched to existing inventory or an approved catalogue product.
+- New catalogue products can be created in the selected receiving shed.
+- Confirming posts one Stock In transaction per selected receipt line.

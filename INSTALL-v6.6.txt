@@ -1,0 +1,26 @@
+AGCORE v6.6 - Live Harvest, Grain Market and Field Margin Link
+
+1. Replace the project files in Codespaces.
+
+2. Run this migration in Supabase SQL Editor after the v6.5 migration:
+
+   supabase/migrations/202610010001_transport_harvest_reporting.sql
+
+3. In the Codespaces terminal run:
+
+   git add .
+   git commit -m "Link transport harvest grain market and reports"
+   git push
+
+4. Download a fresh Transport Logsheet. Old Logsheet column layouts must not
+   be imported into v6.6.
+
+Reconciled Transport Log allocations now create or update Harvest records.
+They also feed the Grain Market live supply view and Reports live harvest view.
+Repeated imports update the same Harvest record instead of duplicating tonnes.
+
+Grades:
+- White Maize: WM1, WM2, WM3
+- Yellow Maize: YM1, YM2, YM3
+- Sunflower: FH, FHO, FHU
+- Soybean: SB, SBU

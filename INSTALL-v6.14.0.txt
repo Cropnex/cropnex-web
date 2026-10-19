@@ -1,0 +1,19 @@
+AGCORE v6.14.0
+
+This release does not require a database migration.
+
+Deploy from the folder containing package.json:
+
+npm install
+npx vercel --prod
+
+After deployment:
+1. Select the intended season in the top bar.
+2. Open Transport Log and download a fresh Excel logsheet. Existing files cannot gain the repaired dropdown lists.
+3. Confirm the Farm · Field, date, destination, vehicle, grade, status and completion dropdowns are present.
+4. Check Weather: all spray outputs are explicitly presented as decision-support recommendations.
+5. Open Terms and confirm the legal version is 2026-10-14.
+
+Important:
+- Keep the Lists worksheet in the transport workbook; it is intentionally hidden and supplies the dropdowns.
+- AGCORE's legal text is a product-risk safeguard, not a substitute for review by a South African attorney.

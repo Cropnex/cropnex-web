@@ -1,0 +1,42 @@
+export type ActivityPlan = {
+  id: string;
+  user_id: string;
+  field_id: string;
+  farmer_id?: string | null;
+  farm_id?: string | null;
+  cultivar_id?: string | null;
+  farmer_name: string;
+  farm_name: string;
+  field_name: string;
+  activity_type: string;
+  crop: string | null;
+  cultivar: string | null;
+  season: string;
+  planned_date: string;
+  planned_area_ha: number;
+  status: "Planned" | "Actualised" | "Cancelled";
+  notes: string | null;
+  planned_total: number;
+  actual_date: string | null;
+  actual_total: number;
+  actual_notes: string | null;
+  created_at: string;
+};
+
+export type ActivityPlanProduct = {
+  id: string;
+  plan_id: string;
+  inventory_item_id: string;
+  master_product_id?: string | null;
+  product_request_id?: string | null;
+  product_name: string;
+  unit: string;
+  planned_rate_per_ha: number;
+  planned_quantity: number;
+  planned_unit_price: number;
+  planned_cost: number;
+  actual_rate_per_ha: number | null;
+  actual_quantity: number | null;
+  actual_unit_price: number | null;
+  actual_cost: number | null;
+};

@@ -1,0 +1,9 @@
+AGCORE v6.12.0
+
+1. Deploy the complete project to Vercel.
+2. In Supabase SQL Editor, run:
+   supabase/migrations/202610060001_shed_control_centre.sql
+3. Confirm Vercel completes its production deployment.
+
+This release adds the registered company identity, selected AgCore logo,
+the shed control centre, atomic inventory movements and field-level NDVI access.

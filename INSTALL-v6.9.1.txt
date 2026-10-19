@@ -1,0 +1,25 @@
+AGCORE v6.9.1 - Field reporting engine
+
+IMPORTANT SQL
+Run this new migration after the v6.9.0 migration:
+supabase/migrations/202610040002_field_reporting_engine.sql
+
+Correct reporting workflow
+1. Every planned field activity contributes its planned_total to projected costs.
+2. When an activity is actualised, that activity switches from planned_total to actual_total.
+3. Other field expenses recorded in Financials are added to the activity costs.
+4. Reconciled Transport Log tonnes are priced FIFO against physical grain contracts.
+5. Tonnes remaining after contracts use the latest farmer SAFEX planning reference.
+6. Field income, costs, cost/ha and margin all come from one field_performance_report view.
+
+Additional fixes
+- Opening Reports automatically refreshes contract/SAFEX allocations before loading figures.
+- Saving a SAFEX reference immediately reprices existing reconciled tonnes.
+- Saving a grain contract immediately reprices existing reconciled tonnes.
+- Live Harvest Performance shows blended price, projected income, activity costs and margin.
+- Field Performance explains contracted tonnes, SAFEX tonnes, actualised costs and costs still planned.
+
+After deployment
+- Open Grain Marketing and confirm a SAFEX planning price exists for the crop.
+- Confirm contracts use the same season and a compatible commodity name.
+- Open Reports and press Refresh Reports.

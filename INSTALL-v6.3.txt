@@ -1,0 +1,33 @@
+AGCORE v6.3 - Sheds & Inventory Network
+
+1. Replace the project files in Codespaces with the contents of this package.
+
+2. In Supabase SQL Editor, run this file once:
+   supabase/migrations/202609300003_inventory_network.sql
+
+   The migration keeps existing inventory. Existing text-based shed names are
+   automatically converted into inventory locations.
+
+3. In the Codespaces terminal run:
+   git add .
+   git commit -m "Add multi-location inventory network"
+   git push
+
+4. Wait for the Vercel production deployment to finish, then open:
+   Resources > Sheds & Inventory
+
+5. Suggested first test:
+   - Create Main Shed and Second Shed.
+   - Add a product to Main Shed.
+   - Dispatch a transfer to Second Shed.
+   - Confirm receipt.
+   - Complete a stocktake in Second Shed.
+
+New functionality:
+- Multiple farm sheds, warehouses, fuel stores and workshop stores
+- Consolidated stock value and low-stock counts
+- Dispatch and receipt workflow with in-transit stock
+- Full location stocktakes and auditable variance adjustments
+- Product ownership fields for farmer, organisation or supplier stock
+- Location-aware stock usage in job cards
+- Permanent transfer and movement history

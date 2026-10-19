@@ -1,0 +1,18 @@
+AGCORE v6.15.0 — Khaki interface update
+
+This release is a visual update. It does not require a database migration.
+
+Deploy from the folder containing package.json:
+
+npm install
+npx vercel --prod
+
+What changed:
+- Premium matte-black sidebar with a dedicated farm photograph.
+- Warm khaki application canvas and light data panels.
+- Khaki/olive buttons, selectors and status accents.
+- Clearer navigation icons, including a tractor equipment icon.
+- Crop-specific animated map markers for maize, sunflower, wheat, soybeans and pasture.
+- Existing routes, forms, calculations, Excel workflows and database operations remain unchanged.
+
+After deployment, perform a hard refresh with Ctrl+Shift+R so the new CSS and image are loaded.

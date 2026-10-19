@@ -1,0 +1,21 @@
+AGCORE v6.10.0 - Yield expectations and whole-business forecasting
+
+1. In Supabase SQL Editor, run this migration after the v6.9.1 migration:
+   supabase/migrations/202610040003_yield_expectations_and_commitments.sql
+
+2. Deploy this complete project to Vercel.
+
+WHAT CHANGED
+- SAFEX now includes a Current Yield Expectation per crop and season.
+- Expected hectares x yield is valued using signed contracts first and the farmer's planning SAFEX price for the remaining tonnes.
+- Field reports use planned activity costs until actualised costs become available.
+- Business & Finance now reads the same reporting engine as Reports.
+- Equipment records include installment amount, frequency and finance term in seasons.
+- General business commitments support living expenses, insurance, rent, salaries, loans and other recurring costs.
+- Reports show both field gross margin and the projected business margin after equipment and general commitments.
+
+IMPORTANT
+- Keep yield crop names aligned with the crop used in field planning. Maize variants are matched automatically.
+- Equipment installments are added in Resources > Equipment.
+- Non-field commitments are added in Business > Business & Finance.
+- The forecast is a planning estimate, not an accounting statement. Booked transactions remain visible separately.

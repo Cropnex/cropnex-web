@@ -1,0 +1,28 @@
+AGCORE v6.7 - Grain Contract Allocation and Farm Seasons
+
+1. Replace the project files in Codespaces.
+
+2. Run this migration in Supabase SQL Editor after v6.6:
+
+   supabase/migrations/202610010002_contract_allocation_and_seasons.sql
+
+3. In the Codespaces terminal run:
+
+   git add .
+   git commit -m "Add grain contract allocation and farm seasons"
+   git push
+
+Grain contracts:
+- Open Grain Market > Contracts and capture existing physical contracts.
+- Reconciled Transport Log tonnes are priced in contract-date order.
+- When contracted tonnes are full, further tonnes use the latest matching SAFEX
+  reference as an estimated price. If no reference exists they remain Unpriced.
+- Allocations are separated by farmer, season and commodity.
+
+Farm seasons:
+- Open Farm Map and select + New season.
+- Enter the new season name.
+- Choose whether to copy the selected previous season's field boundaries or
+  start with no fields.
+- Copied fields contain no crop, cultivar or activity plans.
+- Saved activity templates and crop templates remain reusable.

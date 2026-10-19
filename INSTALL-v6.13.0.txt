@@ -1,0 +1,12 @@
+AGCORE v6.13.0
+
+1. Deploy this complete project to Vercel.
+2. In Supabase SQL Editor, run:
+   supabase/migrations/202610060003_activity_source_sheds.sql
+
+WHAT CHANGED
+- Actualising an activity now requires a source shed for every product.
+- The dropdown shows shed, product and available quantity.
+- Multi-field actualisation checks the combined requirement before saving.
+- Stock is deducted only from the selected shed inventory line.
+- The stock movement records the supplying shed, field, season and activity.

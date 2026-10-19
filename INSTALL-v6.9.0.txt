@@ -1,0 +1,25 @@
+AGCORE v6.9.0 - Multi-field actuals, Harvest summaries and catalogue tools
+
+IMPORTANT: Run this SQL migration in Supabase before testing:
+supabase/migrations/202610040001_harvest_plans_and_admin_hectares.sql
+
+Included
+- Fixed planned activities showing the first inventory product more than once during actualisation.
+- Product names are shown above each actual product selector.
+- Actualise the same planned activity across several fields from Farm Planning.
+- Harvest History now groups loads by field and calculates accumulated tonnes, yield, weighted moisture, average price and revenue.
+- Every field and season receives a standard Harvest planned activity.
+- Reconciled Transport Log data continues to feed Harvest records and field yield.
+- Administrators can export the complete Master Data workbook, edit classifications and import it again.
+- Administration shows hectares and field counts for every registered account plus the total hectares on AGCORE.
+- Scouting photos can be assessed by AI for possible symptoms, causes, severity and treatment classes.
+
+Scouting safety
+- AI suggestions are advisory and must be confirmed by a qualified agronomist and registered product label.
+- The first version suggests active ingredients or treatment classes, not sponsored commercial brands.
+- Sponsored partner products should be visibly labelled and checked against crop registrations before launch.
+
+Deployment
+1. Replace the project files.
+2. Run the SQL migration above once in Supabase SQL Editor.
+3. Commit and push to Vercel.

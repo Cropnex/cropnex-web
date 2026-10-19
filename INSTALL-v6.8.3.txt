@@ -1,0 +1,21 @@
+AGCORE v6.8.3 - Scanner speed and reliability
+
+What changed
+- Large scanner photos are reduced before upload to improve speed.
+- The scanner now shows clear progress stages.
+- A scan stops after one minute instead of waiting indefinitely.
+- Cancel Scan stops an active request safely.
+- Try Again reuses the selected photo, so it does not need to be selected again.
+- The server also stops slow OpenAI requests after 55 seconds.
+
+Installation
+1. Replace the project files with this package.
+2. No new Supabase SQL is required for this update.
+3. Commit and push the changes to deploy through Vercel.
+
+Testing
+1. Open AGCORE > Scanner.
+2. Select Inventory receipt and choose a photo with several product lines.
+3. Confirm the stages Optimising photo, Uploading photo, Reading every product line and Preparing review appear.
+4. Confirm all detected lines appear in the review.
+5. Test Cancel Scan and then Try Again without selecting the photo again.

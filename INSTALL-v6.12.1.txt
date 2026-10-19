@@ -1,0 +1,7 @@
+AGCORE v6.12.1 HOTFIX
+
+Run this file in Supabase SQL Editor:
+supabase/migrations/202610060002_repair_inventory_transfer_receipt.sql
+
+This repairs confirmation of dispatched inventory transfers where the
+master_product_id catalogue link was missing from inventory_items.

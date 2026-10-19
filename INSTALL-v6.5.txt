@@ -1,0 +1,33 @@
+AGCORE v6.5 - Transport Log and Harvest Completion
+
+1. Replace the project files in Codespaces with this package.
+
+2. In Supabase SQL Editor, run this file after the v6.4 migrations:
+
+   supabase/migrations/202609300005_transport_log.sql
+
+3. In the Codespaces terminal run:
+
+   git add .
+   git commit -m "Add transport log and harvest completion"
+   git push
+
+4. Wait for Vercel to finish, then open:
+
+   Business > Transport Log
+
+Test flow:
+- Add a web load, or download the Excel Logsheet.
+- The spreadsheet contains 500 rows and dropdowns for fields, destinations,
+  vehicles, load status and field completion.
+- Crop and cultivar are populated from the field's current plan when exported
+  and refreshed from AgCore when imported.
+- Import the completed workbook and review changes before applying them.
+- A field may only be completed from a Reconciled load. Completion changes the
+  latest planned Harvest activity to Actualised and records tonnes and yield.
+
+Important:
+- Existing loads are exported with Action = Keep, so re-importing the workbook
+  does not duplicate them.
+- For a mixed-field truck, use two rows with the same load number and allocate
+  the correct tonnes to each field.

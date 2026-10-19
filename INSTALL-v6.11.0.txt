@@ -1,0 +1,19 @@
+AGCORE v6.11.0 - Clean seasons and season switching
+
+1. Run this migration in Supabase SQL Editor after the v6.10 migration:
+   supabase/migrations/202610040004_clean_season_rollover.sql
+
+2. Deploy the complete project through the connected GitHub repository.
+
+WHAT CHANGED
+- Added a current-season selector to the AgCore top bar.
+- Switching the selector reopens previous seasons without deleting or changing them.
+- New seasons copy only field identity, farm connection, hectares, soil and boundary when requested.
+- New-season fields start Unplanned with no crop, cultivar, expected yield or harvest status.
+- Crop templates and activity templates remain reusable but are not assigned automatically.
+- Blank copied fields no longer receive an automatic Harvest activity.
+- Inventory items, inventory transfers, stocktakes, transport loads and manual SAFEX references are season-scoped.
+- Farm Map, Planning, Advanced Planning, Fields, Harvest, Transport, Grain Market, Reports, Finance, Inventory and Dashboard use the selected season.
+
+EXISTING NEW SEASON
+The migration removes only automatic empty-crop Harvest plans accidentally created on blank rollover fields. It does not delete legitimate plans, stock, prices or harvest history. Previous records remain accessible by selecting their original season.

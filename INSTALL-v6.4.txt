@@ -1,0 +1,33 @@
+AGCORE v6.4 - Organisations, Roles and Farmer Assignments
+
+1. Replace the project files in Codespaces with this package.
+
+2. Run the migrations in Supabase SQL Editor in this order if they have not
+   already been applied:
+
+   supabase/migrations/202609300003_inventory_network.sql
+   supabase/migrations/202609300004_organizations_and_assignments.sql
+
+3. In the Codespaces terminal run:
+
+   git add .
+   git commit -m "Add organisation roles and farmer assignments"
+   git push
+
+4. After Vercel finishes deploying, sign in as an AGCORE administrator and open:
+
+   Administration > Organisations
+
+5. Create the organisation, add verified AgCore users, connect existing farmer
+   accounts, and assign each farmer to a Field Manager.
+
+Roles included:
+- Organisation Owner
+- Organisation Administrator
+- Director
+- Field Manager
+- Analyst
+- Warehouse Manager
+
+Directors and organisation administrators receive organisation-wide access.
+Field Managers receive access only to specifically assigned farmers.

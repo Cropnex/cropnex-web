@@ -1,0 +1,11 @@
+AGCORE v6.10.2 - Visual landing page
+
+No new Supabase migration is required.
+
+WHAT CHANGED
+- Added high-definition AgCore farm, dashboard and NDVI imagery to the public landing page.
+- Corrected the tractor front-wheel geometry in the Plan With Confidence campaign image.
+- Added a founder-led section identifying the current role as Founder, Owner & CEO.
+- The page states that company registration is in progress and does not imply registration is complete.
+
+Deploy through the connected GitHub repository as usual.

@@ -1,0 +1,12 @@
+AGCORE v6.10.1 - Public landing page
+
+No new Supabase migration is required if v6.10.0 is already installed.
+
+Deploy this complete project to Vercel through the connected GitHub repository.
+
+WHAT CHANGED
+- www.agcore.co.za now opens a public AgCore landing page.
+- Login buttons open /login.
+- Added platform, workflow, vision, mission and call-to-action sections.
+- Existing privacy, terms and acceptable-use pages are linked in the footer.
+- The authenticated application remains available after logging in.
