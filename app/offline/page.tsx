@@ -1,6 +1,6 @@
 export default function OfflinePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#050b08] p-6 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-[#14261F] p-6 text-white">
       <section className="w-full max-w-lg rounded-3xl border border-white/10 bg-white/5 p-8 text-center">
         <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
           CropNex Offline

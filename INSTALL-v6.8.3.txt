@@ -1,4 +1,4 @@
-AGCORE v6.8.3 - Scanner speed and reliability
+CropNex v6.8.3 - Scanner speed and reliability
 
 What changed
 - Large scanner photos are reduced before upload to improve speed.
@@ -14,7 +14,7 @@ Installation
 3. Commit and push the changes to deploy through Vercel.
 
 Testing
-1. Open AGCORE > Scanner.
+1. Open CropNex > Scanner.
 2. Select Inventory receipt and choose a photo with several product lines.
 3. Confirm the stages Optimising photo, Uploading photo, Reading every product line and Preparing review appear.
 4. Confirm all detected lines appear in the review.

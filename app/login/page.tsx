@@ -92,7 +92,7 @@ const handleRegister = async () => {
 };
 
   return (
-    <main className="min-h-screen bg-[#050b08] text-white flex items-center justify-center px-6">
+    <main className="min-h-screen bg-[#14261F] text-white flex items-center justify-center px-6">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-black">

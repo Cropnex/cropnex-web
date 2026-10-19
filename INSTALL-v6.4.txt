@@ -1,4 +1,4 @@
-AGCORE v6.4 - Organisations, Roles and Farmer Assignments
+CropNex v6.4 - Organisations, Roles and Farmer Assignments
 
 1. Replace the project files in Codespaces with this package.
 
@@ -14,11 +14,11 @@ AGCORE v6.4 - Organisations, Roles and Farmer Assignments
    git commit -m "Add organisation roles and farmer assignments"
    git push
 
-4. After Vercel finishes deploying, sign in as an AGCORE administrator and open:
+4. After Vercel finishes deploying, sign in as an CropNex administrator and open:
 
    Administration > Organisations
 
-5. Create the organisation, add verified AgCore users, connect existing farmer
+5. Create the organisation, add verified CropNex users, connect existing farmer
    accounts, and assign each farmer to a Field Manager.
 
 Roles included:

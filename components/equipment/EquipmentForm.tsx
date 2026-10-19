@@ -30,7 +30,7 @@ export default function EquipmentForm({ values, saving, onChange, onSave, onCanc
         <Input label="Last service hours" type="number" step="0.1" value={values.last_service_hours} onChange={(v) => onChange("last_service_hours", v)} />
         <Select label="Fuel type" value={values.fuel_type} onChange={(v) => onChange("fuel_type", v)} options={["Diesel","Petrol","Electric","None","Other"]} />
         <Select label="Status" value={values.status} onChange={(v) => onChange("status", v)} options={["Active","Service Due","Out of Service","Sold","Inactive"]} />
-        <div className="md:col-span-2 xl:col-span-3 mt-2 border-t border-white/10 pt-5"><p className="text-sm font-black uppercase tracking-wider text-[#a4df57]">Equipment finance</p><p className="mt-1 text-xs text-gray-500">Optional. Used as a business commitment in projected bank and management reports.</p></div>
+        <div className="md:col-span-2 xl:col-span-3 mt-2 border-t border-white/10 pt-5"><p className="text-sm font-black uppercase tracking-wider text-[#B6CB8D]">Equipment finance</p><p className="mt-1 text-xs text-gray-500">Optional. Used as a business commitment in projected bank and management reports.</p></div>
         <Input label="Installment amount (R)" type="number" step="0.01" value={values.installment_amount} onChange={(v) => onChange("installment_amount", v)} />
         <Select label="Installment frequency" value={values.installment_frequency} onChange={(v) => onChange("installment_frequency", v)} options={["Monthly","Quarterly","Annual","Per season"]} />
         <Input label="Finance start date" type="date" value={values.finance_start_date} onChange={(v) => onChange("finance_start_date", v)} />

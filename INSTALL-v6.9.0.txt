@@ -1,4 +1,4 @@
-AGCORE v6.9.0 - Multi-field actuals, Harvest summaries and catalogue tools
+CropNex v6.9.0 - Multi-field actuals, Harvest summaries and catalogue tools
 
 IMPORTANT: Run this SQL migration in Supabase before testing:
 supabase/migrations/202610040001_harvest_plans_and_admin_hectares.sql
@@ -11,7 +11,7 @@ Included
 - Every field and season receives a standard Harvest planned activity.
 - Reconciled Transport Log data continues to feed Harvest records and field yield.
 - Administrators can export the complete Master Data workbook, edit classifications and import it again.
-- Administration shows hectares and field counts for every registered account plus the total hectares on AGCORE.
+- Administration shows hectares and field counts for every registered account plus the total hectares on CropNex.
 - Scouting photos can be assessed by AI for possible symptoms, causes, severity and treatment classes.
 
 Scouting safety

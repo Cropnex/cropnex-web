@@ -1,4 +1,4 @@
-AGCORE v6.7 - Grain Contract Allocation and Farm Seasons
+CropNex v6.7 - Grain Contract Allocation and Farm Seasons
 
 1. Replace the project files in Codespaces.
 

@@ -67,11 +67,11 @@ export default function TopBar({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search CropNex..."
-            className="w-full rounded-xl border border-[#c7b38a]/20 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none placeholder:text-[#8e8a7f] focus:border-[#c7b38a]/60"
+            className="w-full rounded-xl border border-[#D6A64C]/20 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none placeholder:text-[#8e8a7f] focus:border-[#D6A64C]/60"
           />
 
           {results.length > 0 && (
-            <div className="absolute left-0 right-0 top-[calc(100%+8px)] overflow-hidden rounded-xl border border-white/10 bg-[#0a1510] shadow-2xl">
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] overflow-hidden rounded-xl border border-white/10 bg-[#1B3028] shadow-2xl">
               {results.map((item) => (
                 <Link
                   key={item.href}
@@ -79,7 +79,7 @@ export default function TopBar({
                   onClick={() => setQuery("")}
                   className="flex items-center gap-3 border-b border-white/5 px-4 py-3 last:border-0 hover:bg-white/5"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/30 text-sm font-bold text-[#dfc796]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/30 text-sm font-bold text-[#E6C784]">
                     {item.icon}
                   </span>
 
@@ -99,7 +99,7 @@ export default function TopBar({
 
         <PWAInstallButton />
 
-        <label className="hidden min-w-[145px] sm:block"><span className="sr-only">Current season</span><select aria-label="Current season" value={currentSeason} disabled={seasonLoading||!seasons.length} onChange={event=>void setCurrentSeason(event.target.value)} className="w-full rounded-xl border border-[#c7b38a]/25 bg-[#22231d] px-3 py-3 text-sm font-bold text-[#e1cda4] outline-none"><option value="">Season</option>{seasons.map(season=><option key={season} value={season}>{season}</option>)}</select></label>
+        <label className="hidden min-w-[145px] sm:block"><span className="sr-only">Current season</span><select aria-label="Current season" value={currentSeason} disabled={seasonLoading||!seasons.length} onChange={event=>void setCurrentSeason(event.target.value)} className="w-full rounded-xl border border-[#D6A64C]/25 bg-[#22231d] px-3 py-3 text-sm font-bold text-[#e1cda4] outline-none"><option value="">Season</option>{seasons.map(season=><option key={season} value={season}>{season}</option>)}</select></label>
 
         <div className="relative">
           <button
@@ -111,11 +111,11 @@ export default function TopBar({
             aria-label="Notifications"
           >
             🔔
-            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-[#050b08] bg-amber-400" />
+            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-[#14261F] bg-amber-400" />
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 top-[calc(100%+8px)] w-80 rounded-xl border border-white/10 bg-[#0a1510] p-4 shadow-2xl">
+            <div className="absolute right-0 top-[calc(100%+8px)] w-80 rounded-xl border border-white/10 bg-[#1B3028] p-4 shadow-2xl">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-bold text-white">
                   Notifications

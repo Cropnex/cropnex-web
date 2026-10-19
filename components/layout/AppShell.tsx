@@ -16,7 +16,7 @@ export default function AppShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return <AccessProvider><AccessGate><SeasonProvider>
-    <div className="ag-app-shell min-h-screen bg-[#d8ccb1] text-[#181a15]">
+    <div className="ag-app-shell min-h-screen bg-[#F2F0E8] text-[#181a15]">
       <ServiceWorkerRegistration />
 
       <Sidebar

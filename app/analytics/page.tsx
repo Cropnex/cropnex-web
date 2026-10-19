@@ -217,7 +217,7 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#050b08] p-6 text-white md:p-8">
+    <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">

@@ -1,4 +1,4 @@
-AGCORE v6.11.0 - Clean seasons and season switching
+CropNex v6.11.0 - Clean seasons and season switching
 
 1. Run this migration in Supabase SQL Editor after the v6.10 migration:
    supabase/migrations/202610040004_clean_season_rollover.sql
@@ -6,7 +6,7 @@ AGCORE v6.11.0 - Clean seasons and season switching
 2. Deploy the complete project through the connected GitHub repository.
 
 WHAT CHANGED
-- Added a current-season selector to the AgCore top bar.
+- Added a current-season selector to the CropNex top bar.
 - Switching the selector reopens previous seasons without deleting or changing them.
 - New seasons copy only field identity, farm connection, hectares, soil and boundary when requested.
 - New-season fields start Unplanned with no crop, cultivar, expected yield or harvest status.

@@ -1,4 +1,4 @@
-AGCORE v6.8.1 UPDATE
+CropNex v6.8.1 UPDATE
 
 1. Replace the project files with this package.
 2. No additional SQL is required if the v6.8 migration was already run.
@@ -8,4 +8,4 @@ Fixes
 - Removed the old /fuel redirect so Diesel Logbook opens normally.
 - Rain gauges are now placed by clicking the satellite farm map.
 - Saved rain gauges appear as blue R markers on Rainfall and the main Farm Map.
-- Rainfall and AI Scanner now use the normal AGCORE application layout.
+- Rainfall and AI Scanner now use the normal CropNex application layout.

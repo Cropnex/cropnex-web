@@ -20,7 +20,7 @@ const client = createClient(supabaseUrl, supabaseAnonKey, {
 // Supabase Auth 2.116 currently publishes a narrowed AuthClient declaration in
 // some CommonJS/bundler combinations even though these methods exist at runtime.
 // Keep the application surface explicit until the upstream declaration is fixed.
-type AgcoreAuthClient = typeof client.auth & {
+type CropNexAuthClient = typeof client.auth & {
   getUser: (...args: unknown[]) => Promise<any>;
   getSession: (...args: unknown[]) => Promise<any>;
   signInWithPassword: (...args: any[]) => Promise<any>;
@@ -29,5 +29,5 @@ type AgcoreAuthClient = typeof client.auth & {
 };
 
 export const supabase = client as unknown as Omit<typeof client, "auth"> & {
-  auth: AgcoreAuthClient;
+  auth: CropNexAuthClient;
 };

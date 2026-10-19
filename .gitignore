@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/.pnpm-store
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,9 +13,11 @@
 
 # testing
 /coverage
+/.test-build
 
 # next.js
 /.next/
+/.next-cropnex-verification/
 /out/
 
 # production

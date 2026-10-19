@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsc lib/geojson-layer.ts --target ES2022 --module commonjs --outDir .test-build --skipLibCheck && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",

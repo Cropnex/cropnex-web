@@ -1,4 +1,4 @@
-AGCORE v6.9.1 - Field reporting engine
+CropNex v6.9.1 - Field reporting engine
 
 IMPORTANT SQL
 Run this new migration after the v6.9.0 migration:

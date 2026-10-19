@@ -227,7 +227,7 @@ export default function ReportsPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#050b08] p-6 text-white md:p-8">
+    <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
@@ -247,13 +247,13 @@ export default function ReportsPage() {
             type="button"
             onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment })}
             disabled={loading}
-            className="rounded-xl bg-[#83c341] px-5 py-3 font-bold text-[#07130e] disabled:opacity-50"
+            className="rounded-xl bg-[#789B58] px-5 py-3 font-bold text-[#17382E] disabled:opacity-50"
           >
             Export management workbook
           </button>
           <Link
             href="/reports/planning"
-            className="rounded-xl border border-[#83c341]/30 bg-[#83c341]/10 px-5 py-3 font-bold text-[#a4df57]"
+            className="rounded-xl border border-[#789B58]/30 bg-[#789B58]/10 px-5 py-3 font-bold text-[#B6CB8D]"
           >
             Field Cost Report
           </Link>

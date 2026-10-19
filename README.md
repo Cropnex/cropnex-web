@@ -23,7 +23,7 @@ Check that no passwords, API keys, or private `.env` files are in the project be
 
 ## Run in Codespaces
 
-In the Codespaces terminal, run `npm install`, then `npm run dev`. Use the **Ports** panel to open port 3000. To connect the app, copy `.env.example` to `.env.local` and enter the values for the new CropNex Supabase project and any other services you use. Do not use the former AGCORE project's credentials.
+In the Codespaces terminal, run `npm install`, then `npm run dev`. Use the **Ports** panel to open port 3000. To connect the app, copy `.env.example` to `.env.local` and enter credentials owned and billed by CropNex.
 
 For a live deployment, add the same environment values to the hosting provider's protected environment settings. The app's canonical site address is set to `https://www.cropnex.com` in `app/layout.tsx`. Configure the custom domain in your hosting provider, then update the domain's DNS records at its registrar using the values that provider gives you. DNS records depend on the chosen host.
 

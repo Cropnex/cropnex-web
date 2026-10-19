@@ -46,7 +46,7 @@ export default function AssistantPage() {
       id: "welcome",
       role: "assistant",
       text:
-        "Hello Jako. I can analyse the CropNex data already stored in your account. Ask about jobs, equipment, inventory, financials, fields, harvests or grain exposure.",
+        "Welcome to CropNex. I can analyse the farm data already stored in your account. Ask about jobs, equipment, inventory, financials, fields, harvests or grain exposure.",
     },
   ]);
 
@@ -89,7 +89,9 @@ export default function AssistantPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (currentSeason) void loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSeason]);
 
   const farmSummary = useMemo(() => {
@@ -345,7 +347,7 @@ export default function AssistantPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#050b08] p-6 text-white md:p-8">
+    <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">

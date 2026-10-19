@@ -1,12 +1,10 @@
-const CACHE_NAME = "agcore-shell-v6-2-0";
+const CACHE_NAME = "cropnex-shell-v6-15-1";
 
 const CORE_FILES = [
   "/offline",
   "/dashboard",
   "/offline-sync",
-  "/icons/agcore-192.png",
-  "/icons/agcore-512.png",
-  "/icons/agcore-maskable-512.png",
+  "/icons/cropnex.svg",
 ];
 
 self.addEventListener("install", (event) => {
@@ -77,7 +75,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Keep icons available offline. Next.js application code must use the
-  // browser/network cache so a deployment can never leave AGCORE on old code.
+  // browser/network cache so a deployment can never leave the app on old code.
   if (
     url.pathname.startsWith("/icons/")
   ) {

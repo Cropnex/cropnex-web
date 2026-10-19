@@ -8,30 +8,16 @@ export default function manifest(): MetadataRoute.Manifest {
       "Farm management, operations, scouting, financials and analytics.",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#050b08",
-    theme_color: "#050b08",
+    background_color: "#17382E",
+    theme_color: "#17382E",
     orientation: "portrait-primary",
     categories: ["business", "productivity", "utilities"],
-    icons: [
-      {
-        src: "/icons/cropnex.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
-      {
-        src: "/icons/cropnex.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
-      {
-        src: "/icons/cropnex.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
-    ],
+    icons: [{
+      src: "/icons/cropnex.svg",
+      sizes: "any",
+      type: "image/svg+xml",
+      purpose: "any",
+    }],
   };
 }
 

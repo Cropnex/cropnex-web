@@ -1,4 +1,4 @@
-AGCORE v6.10.0 - Yield expectations and whole-business forecasting
+CropNex v6.10.0 - Yield expectations and whole-business forecasting
 
 1. In Supabase SQL Editor, run this migration after the v6.9.1 migration:
    supabase/migrations/202610040003_yield_expectations_and_commitments.sql

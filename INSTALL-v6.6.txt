@@ -1,4 +1,4 @@
-AGCORE v6.6 - Live Harvest, Grain Market and Field Margin Link
+CropNex v6.6 - Live Harvest, Grain Market and Field Margin Link
 
 1. Replace the project files in Codespaces.
 

@@ -1,4 +1,4 @@
-AGCORE v6.8.2 UPDATE
+CropNex v6.8.2 UPDATE
 
 1. Replace the project files with this package.
 2. No additional SQL is required if the v6.8 migration was already run.

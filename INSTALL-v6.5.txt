@@ -1,4 +1,4 @@
-AGCORE v6.5 - Transport Log and Harvest Completion
+CropNex v6.5 - Transport Log and Harvest Completion
 
 1. Replace the project files in Codespaces with this package.
 
@@ -21,7 +21,7 @@ Test flow:
 - The spreadsheet contains 500 rows and dropdowns for fields, destinations,
   vehicles, load status and field completion.
 - Crop and cultivar are populated from the field's current plan when exported
-  and refreshed from AgCore when imported.
+  and refreshed from CropNex when imported.
 - Import the completed workbook and review changes before applying them.
 - A field may only be completed from a Reconciled load. Completion changes the
   latest planned Harvest activity to Actualised and records tonnes and yield.

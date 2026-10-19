@@ -1,4 +1,4 @@
-AGCORE v6.12.1 HOTFIX
+CropNex v6.12.1 HOTFIX
 
 Run this file in Supabase SQL Editor:
 supabase/migrations/202610060002_repair_inventory_transfer_receipt.sql
