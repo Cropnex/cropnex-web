@@ -209,8 +209,8 @@ export default function BoundaryImportPage() {
     const selected = features.filter((feature) => feature.action !== "skip");
     if (!selectedSeason) return setError("Create a farm season in the Farm Map before importing field boundaries.");
     if (!selected.length) return setError("Select at least one field boundary to import.");
-    if (selected.some((feature) => !feature.name.trim() || !feature.valid || feature.warning)) {
-      return setError("This import has invalid coordinates or multipart shapes. Use the map-layer option to preserve complex geometry, or skip those features.");
+    if (selected.some((feature) => !feature.name.trim() || !feature.valid)) {
+      return setError("This import has invalid coordinates or a missing field name. Correct those rows or skip them before importing.");
     }
     const creates = selected.filter((feature) => feature.action === "create");
     const updates = selected.filter((feature) => feature.action === "update");
@@ -224,7 +224,6 @@ export default function BoundaryImportPage() {
       const userId = auth.user?.id;
       if (!userId) throw new Error("Sign in before importing boundaries.");
       const payloadFor = (feature: PreviewFeature) => {
-        const outerRing = geometryPolygons(feature.geometry)[0]?.[0] || [];
         return {
           field_name: feature.name.trim(),
           farm_name: farmName.trim() || null,
@@ -232,7 +231,8 @@ export default function BoundaryImportPage() {
           season: selectedSeason.trim() || null,
           cultivar: cultivar.trim() || null,
           area_ha: Number(feature.areaHa.toFixed(2)),
-          boundary: outerRing,
+          // Keep the complete Polygon/MultiPolygon geometry, including islands and holes.
+          boundary: feature.geometry,
           status: "Active",
           notes: `Boundary imported from ${file?.name || "shapefile"}`,
         };

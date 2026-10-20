@@ -7,6 +7,12 @@ import {
   geometryPolygons,
   validCoordinates,
 } from "../.test-build/geojson-layer.js";
+import {
+  boundaryGeoJson,
+  boundaryHasShape,
+  boundaryPoints,
+  boundaryPolygonPaths,
+} from "../.test-build/lib/field-boundary.js";
 
 test("Polygon conversion keeps outer and interior rings", () => {
   const geometry = {
@@ -56,4 +62,27 @@ test("whole-map export keeps every feature, multipart geometry, holes and attrib
   assert.equal(collection.features.length, 2);
   assert.equal(collection.features[1].geometry.type, "MultiPolygon");
   assert.equal(collection.features[1].properties.zone, 2);
+});
+
+test("imported MultiPolygon boundaries keep every part and interior ring for field maps", () => {
+  const boundary = {
+    type: "MultiPolygon",
+    coordinates: [
+      [[[28, -26], [28.01, -26], [28.01, -26.01], [28, -26.01], [28, -26]], [[28.002, -26.002], [28.004, -26.002], [28.004, -26.004], [28.002, -26.004], [28.002, -26.002]]],
+      [[[28.02, -26], [28.03, -26], [28.03, -26.01], [28.02, -26.01], [28.02, -26]]],
+    ],
+  };
+  assert.equal(boundaryHasShape(boundary), true);
+  assert.equal(boundaryPolygonPaths(boundary).length, 2);
+  assert.equal(boundaryPolygonPaths(boundary)[0].length, 2);
+  assert.ok(boundaryPoints(boundary).length >= 12);
+  assert.deepEqual(boundaryGeoJson(boundary), boundary);
+});
+
+test("legacy drawn point boundaries still convert to closed GeoJSON polygons", () => {
+  const points = [{ lat: -26, lng: 28 }, { lat: -26, lng: 28.01 }, { lat: -26.01, lng: 28 }];
+  assert.deepEqual(boundaryGeoJson(points), {
+    type: "Polygon",
+    coordinates: [[[28, -26], [28.01, -26], [28, -26.01], [28, -26]]],
+  });
 });

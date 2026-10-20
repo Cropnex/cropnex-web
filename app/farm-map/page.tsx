@@ -12,6 +12,7 @@ import type { ActivityPlan, ActivityPlanProduct } from "@/types/planning";
 import type { InventoryItem } from "@/types/inventory";
 import { useSeason } from "@/components/season/SeasonProvider";
 import { categoryColor } from "@/lib/geojson-layer";
+import { boundaryHasShape, boundaryPoints, boundaryPolygonPaths } from "@/lib/field-boundary";
 type PlanOperation={id:string;plan_id:string;operation_name:string;unit:string;planned_rate_per_ha:number;planned_cost:number;actual_rate_per_ha:number|null;actual_cost:number|null};
 type Farmer={id:string;name:string};
 type Farm={id:string;name:string;farmer_id:string};
@@ -145,9 +146,9 @@ export default function FarmMapPage() {
   }
 
   function fitField(field: Field) {
-    if (!map || !field.boundary?.length) return;
+    if (!map || !boundaryHasShape(field.boundary)) return;
     const bounds = new google.maps.LatLngBounds();
-    field.boundary.forEach((point) => bounds.extend(point));
+    boundaryPoints(field.boundary).forEach((point) => bounds.extend(point));
     map.fitBounds(bounds, 70);
   }
 
@@ -165,7 +166,7 @@ export default function FarmMapPage() {
     if (!map) return;
     const bounds = new google.maps.LatLngBounds();
     let count = 0;
-    fields.forEach((field) => field.boundary?.forEach((point) => { bounds.extend(point); count += 1; }));
+    fields.forEach((field) => boundaryPoints(field.boundary).forEach((point) => { bounds.extend(point); count += 1; }));
     if (count) map.fitBounds(bounds, 45);
   }, [map, fields]);
 
@@ -266,7 +267,7 @@ export default function FarmMapPage() {
     if (!map) return;
     map.setMapTypeId(google.maps.MapTypeId.SATELLITE);
     if (farmPin) { map.panTo(farmPin); map.setZoom(14); return; }
-    if (fields.some((field) => field.boundary?.length)) fitAll();
+    if (fields.some((field) => boundaryHasShape(field.boundary))) fitAll();
   }, [map, farmPin, fields, fitAll]);
 
   const farmFilters = useMemo(() => ["All farms", ...Array.from(new Set(fields.map((field) => field.farm_name).filter(Boolean) as string[]))], [fields]);
@@ -279,7 +280,7 @@ export default function FarmMapPage() {
   const visibleThematicLayers=useMemo(()=>thematicLayers.filter(layer=>visibleThematicIds.includes(layer.id)&&layer.geojson),[thematicLayers,visibleThematicIds]);
   const selectedNdvi=ndviLayers.find(layer=>layer.id===selectedNdviId)||null;
   const selectedNdviField=selectedNdvi?.field_id?fields.find(field=>field.id===selectedNdvi.field_id)||null:null;
-  const selectedNdviBounds=useMemo(()=>{const boundary=selectedNdviField?.boundary;if(!boundary?.length)return null;return{north:Math.max(...boundary.map(point=>point.lat)),south:Math.min(...boundary.map(point=>point.lat)),east:Math.max(...boundary.map(point=>point.lng)),west:Math.min(...boundary.map(point=>point.lng))};},[selectedNdviField]);
+  const selectedNdviBounds=useMemo(()=>{const boundary=boundaryPoints(selectedNdviField?.boundary);if(!boundary.length)return null;return{north:Math.max(...boundary.map(point=>point.lat)),south:Math.min(...boundary.map(point=>point.lat)),east:Math.max(...boundary.map(point=>point.lng)),west:Math.min(...boundary.map(point=>point.lng))};},[selectedNdviField]);
 
   function chooseNdvi(id:string){setSelectedNdviId(id);if(!id)return;const layer=ndviLayers.find(item=>item.id===id),field=fields.find(item=>item.id===layer?.field_id);if(field){setSelectedFieldId(field.id);fitField(field);}}
 
@@ -335,10 +336,11 @@ export default function FarmMapPage() {
         {visibleThematicLayers.length>0&&<ThematicGeoJsonOverlay map={map} layers={visibleThematicLayers}/>}
         {farmPin && <Marker position={farmPin} title="Main farm" label={{ text: "F", color: "#17382E", fontWeight: "800" }} />}
         {rainGauges.filter(g=>g.latitude!==null&&g.longitude!==null).map(g=><Marker key={`rain-${g.id}`} position={{lat:Number(g.latitude),lng:Number(g.longitude)}} title={`Rain gauge · ${g.name}`} label={{text:"R",color:"#17382E",fontWeight:"900"}} icon={{path:google.maps.SymbolPath.CIRCLE,fillColor:"#52b9e9",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2,scale:13}}/>)}
-        {filteredFields.map((field) => field.boundary && field.boundary.length >= 3 && <Polygon key={field.id} paths={field.boundary} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop), fillOpacity: selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: true, zIndex: selectedFieldId === field.id ? 3 : 1 }} />)}
+        {filteredFields.flatMap((field) => boundaryPolygonPaths(field.boundary).map((polygon, partIndex) => <Polygon key={`${field.id}-${partIndex}`} paths={polygon} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop), fillOpacity: selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: true, zIndex: selectedFieldId === field.id ? 3 : 1 }} />))}
         {filteredFields.map((field) => {
-          if (!field.boundary?.length) return null;
-          const position = field.boundary.reduce((value, point) => ({ lat: value.lat + point.lat / field.boundary!.length, lng: value.lng + point.lng / field.boundary!.length }), { lat: 0, lng: 0 });
+          const points = boundaryPoints(field.boundary);
+          if (!points.length) return null;
+          const position = points.reduce((value, point) => ({ lat: value.lat + point.lat / points.length, lng: value.lng + point.lng / points.length }), { lat: 0, lng: 0 });
           return <OverlayViewF key={`label-${field.id}`} position={position} mapPaneName="overlayMouseTarget"><button type="button" onClick={() => selectField(field)} className="ag-crop-marker"><span className="ag-crop-marker__icon" aria-hidden="true">{cropIcon(field.crop)}</span><span className="text-left"><span className="block text-[10px] font-black text-white">{field.field_name}</span><span className="block text-[9px] text-[#E6C784]">{field.cultivar || field.crop || "Unplanned"}</span></span></button></OverlayViewF>;
         })}
         {points.map((point, index) => <Marker key={`${point.lat}-${point.lng}-${index}`} position={point} label={(index + 1).toString()} />)}

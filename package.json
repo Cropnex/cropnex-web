@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsc lib/geojson-layer.ts --target ES2022 --module commonjs --outDir .test-build --skipLibCheck && node --test tests/*.test.mjs"
+    "test": "tsc lib/geojson-layer.ts --target ES2022 --module commonjs --outDir .test-build --skipLibCheck && tsc lib/field-boundary.ts --target ES2022 --module commonjs --rootDir . --outDir .test-build --skipLibCheck && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",

@@ -3,6 +3,12 @@ export type Point = {
   lng: number;
 };
 
+/** Legacy hand-drawn boundaries are Point[]. Shapefile imports may be GeoJSON. */
+export type FieldBoundary = Point[] | {
+  type: "Polygon" | "MultiPolygon";
+  coordinates: unknown;
+};
+
 export type Field = {
   id: string;
   user_id?: string;
@@ -18,7 +24,7 @@ export type Field = {
   status: string | null;
   area_ha: number;
   notes: string | null;
-  boundary: Point[] | null;
+  boundary: FieldBoundary | null;
   farmer_id?: string | null;
   farm_id?: string | null;
   cultivar_id?: string | null;

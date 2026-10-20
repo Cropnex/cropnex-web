@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { FieldBoundary } from "@/types/field";
+import { boundaryGeoJson, boundaryHasShape } from "@/lib/field-boundary";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 
-type Point={lat:number;lng:number};
 const tokenUrl="https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token";
 const processUrl="https://sh.dataspace.copernicus.eu/api/v1/process";
 const statisticsUrl="https://sh.dataspace.copernicus.eu/api/v1/statistics";
@@ -25,7 +26,6 @@ const statsEvalscript=`//VERSION=3
 function setup(){return{input:["B04","B08","dataMask"],output:[{id:"ndvi",bands:1,sampleType:"FLOAT32"},{id:"dataMask",bands:1}]}}
 function evaluatePixel(s){return{ndvi:[(s.B08-s.B04)/(s.B08+s.B04)],dataMask:[s.dataMask]}}`;
 
-function geometry(points:Point[]){const ring=points.map(point=>[point.lng,point.lat]);if(JSON.stringify(ring[0])!==JSON.stringify(ring.at(-1)))ring.push(ring[0]);return{type:"Polygon",coordinates:[ring]};}
 async function token(){
   const clientId=process.env.COPERNICUS_CLIENT_ID,secret=process.env.COPERNICUS_CLIENT_SECRET;
   if(!clientId||!secret)throw new Error("Copernicus credentials are not configured in Vercel.");
@@ -38,9 +38,9 @@ export function GET(){return NextResponse.json({ok:true,service:"CropNex Coperni
 export async function POST(request:NextRequest){
   try{
     if(!await authenticated(request))return NextResponse.json({error:"Sign in to generate satellite imagery."},{status:401});
-    const body=await request.json() as{boundary?:Point[];date?:string;sceneId?:string};
-    if(!body.boundary||body.boundary.length<3||!body.date)return NextResponse.json({error:"A field boundary and scene date are required."},{status:400});
-    const accessToken=await token(),shape=geometry(body.boundary),from=`${body.date}T00:00:00Z`,to=`${body.date}T23:59:59Z`;
+    const body=await request.json() as{boundary?:FieldBoundary;date?:string;sceneId?:string};
+    if(!body.boundary||!boundaryHasShape(body.boundary)||!body.date)return NextResponse.json({error:"A valid field boundary and scene date are required."},{status:400});
+    const accessToken=await token(),shape=boundaryGeoJson(body.boundary),from=`${body.date}T00:00:00Z`,to=`${body.date}T23:59:59Z`;
     const input={bounds:{geometry:shape,properties:{crs:"http://www.opengis.net/def/crs/OGC/1.3/CRS84"}},data:[{type:"sentinel-2-l2a",dataFilter:{timeRange:{from,to},mosaickingOrder:"leastCC"},processing:{harmonizeValues:true}}]};
     const [imageResponse,statisticsResponse]=await Promise.all([
       fetch(processUrl,{method:"POST",headers:{authorization:`Bearer ${accessToken}`,"content-type":"application/json",accept:"image/png"},body:JSON.stringify({input,output:{width:768,height:768,responses:[{identifier:"default",format:{type:"image/png"}}]},evalscript:imageEvalscript})}),

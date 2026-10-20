@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import type { Field, Point } from "@/types/field";
+import type { Field } from "@/types/field";
+import { boundaryPoints } from "@/lib/field-boundary";
 import type {
   DailyWeather,
   HourlyWeather,
@@ -17,10 +18,11 @@ const fallbackLocation = {
   label: "Parys / Koppies Area",
 };
 
-function boundaryCentre(boundary: Point[] | null) {
-  if (!boundary || boundary.length === 0) return null;
+function boundaryCentre(boundary: Field["boundary"]) {
+  const points = boundaryPoints(boundary);
+  if (points.length === 0) return null;
 
-  const total = boundary.reduce(
+  const total = points.reduce(
     (accumulator, point) => ({
       latitude: accumulator.latitude + point.lat,
       longitude: accumulator.longitude + point.lng,
@@ -29,8 +31,8 @@ function boundaryCentre(boundary: Point[] | null) {
   );
 
   return {
-    latitude: total.latitude / boundary.length,
-    longitude: total.longitude / boundary.length,
+    latitude: total.latitude / points.length,
+    longitude: total.longitude / points.length,
   };
 }
 

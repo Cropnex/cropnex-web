@@ -92,7 +92,7 @@ scope.onmessage = async (event) => {
         warning: !valid
           ? "Coordinates are outside valid latitude and longitude ranges."
           : multipart || hasHoles
-            ? "This shape has multiple parts or interior rings. Import it as one map layer to preserve the full geometry."
+            ? "Complex boundary: all polygon parts and interior rings will be preserved."
             : null,
       };
     });
