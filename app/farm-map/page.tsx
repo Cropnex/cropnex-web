@@ -36,15 +36,6 @@ function cropColor(crop: string | null) {
   return "#67a7d8";
 }
 
-function cropIcon(crop: string | null) {
-  const value = crop?.toLowerCase() || "";
-  if (value.includes("maize") || value.includes("corn")) return "🌽";
-  if (value.includes("sunflower")) return "🌻";
-  if (value.includes("wheat") || value.includes("barley")) return "🌾";
-  if (value.includes("soy") || value.includes("bean")) return "🌿";
-  if (value.includes("pasture") || value.includes("teff")) return "☘";
-  return "◌";
-}
 
 export default function FarmMapPage() {
   const {currentSeason,seasons:availableSeasons,refresh:refreshSeasons}=useSeason();
@@ -337,11 +328,11 @@ export default function FarmMapPage() {
         {farmPin && <Marker position={farmPin} title="Main farm" label={{ text: "F", color: "#17382E", fontWeight: "800" }} />}
         {rainGauges.filter(g=>g.latitude!==null&&g.longitude!==null).map(g=><Marker key={`rain-${g.id}`} position={{lat:Number(g.latitude),lng:Number(g.longitude)}} title={`Rain gauge · ${g.name}`} label={{text:"R",color:"#17382E",fontWeight:"900"}} icon={{path:google.maps.SymbolPath.CIRCLE,fillColor:"#52b9e9",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2,scale:13}}/>)}
         {filteredFields.flatMap((field) => boundaryPolygonPaths(field.boundary).map((polygon, partIndex) => <Polygon key={`${field.id}-${partIndex}`} paths={polygon} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop), fillOpacity: selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: true, zIndex: selectedFieldId === field.id ? 3 : 1 }} />))}
-        {filteredFields.map((field) => {
+        {filteredFields.filter((field) => field.id === selectedFieldId).map((field) => {
           const points = boundaryPoints(field.boundary);
           if (!points.length) return null;
           const position = points.reduce((value, point) => ({ lat: value.lat + point.lat / points.length, lng: value.lng + point.lng / points.length }), { lat: 0, lng: 0 });
-          return <OverlayViewF key={`label-${field.id}`} position={position} mapPaneName="overlayMouseTarget"><button type="button" onClick={() => selectField(field)} className="ag-crop-marker"><span className="ag-crop-marker__icon" aria-hidden="true">{cropIcon(field.crop)}</span><span className="text-left"><span className="block text-[10px] font-black text-white">{field.field_name}</span><span className="block text-[9px] text-[#E6C784]">{field.cultivar || field.crop || "Unplanned"}</span></span></button></OverlayViewF>;
+          return <OverlayViewF key={`label-${field.id}`} position={position} mapPaneName="overlayMouseTarget"><button type="button" onClick={() => selectField(field)} className="ag-crop-marker"><span className="text-left"><span className="block text-[10px] font-black text-white">{field.field_name}</span><span className="block text-[9px] text-[#E6C784]">{field.cultivar || field.crop || "Unplanned"}</span></span></button></OverlayViewF>;
         })}
         {points.map((point, index) => <Marker key={`${point.lat}-${point.lng}-${index}`} position={point} label={(index + 1).toString()} />)}
         {points.length >= 3 && <Polygon paths={points} options={{ fillColor: "#B6CB8D", fillOpacity: 0.32, strokeColor: "#ffffff", strokeWeight: 3, clickable: false }} />}

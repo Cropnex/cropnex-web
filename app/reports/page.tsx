@@ -19,6 +19,8 @@ import type {
 type HarvestLive={field_id:string;field_name:string;crop:string|null;cultivar:string|null;harvest_status:string;reconciled_tonnes:number;yield_t_ha:number;market_price_per_tonne:number;projected_income:number;costs:number;margin:number;finished:boolean;contract_tonnes:number;safex_tonnes:number;unpriced_tonnes:number;remaining_planned_cost:number;actualised_cost:number};
 type FieldPerformance={field_id:string;field_name:string;crop:string|null;area_ha:number;activity_count:number;planning_cost:number;remaining_planned_cost:number;actualised_cost:number;additional_expenses:number;total_cost:number;harvested_tonnes:number;average_price_per_tonne:number;contract_tonnes:number;safex_tonnes:number;unpriced_tonnes:number;projected_income:number;projected_margin:number};
 type CommitmentSummary={source:string;category:string;name:string;season:string|null;seasonal_amount:number};
+type RainGauge={id:string;name:string;farm_name:string|null};
+type RainfallReading={id:string;gauge_id:string;reading_date:string;rainfall_mm:number;notes:string|null};
 
 export default function ReportsPage() {
   const{currentSeason,loading:seasonLoading}=useSeason();
@@ -32,6 +34,8 @@ export default function ReportsPage() {
   const [harvestLive, setHarvestLive] = useState<HarvestLive[]>([]);
   const [performance,setPerformance] = useState<FieldPerformance[]>([]);
   const [commitmentSummary,setCommitmentSummary]=useState<CommitmentSummary[]>([]);
+  const [rainfall,setRainfall]=useState<RainfallReading[]>([]);
+  const [rainGauges,setRainGauges]=useState<RainGauge[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadReports() {
@@ -51,6 +55,8 @@ export default function ReportsPage() {
       harvestResult,
       performanceResult,
       commitmentsResult,
+      rainfallResult,
+      gaugesResult,
     ] = await Promise.all([
       supabase.from("activities").select("*").eq("season",currentSeason).order("date", {
         ascending: false,
@@ -68,6 +74,8 @@ export default function ReportsPage() {
       supabase.from("field_harvest_live_summary").select("*").eq("season",currentSeason).gt("reconciled_tonnes",0).order("finished").order("field_name"),
       supabase.from("field_performance_report").select("*").eq("season",currentSeason).order("field_name"),
       supabase.from("business_commitment_summary").select("*").order("category"),
+      supabase.from("rainfall_readings").select("id,gauge_id,reading_date,rainfall_mm,notes").order("reading_date", { ascending: false }),
+      supabase.from("rain_gauges").select("id,name,farm_name"),
     ]);
 
     const errors = [
@@ -97,6 +105,8 @@ export default function ReportsPage() {
     setHarvestLive((harvestResult.data || []) as HarvestLive[]);
     setPerformance((performanceResult.data||[]) as FieldPerformance[]);
     setCommitmentSummary((commitmentsResult.data||[]) as CommitmentSummary[]);
+    setRainfall((rainfallResult.data||[]) as RainfallReading[]);
+    setRainGauges((gaugesResult.data||[]) as RainGauge[]);
     setLoading(false);
   }
 
@@ -249,7 +259,7 @@ export default function ReportsPage() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment })}
+            onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall, gauges: rainGauges })}
             disabled={loading}
             className="rounded-xl bg-[#789B58] px-5 py-3 font-bold text-[#17382E] disabled:opacity-50"
           >

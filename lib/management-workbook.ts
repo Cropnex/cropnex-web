@@ -6,6 +6,8 @@ import type { InventoryItem } from "@/types/inventory";
 
 type Cell = string | number | null | undefined;
 type Sheet = { name: string; rows: Cell[][] };
+export type RainfallExportRow = { gauge_id: string; reading_date: string; rainfall_mm: number; notes: string | null };
+export type RainGaugeExportRow = { id: string; name: string; farm_name: string | null };
 
 const xmlEscape = (value: Cell) => String(value ?? "")
   .replaceAll("&", "&amp;")
@@ -24,12 +26,14 @@ function worksheet(sheet: Sheet) {
   return `<Worksheet ss:Name="${xmlEscape(safeName)}"><Table>${sheet.rows.map((row, index) => `<Row>${row.map(value => cell(value, index === 0)).join("")}</Row>`).join("")}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>`;
 }
 
-export function downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment }: {
+export function downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall = [], gauges = [] }: {
   fields: Field[];
   activities: Activity[];
   transactions: FinancialTransaction[];
   inventory: InventoryItem[];
   equipment: Equipment[];
+  rainfall?: RainfallExportRow[];
+  gauges?: RainGaugeExportRow[];
 }) {
   const income = transactions.filter(item => item.transaction_type === "Income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = transactions.filter(item => item.transaction_type === "Expense").reduce((sum, item) => sum + item.amount, 0);
@@ -77,6 +81,7 @@ export function downloadManagementWorkbook({ fields, activities, transactions, i
     { name: "Transactions", rows: [["Date", "Type", "Category", "Description", "Quantity", "Unit", "Unit price (R)", "Amount (R)", "Supplier or customer", "Reference"], ...transactions.map(item => [item.transaction_date, item.transaction_type, item.category, item.description, item.quantity, item.unit, item.unit_price, item.amount, item.supplier_or_customer, item.reference])] },
     { name: "Inventory", rows: [["Product", "Category", "Unit", "Quantity", "Unit cost (R)", "Stock value (R)", "Minimum", "Location", "Supplier", "Status"], ...inventory.map(item => [item.name, item.category, item.unit, item.quantity, item.unit_cost, item.quantity * (item.unit_cost || 0), item.minimum_quantity, item.location, item.supplier, item.status])] },
     { name: "Assets", rows: [["Asset", "Category", "Brand", "Model", "Year", "Purchase date", "Purchase price (R)", "Engine hours", "Status", "Registration", "Serial number"], ...equipment.map(item => [item.name, item.category, item.brand, item.model, item.year, item.purchase_date, item.purchase_price, item.engine_hours, item.status, item.registration, item.serial_number])] },
+    { name: "Rainfall", rows: [["Date", "Gauge", "Farm", "Rainfall (mm)", "Notes"], ...rainfall.map(row => { const gauge = gauges.find(item => item.id === row.gauge_id); return [row.reading_date, gauge?.name || "Gauge", gauge?.farm_name, Number(row.rainfall_mm), row.notes]; })] },
   ];
 
   const xml = `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Aptos" ss:Size="11"/></Style><Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#315D22" ss:Pattern="Solid"/></Style><Style ss:ID="Number"><NumberFormat ss:Format="#,##0.00"/></Style></Styles>${sheets.map(worksheet).join("")}</Workbook>`;

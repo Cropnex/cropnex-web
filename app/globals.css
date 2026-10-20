@@ -170,36 +170,16 @@ h3,
   min-width: 5rem;
   transform: translate(-50%, -50%);
   align-items: center;
-  gap: .42rem;
+  gap: .2rem;
   border: 1px solid rgb(255 255 255 / .4);
   border-radius: .7rem;
   background: rgb(16 18 14 / .88);
-  padding: .35rem .55rem;
+  padding: .2rem .35rem;
   color: white;
   box-shadow: 0 8px 22px rgb(0 0 0 / .32);
   backdrop-filter: blur(8px);
 }
 
-.ag-crop-marker__icon {
-  display: inline-flex;
-  height: 1.75rem;
-  width: 1.75rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: #D6A64C;
-  font-size: 1rem;
-  animation: ag-crop-float 3.2s ease-in-out infinite;
-}
-
-@keyframes ag-crop-float {
-  0%, 100% { transform: translateY(0) rotate(-2deg); }
-  50% { transform: translateY(-3px) rotate(2deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ag-crop-marker__icon { animation: none; }
-}
 
 :focus-visible {
   outline: 2px solid var(--brand);

@@ -1,0 +1,26 @@
+CropNex Updates V6.17.0
+
+This ZIP contains the complete CropNex source and the new Supabase migration:
+supabase/migrations/202610200001_cropnex_master_seed_catalogue.sql
+
+Apply the update in GitHub Codespaces
+1. Extract this ZIP and copy its contents into the existing cropnex-web Codespace folder, replacing matching files. Keep your own .env.local; it is not included in this ZIP.
+2. In the Codespaces terminal, run:
+
+   cd /workspaces/cropnex-web
+   npx supabase migration list
+   npx supabase db push
+   npx supabase migration list
+
+   Confirm migration 202610200001 appears on both the Local and Remote columns. If Supabase reports that the project reference is missing, link only the CropNex project before running db push:
+
+   npx supabase link --project-ref YOUR_CROPNEX_PROJECT_REF
+
+3. Commit and push the source update:
+
+   git status
+   git add -A
+   git commit -m "CropNex v6.17.0 updates"
+   git push
+
+The migration adds catalogue descriptions and CNO/CNP/CNS IDs while preserving existing product and operation UUIDs. Do not run the SQL by deleting or editing existing Supabase storage objects.
