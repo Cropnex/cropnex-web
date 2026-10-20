@@ -1,6 +1,7 @@
 "use client";
 
 import { GoogleMap, GroundOverlayF, Marker, OverlayViewF, Polygon, useLoadScript } from "@react-google-maps/api";
+import Link from "next/link";
 import type { Libraries } from "@react-google-maps/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import FieldDrawer from "@/components/map/FieldDrawer";
@@ -194,7 +195,6 @@ export default function FarmMapPage() {
   }
 
   function beginNewField(){
-    if(!farmers.length||!farms.length){alert("Add a farmer and farm in Standards first.");return;}
     setSelectedField(null); setSelectedFieldId(""); setPoints([]); setCalculatedAreaHa(null); setShowNewField(true); setDrawing(false);
   }
 
@@ -363,6 +363,7 @@ export default function FarmMapPage() {
 
       {showNewField&&<section className="absolute right-3 top-20 z-30 max-h-[calc(100%-6rem)] w-[calc(100%-1.5rem)] max-w-sm overflow-y-auto rounded-2xl border border-white/10 bg-[#17382E]/95 p-5 shadow-2xl backdrop-blur-xl">
         <div className="flex items-start justify-between"><div><p className="ag-kicker">Map field creator</p><h2 className="mt-1 text-xl font-extrabold">Create new field</h2></div><button type="button" onClick={()=>{setShowNewField(false);setDrawing(false);setPoints([]);setCalculatedAreaHa(null)}} className="rounded-lg p-2 text-gray-400">✕</button></div>
+        {(!farmers.length||!farms.length)&&<div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-200/10 p-4"><p className="font-bold text-amber-100">Set up your farm first</p><p className="mt-1 text-sm leading-5 text-white/75">Add your farmer or business, then add a farm under that farmer. You’ll return here to create the field.</p><Link href="/standards" className="mt-3 inline-flex rounded-lg bg-[#D6A64C] px-4 py-2 text-sm font-bold text-[#171812]">Open Farm Setup</Link></div>}
         <label className="field-label">Farmer<select className="field-input" value={newField.farmer_id} onChange={event=>{const farmer_id=event.target.value;setNewField(value=>({...value,farmer_id,farm_id:farms.find(item=>item.farmer_id===farmer_id)?.id||"",new_farm_name:""}))}}><option value="">Select farmer</option>{farmers.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label className="field-label">Existing farm or new farm<select className="field-input" value={newField.farm_id} onChange={event=>setNewField(value=>({...value,farm_id:event.target.value,new_farm_name:event.target.value==="__new__"?value.new_farm_name:""}))}><option value="">Select farm</option>{farms.filter(item=>item.farmer_id===newField.farmer_id).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new__">+ Create new farm</option></select></label>
         {newField.farm_id==="__new__"&&<label className="field-label">New farm name<input className="field-input" value={newField.new_farm_name} onChange={event=>setNewField(value=>({...value,new_farm_name:event.target.value}))} placeholder="Preston"/></label>}

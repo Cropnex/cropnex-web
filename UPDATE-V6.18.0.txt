@@ -1,0 +1,16 @@
+CropNex Update V6.18.0
+
+This update makes Farm Setup visible in the Farm menu and gives a clear setup link when creating the first field. Farmers can open Farm Setup, add a farmer/business, add a farm under that farmer, then return to Farm Map.
+
+No Supabase migration is required.
+
+Apply in GitHub Codespaces:
+1. Extract this ZIP and copy all contents into the existing /workspaces/cropnex-web folder, replacing matching files. Keep your existing .env.local; it is not included.
+2. In the terminal run:
+   cd /workspaces/cropnex-web
+   npm install
+   git status
+   git add -A
+   git commit -m "CropNex v6.18.0 farm setup onboarding"
+   git push
+3. Wait for Vercel to finish deploying, then refresh CropNex.
