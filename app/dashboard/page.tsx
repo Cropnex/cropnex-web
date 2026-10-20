@@ -22,29 +22,56 @@ export default function DashboardPage() {
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   async function loadDashboard() {
-    if(!currentSeason)return;
     setLoading(true);
-    const results = await Promise.all([
-      supabase.from("fields").select("*").eq("season",currentSeason).order("field_name"),
-      supabase.from("financial_transactions").select("*").order("transaction_date", { ascending: false }),
-      supabase.from("inventory_items").select("*").eq("season",currentSeason).order("name"),
-      supabase.from("equipment").select("*").order("name"),
-      supabase.from("work_orders").select("*").order("planned_date", { ascending: true }),
-      supabase.from("activities").select("*").eq("season",currentSeason).order("date", { ascending: false }).limit(8),
-    ]);
-    const activeFields=(results[0].data || []) as Field[];const fieldIds=new Set(activeFields.map(field=>field.id));
-    setFields(activeFields);
-    setTransactions(((results[1].data || []) as FinancialTransaction[]).filter(row=>row.field_id&&fieldIds.has(row.field_id)));
-    setInventory((results[2].data || []) as InventoryItem[]);
-    setEquipment((results[3].data || []) as Equipment[]);
-    setJobs((results[4].data || []) as WorkOrder[]);
-    setActivities((results[5].data || []) as Activity[]);
-    setLoading(false);
+    setLoadError("");
+    if (!currentSeason) {
+      setFields([]); setTransactions([]); setInventory([]); setEquipment([]); setJobs([]); setActivities([]);
+      setLoading(false);
+      return;
+    }
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const results = await Promise.race([
+        Promise.all([
+          // Dashboard cards need summary columns only; field boundary GeoJSON can be very large.
+          supabase.from("fields").select("id,area_ha,crop").eq("season",currentSeason),
+          supabase.from("financial_transactions").select("field_id,transaction_type,amount").order("transaction_date", { ascending: false }),
+          supabase.from("inventory_items").select("quantity,unit_cost,minimum_quantity").eq("season",currentSeason),
+          supabase.from("equipment").select("status,service_interval,last_service_hours,engine_hours"),
+          supabase.from("work_orders").select("id,status,title,planned_date,field_name").order("planned_date", { ascending: true }),
+          supabase.from("activities").select("activity_type,field_name,date,notes").eq("season",currentSeason).order("date", { ascending: false }).limit(8),
+        ]),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error("Farm data is taking too long to respond. Check your connection and try again.")), 15000);
+        }),
+      ]);
+      const activeFields=(results[0].data || []) as Field[];
+      const fieldIds=new Set(activeFields.map(field=>field.id));
+      setFields(activeFields);
+      setTransactions(((results[1].data || []) as FinancialTransaction[]).filter(row=>row.field_id&&fieldIds.has(row.field_id)));
+      setInventory((results[2].data || []) as InventoryItem[]);
+      setEquipment((results[3].data || []) as Equipment[]);
+      setJobs((results[4].data || []) as WorkOrder[]);
+      setActivities((results[5].data || []) as Activity[]);
+      const failed = results.find((result) => result.error)?.error;
+      if (failed) setLoadError(`Some farm data could not be loaded: ${failed.message}`);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Farm data could not be loaded. Please retry.");
+    } finally {
+      if (timeout) clearTimeout(timeout);
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { void loadDashboard(); }, [currentSeason]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadDashboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSeason]);
 
   const totals = useMemo(() => {
     const area = fields.reduce((sum, field) => sum + Number(field.area_ha || 0), 0);
@@ -80,7 +107,8 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {loading ? <div className="ag-panel rounded-2xl p-8 text-[#8b9b92]">Preparing your farm overview…</div> : <>
+      {!loading && loadError && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[.08] p-4 text-sm text-amber-100"><span>{loadError}</span><button type="button" onClick={loadDashboard} className="rounded-lg border border-amber-200/25 px-3 py-2 font-bold">Retry</button></div>}
+      {!loading && !currentSeason ? <section className="ag-panel rounded-2xl p-8"><p className="ag-kicker">Your workspace is ready</p><h2 className="mt-2 text-2xl font-bold">Start with your first farm season</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#8b9b92]">There is no season or farm data in this CropNex workspace yet. Create a season in the Farm Map, then add or import your field boundaries.</p><Link href="/farm-map" className="mt-5 inline-flex rounded-xl bg-[#789B58] px-4 py-3 text-sm font-extrabold text-[#17382E]">Open Farm Map</Link></section> : loading ? <div className="ag-panel rounded-2xl p-8 text-[#8b9b92]">Preparing your farm overview…</div> : <>
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Farmed area" value={`${totals.area.toFixed(1)} ha`} note={`${fields.length} registered fields`} tone="lime" />
           <Metric label="Gross margin" value={money.format(totals.margin)} note={`${money.format(totals.income)} income`} tone="white" />

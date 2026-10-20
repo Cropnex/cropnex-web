@@ -11,13 +11,14 @@ import type { Field, Point } from "@/types/field";
 import type { ActivityPlan, ActivityPlanProduct } from "@/types/planning";
 import type { InventoryItem } from "@/types/inventory";
 import { useSeason } from "@/components/season/SeasonProvider";
-import { categoryColor, geometryPolygons } from "@/lib/geojson-layer";
+import { categoryColor } from "@/lib/geojson-layer";
 type PlanOperation={id:string;plan_id:string;operation_name:string;unit:string;planned_rate_per_ha:number;planned_cost:number;actual_rate_per_ha:number|null;actual_cost:number|null};
 type Farmer={id:string;name:string};
 type Farm={id:string;name:string;farmer_id:string};
 type NdviLayer={id:string;field_id:string|null;field_name:string|null;captured_date:string|null;storage_path:string;file_format:string|null;metadata:{average_ndvi?:number|null;cloud_cover_percent?:number|null}|null};
 type ThematicLayer={id:string;file_name:string;layer_type:string;storage_path:string;metadata:{display_attribute?:string;feature_count?:number;category_counts?:Record<string,number>}|null;geojson?:{features:Array<{geometry:{type:string;coordinates:unknown};properties?:Record<string,unknown>}>}};
 type RainGauge={id:string;name:string;farm_name:string|null;latitude:number|null;longitude:number|null};
+type GeoJsonReadResponse={ok:true;geojson:NonNullable<ThematicLayer["geojson"]>}|{ok:false;error:string};
 
 const libraries: Libraries = ["geometry"];
 const fallbackCenter = { lat: -26.905, lng: 27.457 };
@@ -275,6 +276,7 @@ export default function FarmMapPage() {
     return matchesQuery && (farmFilter === "All farms" || field.farm_name === farmFilter) && field.season === (seasonFilter||currentSeason);
   }), [fields, query, farmFilter, seasonFilter,currentSeason]);
   const filteredArea = filteredFields.reduce((sum, field) => sum + Number(field.area_ha || 0), 0);
+  const visibleThematicLayers=useMemo(()=>thematicLayers.filter(layer=>visibleThematicIds.includes(layer.id)&&layer.geojson),[thematicLayers,visibleThematicIds]);
   const selectedNdvi=ndviLayers.find(layer=>layer.id===selectedNdviId)||null;
   const selectedNdviField=selectedNdvi?.field_id?fields.find(field=>field.id===selectedNdvi.field_id)||null:null;
   const selectedNdviBounds=useMemo(()=>{const boundary=selectedNdviField?.boundary;if(!boundary?.length)return null;return{north:Math.max(...boundary.map(point=>point.lat)),south:Math.min(...boundary.map(point=>point.lat)),east:Math.max(...boundary.map(point=>point.lng)),west:Math.min(...boundary.map(point=>point.lng))};},[selectedNdviField]);
@@ -290,7 +292,17 @@ export default function FarmMapPage() {
     try{
       const{data:file,error}=await supabase.storage.from("cropnex-layers").download(layer.storage_path);
       if(error||!file)throw error||new Error("The map file could not be loaded.");
-      const geojson=JSON.parse(await file.text()) as NonNullable<ThematicLayer["geojson"]>;
+      const text=await file.text();
+      const worker=new Worker(new URL("./geojson.worker.ts",import.meta.url),{type:"module"});
+      const response=await new Promise<GeoJsonReadResponse>((resolve,reject)=>{
+        const timeout=window.setTimeout(()=>{worker.terminate();reject(new Error("Opening this map took too long. Split the layer into smaller maps and try again."));},120_000);
+        const cleanup=()=>{window.clearTimeout(timeout);worker.terminate();};
+        worker.onmessage=(event:MessageEvent<GeoJsonReadResponse>)=>{cleanup();resolve(event.data);};
+        worker.onerror=(event)=>{cleanup();reject(new Error(event.message||"The map reader stopped unexpectedly."));};
+        worker.postMessage({text});
+      });
+      if(!response.ok)throw new Error(response.error);
+      const geojson=response.geojson;
       setThematicLayers(layers=>layers.map(item=>item.id===id?{...item,geojson}:item));
       setVisibleThematicIds(ids=>ids.includes(id)?ids:[...ids,id]);
     }catch(error){alert(error instanceof Error?error.message:"Could not load this map layer.");}
@@ -320,10 +332,7 @@ export default function FarmMapPage() {
         options={{ mapTypeId: google.maps.MapTypeId.SATELLITE, fullscreenControl: true, streetViewControl: false, mapTypeControl: true, zoomControl: true, clickableIcons: false, gestureHandling: "greedy", mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_RIGHT } }}
       >
         {selectedNdvi&&selectedNdviBounds&&ndviUrls[selectedNdvi.id]&&<GroundOverlayF key={selectedNdvi.id} url={ndviUrls[selectedNdvi.id]} bounds={selectedNdviBounds} options={{opacity:ndviOpacity/100}}/>}
-        {thematicLayers.filter(layer=>visibleThematicIds.includes(layer.id)&&layer.geojson).flatMap(layer=>(layer.geojson?.features||[]).flatMap((feature,index)=>geometryPolygons(feature.geometry).map((rings,part)=>{
-          const value=feature.properties?.[layer.metadata?.display_attribute||""]??"Unclassified";
-          return <Polygon key={`${layer.id}-${index}-${part}`} paths={rings} options={{fillColor:categoryColor(value),fillOpacity:.48,strokeColor:"#fffdf8",strokeOpacity:.9,strokeWeight:1,clickable:false,zIndex:2}}/>;
-        })))}
+        {visibleThematicLayers.length>0&&<ThematicGeoJsonOverlay map={map} layers={visibleThematicLayers}/>}
         {farmPin && <Marker position={farmPin} title="Main farm" label={{ text: "F", color: "#17382E", fontWeight: "800" }} />}
         {rainGauges.filter(g=>g.latitude!==null&&g.longitude!==null).map(g=><Marker key={`rain-${g.id}`} position={{lat:Number(g.latitude),lng:Number(g.longitude)}} title={`Rain gauge · ${g.name}`} label={{text:"R",color:"#17382E",fontWeight:"900"}} icon={{path:google.maps.SymbolPath.CIRCLE,fillColor:"#52b9e9",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2,scale:13}}/>)}
         {filteredFields.map((field) => field.boundary && field.boundary.length >= 3 && <Polygon key={field.id} paths={field.boundary} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop), fillOpacity: selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: true, zIndex: selectedFieldId === field.id ? 3 : 1 }} />)}
@@ -375,4 +384,20 @@ export default function FarmMapPage() {
       {selectedField && <FieldDrawer field={selectedField} activities={fieldActivities} loadingActivities={loadingActivities} showActivityForm={showActivityForm} activityMode={activityMode} activityType={activityType} activityDate={activityDate} activityNotes={activityNotes} savingActivity={savingActivity} plans={plans.filter((plan) => plan.field_id === selectedField.id)} planProducts={planProducts} planOperations={planOperations} actualisingPlanId={actualisingPlanId} inventory={inventory} ndviLayers={ndviLayers} ndviUrls={ndviUrls} selectedNdviId={selectedNdviId} ndviOpacity={ndviOpacity} onSelectNdvi={chooseNdvi} onNdviOpacityChange={setNdviOpacity} onClose={() => { setSelectedField(null); setShowActivityForm(false); }} onShowActivityForm={(mode) => { setActivityMode(mode); setShowActivityForm(true); }} onCancelActivityForm={() => setShowActivityForm(false)} onActivityModeChange={setActivityMode} onActivityTypeChange={setActivityType} onActivityDateChange={setActivityDate} onActivityNotesChange={setActivityNotes} onSaveActivity={saveFieldActivity} onActualisePlan={actualisePlan} />}
     </main>
   );
+}
+
+function ThematicGeoJsonOverlay({map,layers}:{map:google.maps.Map|null;layers:ThematicLayer[]}){
+  useEffect(()=>{
+    if(!map||!layers.length)return;
+    const features=layers.flatMap(layer=>(layer.geojson?.features||[]).map(feature=>({
+      type:"Feature",
+      geometry:feature.geometry,
+      properties:{...(feature.properties||{}),__cropnex_fill:categoryColor(feature.properties?.[layer.metadata?.display_attribute||""]??"Unclassified")},
+    })));
+    const dataLayer=(map as unknown as {data:google.maps.Data}).data;
+    const added=dataLayer.addGeoJson({type:"FeatureCollection",features});
+    dataLayer.setStyle(feature=>({fillColor:String(feature.getProperty("__cropnex_fill")||"#789B58"),fillOpacity:.48,strokeColor:"#fffdf8",strokeOpacity:.9,strokeWeight:1,clickable:false,zIndex:2}));
+    return()=>{added.forEach(feature=>dataLayer.remove(feature));};
+  },[map,layers]);
+  return null;
 }

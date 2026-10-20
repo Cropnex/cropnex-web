@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import shp from "shpjs";
 import { supabase } from "@/lib/supabase";
-import { categoryColor, createFeatureCollection, geometryAreaHa, geometryPoints, geometryPolygons, validCoordinates } from "@/lib/geojson-layer";
-import type { GeoJsonFeature, GeoJsonGeometry, MapPoint } from "@/lib/geojson-layer";
+import { categoryColor, createFeatureCollection, geometryPoints, geometryPolygons } from "@/lib/geojson-layer";
+import type { GeoJsonGeometry, MapPoint } from "@/lib/geojson-layer";
 import { useSeason } from "@/components/season/SeasonProvider";
 import type { Field } from "@/types/field";
 
@@ -14,17 +13,26 @@ type ImportAction = "create" | "update" | "skip";
 type PreviewFeature = {
   key: string;
   geometry: GeoJsonGeometry;
+  previewGeometry: GeoJsonGeometry;
   properties: Record<string, unknown>;
   areaHa: number;
+  vertexCount: number;
+  valid: boolean;
   name: string;
   action: ImportAction;
   targetId: string;
   warning: string | null;
 };
 
-const nameHints = ["field_name", "fieldname", "field", "name", "land", "kamp", "block", "id"];
 const mapLayerTypes = ["Soil classification", "NDVI", "Elevation", "Yield", "Planting", "Field boundary", "Other"];
 const layerBucket = "cropnex-layers";
+const maxPreviewFeatures = 48;
+const fieldReviewPageSize = 50;
+
+type WorkerParsedFeature = { geometry: GeoJsonGeometry; previewGeometry: GeoJsonGeometry; properties: Record<string, unknown>; areaHa: number; vertexCount: number; valid: boolean; warning: string | null };
+type WorkerParseResponse =
+  | { ok: true; attributes: string[]; nameAttribute: string; displayAttribute: string; features: WorkerParsedFeature[] }
+  | { ok: false; error: string };
 
 export default function BoundaryImportPage() {
   const { currentSeason } = useSeason();
@@ -42,13 +50,19 @@ export default function BoundaryImportPage() {
   const [cultivar, setCultivar] = useState("");
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
+  const [reviewPage, setReviewPage] = useState(0);
+  const workerRef = useRef<Worker | null>(null);
   const selectedSeason = season || currentSeason;
+
+  useEffect(() => () => workerRef.current?.terminate(), []);
 
   async function loadFields() {
     if (!currentSeason) return;
-    const { data, error: loadError } = await supabase.from("fields").select("*").eq("season", currentSeason).order("farm_name").order("field_name");
+    // The import review only needs names and IDs; boundary GeoJSON can be large.
+    const { data, error: loadError } = await supabase.from("fields").select("id,field_name,farm_name,season").eq("season", currentSeason).order("farm_name").order("field_name");
     if (loadError) setError(`Could not load your field register: ${loadError.message}`);
     setFields((data || []) as Field[]);
   }
@@ -73,55 +87,45 @@ export default function BoundaryImportPage() {
     setError("");
     setResult("");
     try {
-      const parsed = await shp(await file.arrayBuffer());
-      const collections = Array.isArray(parsed) ? parsed : [parsed];
-      const sourceFeatures = collections.flatMap((collection) => collection.features || []) as GeoJsonFeature[];
-      const polygonFeatures = sourceFeatures.filter((feature) => geometryPolygons(feature.geometry).length > 0);
-      if (!polygonFeatures.length) throw new Error("No Polygon or MultiPolygon features were found in this ZIP.");
-
-      const keys = Array.from(new Set(polygonFeatures.flatMap((feature) => Object.keys(feature.properties || {}))));
-      const detectedName = nameHints.map((hint) => keys.find((key) => key.toLowerCase().replace(/[^a-z0-9]/g, "") === hint.replace(/_/g, ""))).find(Boolean) || keys[0] || "";
+      const buffer = await file.arrayBuffer();
+      const worker = new Worker(new URL("./shapefile.worker.ts", import.meta.url), { type: "module" });
+      workerRef.current?.terminate();
+      workerRef.current = worker;
+      const parsed = await new Promise<WorkerParseResponse>((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error("Map reading took too long. Try exporting fewer polygons or splitting the ZIP into smaller farm groups.")), 120_000);
+        const cleanup = () => { window.clearTimeout(timeout); worker.terminate(); if (workerRef.current === worker) workerRef.current = null; };
+        worker.onmessage = (event: MessageEvent<WorkerParseResponse>) => { cleanup(); resolve(event.data); };
+        worker.onerror = (event) => { cleanup(); reject(new Error(event.message || "The background map reader stopped unexpectedly.")); };
+        worker.postMessage({ buffer }, [buffer]);
+      });
+      if (!parsed.ok) throw new Error(parsed.error);
+      const keys = parsed.attributes;
       setAttributes(keys);
-      setNameAttribute(detectedName);
-      setDisplayAttribute(keys.find((key) => /soil|class|type|zone|crop|yield/i.test(key)) || keys[0] || "");
-      setFeatures(polygonFeatures.map((feature, index) => {
-        const properties = feature.properties || {};
-        const geometry = feature.geometry as GeoJsonGeometry;
-        const polygons = geometryPolygons(geometry);
-        const baseName = String(properties[detectedName] ?? `Field ${index + 1}`).trim() || `Field ${index + 1}`;
-        const matchingField = findField(fields, baseName);
-        const hasHoles = polygons.some((polygon) => polygon.length > 1);
-        const multipart = polygons.length > 1;
-        const valid = validCoordinates(geometry);
-        const warning = !valid
-          ? "Coordinates are outside valid latitude and longitude ranges."
-          : multipart || hasHoles
-            ? "This shape has multiple parts or interior rings. Import it as one map layer to preserve the full geometry."
-            : null;
-        return {
-          key: `${index}`,
-          geometry,
-          properties,
-          areaHa: geometryAreaHa(geometry),
-          name: baseName,
-          action: matchingField ? "update" : "create",
-          targetId: matchingField?.id || "",
-          warning,
-        };
+      setNameAttribute(parsed.nameAttribute);
+      setDisplayAttribute(parsed.displayAttribute);
+      const fieldLookup = new Map(fields.map((field) => [normalizeFieldName(field.field_name), field]));
+      setFeatures(parsed.features.map((feature, index) => {
+        const baseName = String(feature.properties[parsed.nameAttribute] ?? `Field ${index + 1}`).trim() || `Field ${index + 1}`;
+        const matchingField = fieldLookup.get(normalizeFieldName(baseName));
+        return { key: `${index}`, ...feature, name: baseName, action: matchingField ? "update" : "create", targetId: matchingField?.id || "" };
       }));
+      setReviewPage(0);
     } catch (parseError) {
       setFeatures([]);
       setError(parseError instanceof Error ? parseError.message : "Could not read the shapefile. Confirm all parts are together in the ZIP.");
     } finally {
+      workerRef.current?.terminate();
+      workerRef.current = null;
       setParsing(false);
     }
   }
 
   function changeNameAttribute(attribute: string) {
     setNameAttribute(attribute);
+    const fieldLookup = new Map(fields.map((field) => [normalizeFieldName(field.field_name), field]));
     setFeatures((current) => current.map((feature, index) => {
       const baseName = String(feature.properties[attribute] ?? `Field ${index + 1}`).trim() || `Field ${index + 1}`;
-      const matchingField = findField(fields, baseName);
+      const matchingField = fieldLookup.get(normalizeFieldName(baseName));
       return { ...feature, name: baseName, action: matchingField ? "update" : "create", targetId: matchingField?.id || "" };
     }));
   }
@@ -137,13 +141,19 @@ export default function BoundaryImportPage() {
     }
     return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count).slice(0, 12);
   }, [features, displayAttribute]);
+  const classCount = useMemo(() => new Set(features.map((feature) => String(feature.properties[displayAttribute] ?? "Unclassified"))).size, [features, displayAttribute]);
+  const invalidFeatureCount = useMemo(() => features.filter((feature) => !feature.valid).length, [features]);
+  const reviewPageCount = Math.max(1, Math.ceil(features.length / fieldReviewPageSize));
+  const reviewFeatures = features.slice(reviewPage * fieldReviewPageSize, (reviewPage + 1) * fieldReviewPageSize);
 
   async function importAsMapLayer() {
     if (!file || !features.length) return;
+    if (!selectedSeason) return setError("Create a farm season in the Farm Map before importing. This keeps the map layer attached to the season you are setting up.");
     if (!displayAttribute) return setError("Choose the attribute to show inside each polygon before importing.");
-    if (features.some((feature) => !validCoordinates(feature.geometry))) return setError("Correct the coordinate warning before importing this map.");
+    if (features.some((feature) => !feature.valid)) return setError("Correct the coordinate warning before importing this map.");
     if (!confirm(`Import this ${layerType.toLowerCase()} map as one layer with ${features.length} polygon features? The boundaries and polygon attributes will be kept together.`)) return;
     setImporting(true);
+    setImportProgress("");
     setError("");
     setResult("");
     const uploadedPaths: string[] = [];
@@ -197,23 +207,25 @@ export default function BoundaryImportPage() {
 
   async function importAsFieldBoundaries() {
     const selected = features.filter((feature) => feature.action !== "skip");
+    if (!selectedSeason) return setError("Create a farm season in the Farm Map before importing field boundaries.");
     if (!selected.length) return setError("Select at least one field boundary to import.");
-    if (selected.some((feature) => !feature.name.trim() || !validCoordinates(feature.geometry) || feature.warning)) {
+    if (selected.some((feature) => !feature.name.trim() || !feature.valid || feature.warning)) {
       return setError("This import has invalid coordinates or multipart shapes. Use the map-layer option to preserve complex geometry, or skip those features.");
     }
     const creates = selected.filter((feature) => feature.action === "create");
     const updates = selected.filter((feature) => feature.action === "update");
     if (!confirm(`Import ${selected.length} field boundaries? This will create ${creates.length} fields and update ${updates.length} existing fields.`)) return;
     setImporting(true);
+    setImportProgress("");
     setError("");
     setResult("");
     try {
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user?.id;
       if (!userId) throw new Error("Sign in before importing boundaries.");
-      for (const feature of selected) {
+      const payloadFor = (feature: PreviewFeature) => {
         const outerRing = geometryPolygons(feature.geometry)[0]?.[0] || [];
-        const payload = {
+        return {
           field_name: feature.name.trim(),
           farm_name: farmName.trim() || null,
           crop: crop.trim() || null,
@@ -224,14 +236,24 @@ export default function BoundaryImportPage() {
           status: "Active",
           notes: `Boundary imported from ${file?.name || "shapefile"}`,
         };
-        if (feature.action === "update") {
+      };
+      const createRows = selected.filter((feature) => feature.action === "create");
+      const updateRows = selected.filter((feature) => feature.action === "update");
+      let completed = 0;
+      for (let offset = 0; offset < createRows.length; offset += 25) {
+        const batch = createRows.slice(offset, offset + 25).map((feature) => ({ user_id: userId, ...payloadFor(feature) }));
+        const { error: insertError } = await supabase.from("fields").insert(batch);
+        if (insertError) throw new Error(`Saved ${completed} of ${selected.length} boundaries before the database rejected a batch: ${insertError.message}`);
+        completed += batch.length;
+        setImportProgress(`${completed} of ${selected.length} boundaries saved`);
+      }
+      for (const feature of updateRows) {
           if (!feature.targetId) throw new Error(`Choose the existing field for ${feature.name}.`);
-          const { error: updateError } = await supabase.from("fields").update(payload).eq("id", feature.targetId);
-          if (updateError) throw updateError;
-        } else {
-          const { error: insertError } = await supabase.from("fields").insert({ user_id: userId, ...payload });
-          if (insertError) throw insertError;
-        }
+          const { data: updated, error: updateError } = await supabase.from("fields").update(payloadFor(feature)).eq("id", feature.targetId).select("id").maybeSingle();
+          if (updateError) throw new Error(`Saved ${completed} of ${selected.length} boundaries before the database rejected an update: ${updateError.message}`);
+          if (!updated) throw new Error(`Saved ${completed} of ${selected.length} boundaries, but ${feature.name} was not updated. Check that it belongs to your account and season.`);
+          completed += 1;
+          setImportProgress(`${completed} of ${selected.length} boundaries saved`);
       }
       setResult(`${selected.length} field boundaries imported: ${creates.length} created and ${updates.length} updated.`);
       await loadFields();
@@ -239,6 +261,7 @@ export default function BoundaryImportPage() {
       setError(importError instanceof Error ? importError.message : "Boundary import failed.");
     } finally {
       setImporting(false);
+      setImportProgress("");
     }
   }
 
@@ -259,7 +282,7 @@ export default function BoundaryImportPage() {
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Polygon features" value={String(features.length)} />
         <Metric label="Map area" value={`${totalArea.toFixed(2)} ha`} />
-        <Metric label="Attribute classes" value={String(new Set(features.map((feature) => String(feature.properties[displayAttribute] ?? "Unclassified"))).size)} />
+        <Metric label="Attribute classes" value={String(classCount)} />
         <Metric label="Review flags" value={String(warnings)} />
       </section>
 
@@ -272,18 +295,18 @@ export default function BoundaryImportPage() {
 
           <Panel title="2 · Select and preview a ZIP">
             <label className="field-label">Shapefile ZIP<input type="file" accept=".zip" className="field-input file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--brand-leaf)] file:px-3 file:py-2 file:font-bold file:text-[var(--brand-forest)]" onChange={(event) => { setFile(event.target.files?.[0] || null); setFeatures([]); setAttributes([]); setError(""); setResult(""); }}/></label>
-            <p className="mt-2 text-xs leading-5 text-white/60">Include the matching .shp, .shx, .dbf and .prj files in the same ZIP. Maximum 30 MB.</p>
-            <button type="button" onClick={parseFile} disabled={!file || parsing} className="mt-4 w-full rounded-xl bg-[var(--brand-leaf)] py-3 text-sm font-bold text-[var(--brand-forest)] disabled:opacity-40">{parsing ? "Reading the map…" : "Preview complete map"}</button>
+            <p className="mt-2 text-xs leading-5 text-white/60">Include the matching .shp, .shx, .dbf and .prj files in the same ZIP. Maximum 30 MB and 25,000 polygons / 1,000,000 boundary points. Large maps are read in the background so the page remains responsive.</p>
+            <button type="button" onClick={parseFile} disabled={!file || parsing} className="mt-4 w-full rounded-xl bg-[var(--brand-leaf)] py-3 text-sm font-bold text-[var(--brand-forest)] disabled:opacity-40">{parsing ? "Reading map in background…" : "Preview complete map"}</button>
           </Panel>
 
           {features.length > 0 && <Panel title="3 · Confirm import">
-            {mode === "map-layer" ? <><div className="rounded-xl bg-white/5 p-4 text-sm"><b>{features.length} polygons · {totalArea.toFixed(2)} ha total</b><p className="mt-1 text-white/60">Import destination: one {layerType.toLowerCase()} layer for {farmName.trim() || "the whole farm"} · {selectedSeason || "no season selected"}.</p><p className="mt-2 text-white/60">Label and colours use: <b className="text-white">{displayAttribute || "choose a property"}</b></p></div><div className="mt-3 max-h-44 space-y-2 overflow-auto">{categories.map(({ value, count }) => <div key={value} className="flex items-center justify-between gap-2 text-xs"><span className="flex min-w-0 items-center gap-2"><i className="h-3 w-3 shrink-0 rounded-sm" style={{ background: categoryColor(value) }}/><span className="truncate">{value}</span></span><b>{count}</b></div>)}</div><button type="button" onClick={importAsMapLayer} disabled={importing || !displayAttribute || features.some((feature) => !validCoordinates(feature.geometry))} className="mt-4 w-full rounded-xl bg-[var(--brand-leaf)] py-3 text-sm font-bold text-[var(--brand-forest)] disabled:opacity-40">{importing ? "Saving whole map…" : `Import one ${layerType.toLowerCase()} map`}</button></> : <><Input label="Farm name" value={farmName} set={setFarmName} placeholder="Farm name"/><Input label="Season" value={selectedSeason} set={setSeason}/><div className="rounded-xl bg-white/5 p-4 text-sm"><b>{active.length} selected fields · {totalArea.toFixed(2)} ha</b><p className="mt-1 text-white/60">Skipped features will not be changed.</p></div><button type="button" onClick={importAsFieldBoundaries} disabled={importing || !active.length} className="mt-4 w-full rounded-xl bg-[var(--brand-leaf)] py-3 text-sm font-bold text-[var(--brand-forest)] disabled:opacity-40">{importing ? "Saving fields…" : "Import field boundaries"}</button></>}
+            {mode === "map-layer" ? <><div className="rounded-xl bg-white/5 p-4 text-sm"><b>{features.length} polygons · {totalArea.toFixed(2)} ha total</b><p className="mt-1 text-white/60">Import destination: one {layerType.toLowerCase()} layer for {farmName.trim() || "the whole farm"} · {selectedSeason || "no season selected"}.</p><p className="mt-2 text-white/60">Label and colours use: <b className="text-white">{displayAttribute || "choose a property"}</b></p></div><div className="mt-3 max-h-44 space-y-2 overflow-auto">{categories.map(({ value, count }) => <div key={value} className="flex items-center justify-between gap-2 text-xs"><span className="flex min-w-0 items-center gap-2"><i className="h-3 w-3 shrink-0 rounded-sm" style={{ background: categoryColor(value) }}/><span className="truncate">{value}</span></span><b>{count}</b></div>)}</div><button type="button" onClick={importAsMapLayer} disabled={importing || !displayAttribute || invalidFeatureCount > 0} className="mt-4 w-full rounded-xl bg-[var(--brand-leaf)] py-3 text-sm font-bold text-[var(--brand-forest)] disabled:opacity-40">{importing ? "Saving whole map…" : `Import one ${layerType.toLowerCase()} map`}</button></> : <><Input label="Farm name" value={farmName} set={setFarmName} placeholder="Farm name"/><Input label="Crop (optional)" value={crop} set={setCrop} placeholder="Crop"/><Input label="Cultivar (optional)" value={cultivar} set={setCultivar} placeholder="Cultivar"/><div className="rounded-xl bg-white/5 p-4 text-sm"><b>{active.length} selected fields · {totalArea.toFixed(2)} ha</b><p className="mt-1 text-white/60">Skipped features will not be changed.</p></div><button type="button" onClick={importAsFieldBoundaries} disabled={importing || !active.length} className="mt-4 w-full rounded-xl bg-[var(--brand-leaf)] py-3 text-sm font-bold text-[var(--brand-forest)] disabled:opacity-40">{importing ? "Saving fields…" : "Import field boundaries"}</button></>}
           </Panel>}
         </aside>
 
         <section className="space-y-4">
           {features.length ? <><MapPreview features={features.filter((feature) => mode === "map-layer" || feature.action !== "skip")} attribute={mode === "map-layer" ? displayAttribute : nameAttribute}/>
-            {mode === "field-boundaries" && <div className="space-y-3">{features.map((feature, index) => <article key={feature.key} className={`ag-panel rounded-2xl p-4 ${feature.action === "skip" ? "opacity-55" : ""}`}><div className="grid gap-3 lg:grid-cols-[48px_1fr_150px_1fr_auto]"><div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--brand-leaf)]/15 text-sm font-bold text-[var(--brand-leaf)]">{index + 1}</div><Input label="Field name" value={feature.name} set={(value) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, name: value } : item))}/><label className="field-label">Action<select className="field-input" value={feature.action} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, action: event.target.value as ImportAction } : item))}><option value="create">Create field</option><option value="update">Update existing</option><option value="skip">Skip</option></select></label><label className="field-label">Existing field<select disabled={feature.action !== "update"} className="field-input disabled:opacity-40" value={feature.targetId} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, targetId: event.target.value } : item))}><option value="">Choose field</option>{fields.map((field) => <option key={field.id} value={field.id}>{field.farm_name || "Farm"} · {field.field_name}</option>)}</select></label><div className="self-end pb-3 text-right"><b className="text-[var(--brand-leaf)]">{feature.areaHa.toFixed(2)} ha</b><p className="text-[10px] text-white/55">{geometryPoints(feature.geometry).length} points</p></div></div>{feature.warning && <p className="mt-2 rounded-lg bg-amber-300/10 p-2 text-xs text-amber-100">{feature.warning}</p>}</article>)}</div>}
+            {mode === "field-boundaries" && <div className="space-y-3"><div className="flex items-center justify-between gap-3 rounded-xl bg-black/15 p-3 text-sm"><span>Showing {Math.min(features.length, reviewPage * fieldReviewPageSize + 1)}–{Math.min(features.length, (reviewPage + 1) * fieldReviewPageSize)} of {features.length} fields</span><div className="flex gap-2"><button type="button" className="secondary" disabled={reviewPage === 0} onClick={() => setReviewPage((page) => Math.max(0, page - 1))}>Previous</button><button type="button" className="secondary" disabled={reviewPage + 1 >= reviewPageCount} onClick={() => setReviewPage((page) => Math.min(reviewPageCount - 1, page + 1))}>Next</button></div></div>{importProgress && <p role="status" className="rounded-lg bg-[var(--brand-leaf)]/10 p-3 text-sm">{importProgress}</p>}{reviewFeatures.map((feature, offset) => { const index = reviewPage * fieldReviewPageSize + offset; return <article key={feature.key} className={`ag-panel rounded-2xl p-4 ${feature.action === "skip" ? "opacity-55" : ""}`}><div className="grid gap-3 lg:grid-cols-[48px_1fr_150px_1fr_auto]"><div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--brand-leaf)]/15 text-sm font-bold text-[var(--brand-leaf)]">{index + 1}</div><Input label="Field name" value={feature.name} set={(value) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, name: value } : item))}/><label className="field-label">Action<select className="field-input" value={feature.action} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, action: event.target.value as ImportAction } : item))}><option value="create">Create field</option><option value="update">Update existing</option><option value="skip">Skip</option></select></label><label className="field-label">Existing field<select disabled={feature.action !== "update"} className="field-input disabled:opacity-40" value={feature.targetId} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, targetId: event.target.value } : item))}><option value="">Choose field</option>{fields.map((field) => <option key={field.id} value={field.id}>{field.farm_name || "Farm"} · {field.field_name}</option>)}</select></label><div className="self-end pb-3 text-right"><b className="text-[var(--brand-leaf)]">{feature.areaHa.toFixed(2)} ha</b><p className="text-[10px] text-white/55">{feature.vertexCount.toLocaleString()} points</p></div></div>{feature.warning && <p className="mt-2 rounded-lg bg-amber-300/10 p-2 text-xs text-amber-100">{feature.warning}</p>}</article>; })}</div>}
           </> : <div className="ag-panel rounded-2xl p-12 text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[var(--brand-leaf)]/15 text-2xl text-[var(--brand-leaf)]">◫</div><h2 className="mt-4 text-xl font-bold">Preview the complete shapefile</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/60">The app will draw every polygon, show the selected inside value and flag geometry issues before saving anything.</p></div>}
         </section>
       </div>
@@ -291,24 +314,29 @@ export default function BoundaryImportPage() {
   );
 }
 
-function findField(fields: Field[], name: string) {
-  const normal = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-  return fields.find((field) => normal(field.field_name) === normal(name));
-}
+function normalizeFieldName(value: string) { return value.trim().toLowerCase().replace(/[^a-z0-9]/g, ""); }
 
 function MapPreview({ features, attribute }: { features: PreviewFeature[]; attribute: string }) {
-  const points = features.flatMap((feature) => geometryPoints(feature.geometry));
+  const stride = Math.max(1, Math.ceil(features.length / maxPreviewFeatures));
+  const preview = features.filter((_, index) => index % stride === 0).slice(0, maxPreviewFeatures).map((feature) => ({
+    feature,
+    polygons: geometryPolygons(feature.previewGeometry),
+    points: geometryPoints(feature.previewGeometry),
+  }));
+  const points = preview.flatMap((item) => item.points);
   if (!points.length) return null;
-  const minLng = Math.min(...points.map((point) => point.lng));
-  const maxLng = Math.max(...points.map((point) => point.lng));
-  const minLat = Math.min(...points.map((point) => point.lat));
-  const maxLat = Math.max(...points.map((point) => point.lat));
+  const bounds = points.reduce((value, point) => ({
+    minLng: Math.min(value.minLng, point.lng), maxLng: Math.max(value.maxLng, point.lng),
+    minLat: Math.min(value.minLat, point.lat), maxLat: Math.max(value.maxLat, point.lat),
+  }), { minLng: Infinity, maxLng: -Infinity, minLat: Infinity, maxLat: -Infinity });
+  const { minLng, maxLng, minLat, maxLat } = bounds;
   const width = Math.max(maxLng - minLng, 0.00001);
   const height = Math.max(maxLat - minLat, 0.00001);
   const project = (point: MapPoint) => ({ x: ((point.lng - minLng) / width) * 760 + 20, y: ((maxLat - point.lat) / height) * 300 + 20 });
   const polygonPath = (rings: MapPoint[][]) => rings.map((ring) => ring.map((point, index) => { const { x, y } = project(point); return `${index ? "L" : "M"} ${x.toFixed(1)} ${y.toFixed(1)}`; }).join(" ") + " Z").join(" ");
   const hasAttribute = Boolean(attribute);
-  return <div className="ag-panel overflow-hidden rounded-2xl p-4"><div className="mb-3 flex flex-wrap items-end justify-between gap-2"><div><p className="ag-kicker">Whole-map preview</p><h2 className="mt-1 text-lg font-bold">{features.length} polygon features · interiors preserved</h2></div><span className="text-xs text-white/55">North ↑</span></div><svg viewBox="0 0 800 340" role="img" aria-label={`Preview of ${features.length} polygon features`} className="h-[min(52vh,420px)] min-h-[280px] w-full rounded-xl bg-[var(--brand-forest)]">{features.map((feature) => { const polygons = geometryPolygons(feature.geometry); const value = feature.properties[attribute] ?? "Unclassified"; const centroid = geometryPoints(feature.geometry).reduce((sum, point) => { const p = project(point); return { x: sum.x + p.x / geometryPoints(feature.geometry).length, y: sum.y + p.y / geometryPoints(feature.geometry).length }; }, { x: 0, y: 0 }); return <g key={feature.key}>{polygons.map((rings, index) => <path key={`${feature.key}-${index}`} d={polygonPath(rings)} fill={categoryColor(value)} fillOpacity=".72" fillRule="evenodd" stroke="#f5f2e8" strokeOpacity=".9" strokeWidth="1.4"/>)}{hasAttribute && <text x={centroid.x} y={centroid.y} fill="white" stroke="#18251d" strokeWidth="3" paintOrder="stroke" fontSize="10" fontWeight="700" textAnchor="middle">{String(value).slice(0, 24)}</text>}</g>; })}</svg><p className="mt-3 text-xs text-white/55">Polygon holes are shown as openings. Review the map and category summary before importing.</p></div>;
+  const showLabels = hasAttribute && features.length <= 50;
+  return <div className="ag-panel overflow-hidden rounded-2xl p-4"><div className="mb-3 flex flex-wrap items-end justify-between gap-2"><div><p className="ag-kicker">Whole-map preview</p><h2 className="mt-1 text-lg font-bold">{features.length} polygon features · interiors preserved</h2>{preview.length < features.length && <p className="mt-1 text-xs text-white/55">Showing a representative {preview.length}-polygon preview. Every polygon and attribute will be retained on import.</p>}</div><span className="text-xs text-white/55">North ↑</span></div><svg viewBox="0 0 800 340" role="img" aria-label={`Preview of ${preview.length} of ${features.length} polygon features`} className="h-[min(52vh,420px)] min-h-[280px] w-full rounded-xl bg-[var(--brand-forest)]">{preview.map(({ feature, polygons, points: featurePoints }) => { const value = feature.properties[attribute] ?? "Unclassified"; const centroid = featurePoints.reduce((sum, point) => { const p = project(point); return { x: sum.x + p.x / featurePoints.length, y: sum.y + p.y / featurePoints.length }; }, { x: 0, y: 0 }); return <g key={feature.key}>{polygons.map((rings, index) => <path key={`${feature.key}-${index}`} d={polygonPath(rings)} fill={categoryColor(value)} fillOpacity=".72" fillRule="evenodd" stroke="#f5f2e8" strokeOpacity=".9" strokeWidth="1.4"/>)}{showLabels && <text x={centroid.x} y={centroid.y} fill="white" stroke="#18251d" strokeWidth="3" paintOrder="stroke" fontSize="10" fontWeight="700" textAnchor="middle">{String(value).slice(0, 24)}</text>}</g>; })}</svg><p className="mt-3 text-xs text-white/55">Polygon holes are shown as openings. Review the map and category summary before importing.</p></div>;
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <section className="ag-panel rounded-2xl p-5"><p className="ag-kicker">{title}</p><div className="mt-3">{children}</div></section>; }

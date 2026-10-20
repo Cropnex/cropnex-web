@@ -5,8 +5,11 @@ import type { GeoJsonFeature, GeoJsonGeometry } from "@/lib/geojson-layer";
 type ParseRequest = { buffer: ArrayBuffer };
 type ParsedFeature = {
   geometry: GeoJsonGeometry;
+  previewGeometry: GeoJsonGeometry;
   properties: Record<string, unknown>;
   areaHa: number;
+  vertexCount: number;
+  valid: boolean;
   warning: string | null;
 };
 type ParseResponse =
@@ -19,11 +22,36 @@ const scope = self as unknown as {
 };
 const MAX_FEATURES = 25_000;
 const MAX_VERTICES = 1_000_000;
+const PREVIEW_MAX_PARTS = 6;
+const PREVIEW_MAX_RINGS = 6;
+const PREVIEW_MAX_POINTS_PER_RING = 32;
 
 function countPositions(value: unknown): number {
   if (!Array.isArray(value)) return 0;
   if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") return 1;
   return value.reduce<number>((sum, child) => sum + countPositions(child), 0);
+}
+
+function previewRing(value: unknown): unknown[] {
+  if (!Array.isArray(value)) return [];
+  const positions = value.filter((item) => Array.isArray(item) && typeof item[0] === "number" && typeof item[1] === "number");
+  if (positions.length <= PREVIEW_MAX_POINTS_PER_RING) return positions;
+  const stride = Math.ceil(positions.length / PREVIEW_MAX_POINTS_PER_RING);
+  const sampled = positions.filter((_, index) => index % stride === 0);
+  const last = positions[positions.length - 1];
+  if (sampled.at(-1) !== last) sampled.push(last);
+  return sampled;
+}
+
+function previewGeometry(geometry: GeoJsonGeometry): GeoJsonGeometry {
+  const rings = (polygon: unknown) => Array.isArray(polygon) ? polygon.slice(0, PREVIEW_MAX_RINGS).map(previewRing) : [];
+  if (geometry.type === "Polygon") {
+    return { ...geometry, coordinates: rings(geometry.coordinates) };
+  }
+  if (geometry.type === "MultiPolygon" && Array.isArray(geometry.coordinates)) {
+    return { ...geometry, coordinates: geometry.coordinates.slice(0, PREVIEW_MAX_PARTS).map(rings) };
+  }
+  return geometry;
 }
 
 scope.onmessage = async (event) => {
@@ -36,8 +64,11 @@ scope.onmessage = async (event) => {
     if (polygonFeatures.length > MAX_FEATURES) throw new Error(`This ZIP contains ${polygonFeatures.length.toLocaleString()} polygon features. Split it into smaller farm groups (maximum ${MAX_FEATURES.toLocaleString()} per import).`);
 
     let vertexCount = 0;
+    const featureVertexCounts = new Map<GeoJsonFeature, number>();
     for (const feature of polygonFeatures) {
-      vertexCount += countPositions(feature.geometry?.coordinates);
+      const featureCount = countPositions(feature.geometry?.coordinates);
+      featureVertexCounts.set(feature, featureCount);
+      vertexCount += featureCount;
       if (vertexCount > MAX_VERTICES) throw new Error(`This ZIP contains more than ${MAX_VERTICES.toLocaleString()} boundary points. Split it into smaller farm groups before importing.`);
     }
 
@@ -53,8 +84,11 @@ scope.onmessage = async (event) => {
       const hasHoles = polygons.some((polygon) => polygon.length > 1);
       return {
         geometry,
+        previewGeometry: previewGeometry(geometry),
         properties: feature.properties || {},
         areaHa: geometryAreaHa(geometry),
+        vertexCount: featureVertexCounts.get(feature) || 0,
+        valid,
         warning: !valid
           ? "Coordinates are outside valid latitude and longitude ranges."
           : multipart || hasHoles

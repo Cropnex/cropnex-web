@@ -21,7 +21,7 @@ const money = new Intl.NumberFormat("en-ZA", { style:"currency", currency:"ZAR",
 const today = () => new Date().toISOString().slice(0,10);
 
 export default function OnePagePlanner(){
-  const{currentSeason,seasons:availableSeasons,setCurrentSeason}=useSeason();
+  const{currentSeason,seasons:availableSeasons,setCurrentSeason,loading:seasonLoading}=useSeason();
   const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false);
   const [fields,setFields]=useState<Field[]>([]),[inventory,setInventory]=useState<InventoryItem[]>([]),[masterProducts,setMasterProducts]=useState<MasterProduct[]>([]),[operations,setOperations]=useState<Operation[]>([]),[standards,setStandards]=useState<StandardActivity[]>([]),[plans,setPlans]=useState<ActivityPlan[]>([]),[products,setProducts]=useState<ActivityPlanProduct[]>([]),[planOps,setPlanOps]=useState<PlanOperation[]>([]),[farmers,setFarmers]=useState<Farmer[]>([]),[farms,setFarms]=useState<Farm[]>([]);
   const [season,setSeason]=useState(""),[farmerId,setFarmerId]=useState("all"),[farmId,setFarmId]=useState("all"),[search,setSearch]=useState(""),[selectedFields,setSelectedFields]=useState<string[]>([]),[expanded,setExpanded]=useState<string|null>(null);
@@ -131,6 +131,8 @@ export default function OnePagePlanner(){
     const csv=[header,...rows].map(row=>row.map(value=>`"${String(value).replaceAll('"','""')}"`).join(";")).join("\r\n"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),a=document.createElement("a");a.href=url;a.download=`CropNex-${season.replace("/","-")}-Farm-Plan.csv`;a.click();URL.revokeObjectURL(url);
   }
 
+  if(seasonLoading)return <main className="min-h-screen bg-[#14261F] p-8 text-white">Opening Farm Planning…</main>;
+  if(!currentSeason)return <main className="min-h-screen bg-[#14261F] p-8 text-white"><section className="mx-auto mt-12 max-w-2xl rounded-2xl border border-white/10 bg-[#0b1812] p-8"><p className="ag-kicker">Planning setup</p><h1 className="mt-2 text-3xl font-extrabold">Create your first farm season</h1><p className="mt-3 text-sm leading-6 text-[#9cab9f]">Planning needs an active season. Set one up in the Farm Map, then add or import your field boundaries before creating activities.</p><Link href="/farm-map" className="planner-primary mt-5 inline-flex">Open Farm Map</Link></section></main>;
   if(loading)return <main className="min-h-screen bg-[#14261F] p-8 text-white">Opening Farm Planning…</main>;
   return <main className="min-h-screen bg-[#14261F] p-3 text-white md:p-5">
     <header className="mb-4 flex flex-wrap items-center justify-between gap-3">

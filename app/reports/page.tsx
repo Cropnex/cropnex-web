@@ -21,7 +21,7 @@ type FieldPerformance={field_id:string;field_name:string;crop:string|null;area_h
 type CommitmentSummary={source:string;category:string;name:string;season:string|null;seasonal_amount:number};
 
 export default function ReportsPage() {
-  const{currentSeason}=useSeason();
+  const{currentSeason,loading:seasonLoading}=useSeason();
   const [fields, setFields] = useState<Field[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [transactions, setTransactions] =
@@ -35,7 +35,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
 
   async function loadReports() {
-    if(!currentSeason)return;
+    if(!currentSeason){setLoading(false);return;}
     setLoading(true);
 
     const fieldsResult = await supabase.from("fields").select("*").eq("season",currentSeason).order("field_name");
@@ -101,8 +101,10 @@ export default function ReportsPage() {
   }
 
   useEffect(() => {
+    if(seasonLoading)return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReports();
-  }, [currentSeason]);
+  }, [currentSeason,seasonLoading]);
 
   const financialTotals = useMemo(() => {
     const income = transactions
@@ -225,6 +227,8 @@ export default function ReportsPage() {
     (sum, field) => sum + field.area_ha,
     0
   );
+
+  if(!seasonLoading&&!currentSeason)return <main className="min-h-screen bg-[#14261F] p-8 text-white"><section className="mx-auto mt-12 max-w-2xl rounded-2xl border border-white/10 bg-[#0b1812] p-8"><p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">CropNex reports</p><h1 className="mt-2 text-3xl font-black">Create a farm season to begin</h1><p className="mt-3 text-sm leading-6 text-gray-400">Reports will fill in as you add fields, activities, stock and transport records. First create a season and add your farm boundaries.</p><Link href="/farm-map" className="mt-5 inline-flex rounded-xl bg-[#789B58] px-4 py-3 font-bold text-[#17382E]">Open Farm Map</Link></section></main>;
 
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
