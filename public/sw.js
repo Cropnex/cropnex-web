@@ -1,4 +1,4 @@
-const CACHE_NAME = "cropnex-shell-v6-24";
+const CACHE_NAME = "cropnex-shell-v6-25";
 
 const CORE_FILES = [
   "/offline",
@@ -100,3 +100,4 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+

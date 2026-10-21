@@ -1,0 +1,20 @@
+CropNex Update V6.25.0 — branded public landing page
+
+Website landing page
+- Uses the CropNex Growing Row logo and CropNex wordmark in the header and footer.
+- Refreshes the hero and field feature imagery to match the approved graphite, silver and crop-green campaign look.
+- Adds clear “Public launch coming soon” messaging and labels the sign-in button as “Log in to CropNex”.
+- Adds CropNex Open Graph and social-card metadata with the branded launch artwork.
+
+Database
+- No Supabase migration is required for this update.
+
+Apply in GitHub Codespaces
+1. Extract the ZIP and copy its contents into /workspaces/cropnex-web, replacing matching files. Keep your .env.local; it is not included.
+2. In the terminal, run:
+   cd /workspaces/cropnex-web
+   git status
+   git add -A
+   git commit -m "CropNex v6.25.0 branded landing page"
+   git push
+3. Wait for Vercel to finish deploying, then open https://www.cropnex.com and hard-refresh the page.

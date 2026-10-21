@@ -1,6 +1,6 @@
 {
   "name": "cropnex-web",
-  "version": "6.24.0",
+  "version": "6.25.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -29,3 +29,4 @@
     "typescript": "^5"
   }
 }
+

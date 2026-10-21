@@ -1,6 +1,38 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import CropNexLogo from "@/components/brand/CropNexLogo";
+
+const landingTitle = "CropNex | Field intelligence for modern farming";
+const landingDescription =
+  "Bring field maps, seasonal planning and farm records into one CropNex workspace. Public launch coming soon.";
+
+export const metadata: Metadata = {
+  title: landingTitle,
+  description: landingDescription,
+  openGraph: {
+    title: landingTitle,
+    description: landingDescription,
+    url: "https://www.cropnex.com",
+    siteName: "CropNex",
+    images: [
+      {
+        url: "/marketing/cropnex-launch-og.png",
+        width: 1080,
+        height: 1080,
+        alt: "CropNex — a clearer view of every field",
+      },
+    ],
+    locale: "en_ZA",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: landingTitle,
+    description: landingDescription,
+    images: ["/marketing/cropnex-launch-og.png"],
+  },
+};
 
 const features = [
   ["01", "Plan the season", "Build field plans, schedules, activities and budgets around the work ahead."],
@@ -31,7 +63,7 @@ export default function HomePage() {
     </header>
 
     <section className="relative isolate min-h-[660px] overflow-hidden">
-      <Image src="/marketing/cropnex-field-landscape.png" alt="Sunrise over cultivated farmland" fill priority sizes="100vw" className="-z-20 object-cover object-center" />
+      <Image src="/marketing/cropnex-landing-hero.png" alt="Sunrise across cultivated fields" fill priority sizes="100vw" className="-z-20 object-cover object-center" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[var(--brand-forest)] via-[var(--brand-forest)]/85 to-[var(--brand-forest)]/15" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[var(--brand-forest)]/75 via-transparent to-[var(--brand-forest)]/10" />
       <div className="mx-auto grid min-h-[660px] max-w-7xl items-center gap-12 px-5 py-20 lg:grid-cols-[1fr_.82fr] lg:px-8">
@@ -39,7 +71,8 @@ export default function HomePage() {
           <p className="ag-kicker">Field intelligence for the whole operation</p>
           <h1 className="mt-5 text-5xl font-extrabold leading-[1.02] md:text-7xl">A clearer view of every field.</h1>
           <p className="mt-7 max-w-2xl text-lg leading-8 text-white/78">CropNex brings field planning, farm records, inventory, equipment, harvest and financial insight into one connected workspace.</p>
-          <div className="mt-9 flex flex-wrap gap-3"><Link href="/login" className="rounded-xl bg-[var(--brand-leaf)] px-7 py-4 font-extrabold text-[var(--brand-forest)] hover:bg-[var(--brand-leaf-light)]">Open CropNex</Link><a href="#platform" className="rounded-xl border border-white/25 bg-white/5 px-7 py-4 font-bold backdrop-blur hover:bg-white/10">Explore the platform</a></div>
+          <div className="mt-9 flex flex-wrap gap-3"><Link href="/login" className="rounded-xl bg-[var(--brand-leaf)] px-7 py-4 font-extrabold text-[var(--brand-forest)] hover:bg-[var(--brand-leaf-light)]">Log in to CropNex</Link><a href="#platform" className="rounded-xl border border-white/25 bg-white/5 px-7 py-4 font-bold backdrop-blur hover:bg-white/10">Explore the platform</a></div>
+          <p className="mt-4 text-sm font-semibold text-white/65">Public launch coming soon · cropnex.com</p>
           <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm text-white/75"><span>Season-aware planning</span><span>Field-to-harvest records</span><span>Works offline</span></div>
         </div>
         <FieldIllustration />
@@ -50,7 +83,7 @@ export default function HomePage() {
       <div className="max-w-3xl"><p className="ag-kicker">One connected farm workspace</p><h2 className="mt-3 text-4xl font-extrabold md:text-5xl">From the soil to the season’s result.</h2><p className="mt-5 text-lg leading-8 text-white/65">Each part of the operation shares the same field, farm and season context, helping teams keep their records aligned.</p></div>
       <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{features.map(([number, title, text]) => <article key={number} className="rounded-2xl border border-white/10 bg-white/[.045] p-6 transition hover:-translate-y-1 hover:border-[var(--brand-leaf)]/50"><span className="text-xs font-extrabold text-[var(--brand-gold)]">{number}</span><h3 className="mt-6 text-2xl font-bold">{title}</h3><p className="mt-3 leading-7 text-white/65">{text}</p></article>)}</div>
       <div className="mt-14 grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
-        <div className="relative min-h-[370px] overflow-hidden rounded-[2rem] border border-white/10"><Image src="/marketing/cropnex-field-landscape.png" alt="Cultivated fields at first light" fill sizes="(max-width: 1024px) 100vw, 60vw" className="object-cover"/><div className="absolute inset-0 bg-gradient-to-t from-[var(--brand-forest)] via-[var(--brand-forest)]/20 to-transparent"/><div className="absolute bottom-0 p-7 md:p-9"><p className="ag-kicker">One operational picture</p><h3 className="mt-2 max-w-xl text-3xl font-extrabold">See the land, the work and the season together.</h3></div></div>
+        <div className="relative min-h-[370px] overflow-hidden rounded-[2rem] border border-white/10"><Image src="/marketing/cropnex-field-map-feature.png" alt="Farm fields viewed as connected map boundaries" fill sizes="(max-width: 1024px) 100vw, 60vw" className="object-cover"/><div className="absolute inset-0 bg-gradient-to-t from-[var(--brand-forest)] via-[var(--brand-forest)]/20 to-transparent"/><div className="absolute bottom-0 p-7 md:p-9"><p className="ag-kicker">One operational picture</p><h3 className="mt-2 max-w-xl text-3xl font-extrabold">See the land, the work and the season together.</h3></div></div>
         <div className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-[var(--brand-forest-soft)] p-7 md:p-9"><p className="ag-kicker">Designed for real farm work</p><h3 className="mt-3 text-3xl font-extrabold">Useful on the farm, clear at the desk.</h3><p className="mt-4 leading-7 text-white/65">Capture field activity where it happens. Review connected records when it is time to plan, check stock or understand performance.</p><div className="mt-7 grid grid-cols-2 gap-3"><div className="rounded-xl border border-white/10 bg-white/[.04] p-4"><span className="text-2xl text-[var(--brand-leaf-light)]">⌖</span><p className="mt-3 font-bold">Field-first</p><p className="mt-1 text-xs leading-5 text-white/55">Boundaries, seasons and observations</p></div><div className="rounded-xl border border-white/10 bg-white/[.04] p-4"><span className="text-2xl text-[var(--brand-gold)]">↗</span><p className="mt-3 font-bold">Connected</p><p className="mt-1 text-xs leading-5 text-white/55">Plans, records and results together</p></div></div></div>
       </div>
     </section>
@@ -61,7 +94,7 @@ export default function HomePage() {
 
     <section id="contact" className="mx-auto max-w-7xl px-5 pb-24 lg:px-8"><div className="relative overflow-hidden rounded-[2rem] bg-[var(--brand-leaf)] p-8 text-[var(--brand-forest)] md:p-12"><div className="absolute -right-10 -top-20 h-64 w-64 rounded-full bg-white/20 blur-3xl"/><div className="relative flex flex-wrap items-end justify-between gap-7"><div><p className="text-xs font-extrabold uppercase tracking-[.18em]">CropNex</p><h2 className="mt-3 max-w-2xl text-4xl font-extrabold">Bring the season and the operation into focus.</h2><p className="mt-4 max-w-xl">Sign in to continue to your secure CropNex workspace.</p></div><Link href="/login" className="rounded-xl bg-[var(--brand-forest)] px-7 py-4 font-bold text-white">Log in to CropNex</Link></div></div></section>
 
-    <footer className="border-t border-white/10"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-8 text-sm text-white/55 lg:px-8"><p>© {new Date().getFullYear()} CropNex</p><div className="flex flex-wrap gap-5"><Link href="/legal/privacy">Privacy</Link><Link href="/legal/terms">Terms</Link><Link href="/legal/acceptable-use">Acceptable use</Link><Link href="/login" className="font-bold text-[var(--brand-leaf-light)]">Login</Link></div></div></footer>
+    <footer className="border-t border-white/10"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-8 text-sm text-white/55 lg:px-8"><div className="flex flex-wrap items-center gap-5"><Link href="/" aria-label="CropNex home"><CropNexLogo /></Link><p>© {new Date().getFullYear()} CropNex</p></div><div className="flex flex-wrap gap-5"><Link href="/legal/privacy">Privacy</Link><Link href="/legal/terms">Terms</Link><Link href="/legal/acceptable-use">Acceptable use</Link><Link href="/login" className="font-bold text-[var(--brand-leaf-light)]">Login</Link></div></div></footer>
   </main>;
 }
 
@@ -76,7 +109,7 @@ function FieldIllustration() {
       <path d="m120 290 126-37 154-22 56 114-190 25z" fill="#748c59" stroke="#e5d8b4" strokeWidth="3"/><path d="m378 127 112-13 61 139-95 92-56-114z" fill="#9a7950" stroke="#e5d8b4" strokeWidth="3"/>
       <path d="M20 344c95-58 171-44 256-4s156 25 264-77" fill="none" stroke="#a5c179" strokeWidth="2" strokeDasharray="6 7"/>
       <g fill="#fff" fontFamily="sans-serif" fontSize="12" fontWeight="700"><text x="91" y="111">North · loam</text><text x="237" y="82">East · clay</text><text x="268" y="188">Central · loam</text><text x="154" y="223">South · sandy</text><text x="246" y="328">West · loam</text><text x="418" y="218">Hill · clay</text></g>
-      <circle cx="470" cy="54" r="18" fill="#14261f" stroke="#d6a64c" strokeWidth="2"/><path d="M470 43v22m-8-11h16" stroke="#e5bf70" strokeWidth="2"/>
+      <circle cx="470" cy="54" r="18" fill="#14261f" stroke="#9bdd4c" strokeWidth="2"/><path d="M470 43v22m-8-11h16" stroke="#dce1e3" strokeWidth="2"/>
     </svg>
     <div className="flex flex-wrap gap-x-5 gap-y-2 px-2 pt-4 text-xs text-white/60"><span><i className="mr-2 inline-block h-2.5 w-2.5 rounded-sm bg-[#809f63]"/>Loam</span><span><i className="mr-2 inline-block h-2.5 w-2.5 rounded-sm bg-[#d5a24a]"/>Clay</span><span><i className="mr-2 inline-block h-2.5 w-2.5 rounded-sm bg-[#c5bc7e]"/>Sandy</span></div>
   </div>;
