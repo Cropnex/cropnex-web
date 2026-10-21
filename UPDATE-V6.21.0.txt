@@ -1,0 +1,15 @@
+CropNex Update V6.21.0
+
+This update fixes mobile account registration submission, provides inline registration and sign-in feedback, adds a resend-confirmation action for unconfirmed accounts, and returns email confirmation links through a dedicated CropNex auth callback.
+
+No Supabase database migration is required. In Supabase Dashboard, open Authentication > URL Configuration and add https://www.cropnex.com/auth/callback to Redirect URLs. If you use the apex domain too, also add https://cropnex.com/auth/callback. Keep the Site URL set to your primary domain (https://www.cropnex.com). Email confirmation must be enabled under Authentication > Providers > Email.
+
+Apply in GitHub Codespaces:
+1. Extract this ZIP and copy all contents into /workspaces/cropnex-web, replacing matching files. Keep your .env.local; it is not included.
+2. In the terminal run:
+   cd /workspaces/cropnex-web
+   git status
+   git add -A
+   git commit -m "CropNex v6.21.0 mobile registration and verification"
+   git push
+3. Wait for Vercel to finish deploying. Then test registration on mobile with a new email address and verify via the emailed link.

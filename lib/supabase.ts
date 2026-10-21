@@ -25,6 +25,8 @@ type CropNexAuthClient = typeof client.auth & {
   getSession: (...args: unknown[]) => Promise<any>;
   signInWithPassword: (...args: any[]) => Promise<any>;
   signUp: (...args: any[]) => Promise<any>;
+  resend: (...args: any[]) => Promise<any>;
+  onAuthStateChange: (...args: any[]) => any;
   signOut: (...args: unknown[]) => Promise<any>;
 };
 

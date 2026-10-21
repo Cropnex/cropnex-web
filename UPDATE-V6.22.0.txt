@@ -1,0 +1,15 @@
+CropNex Update V6.22.0
+
+This update fixes the Transport page's permanent loading screen. The route now uses the shared application shell and SeasonProvider, and season loading reports a useful error if the authentication session check stalls.
+
+No Supabase database migration is required.
+
+Apply in GitHub Codespaces:
+1. Extract this ZIP and copy all contents into /workspaces/cropnex-web, replacing matching files. Keep your .env.local; it is not included.
+2. In the terminal run:
+   cd /workspaces/cropnex-web
+   git status
+   git add -A
+   git commit -m "CropNex v6.22.0 fix transport loading"
+   git push
+3. Wait for Vercel to finish deploying, then hard-refresh /transport.
