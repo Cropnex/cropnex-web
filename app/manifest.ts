@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "Farm management, operations, scouting, financials and analytics.",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#17382E",
-    theme_color: "#17382E",
+    background_color: "#111516",
+    theme_color: "#111516",
     orientation: "portrait-primary",
     categories: ["business", "productivity", "utilities"],
     icons: [{

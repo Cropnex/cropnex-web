@@ -134,8 +134,8 @@ const resendConfirmation = async () => {
 };
 
   return (
-    <main className="min-h-dvh overflow-y-auto bg-[#14261F] text-white flex items-start sm:items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8 shadow-2xl">
+    <main className="min-h-dvh overflow-y-auto bg-[#111516] text-white flex items-start sm:items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#1A2022] p-6 sm:p-8 shadow-2xl">
         <div className="mb-8 flex flex-col items-center text-center">
           <CropNexLogo className="justify-center" />
           <p className="mt-3 text-gray-400">{mode === "login" ? "Sign in to your CropNex workspace" : "Create an account and request verified access"}</p>
@@ -196,15 +196,15 @@ const resendConfirmation = async () => {
               required
               checked={acceptedLegal}
               onChange={(event) => setAcceptedLegal(event.target.checked)}
-              className="mt-1 h-4 w-4 accent-[#B6CB8D]"
+              className="mt-1 h-4 w-4 accent-[#86CF34]"
             />
-            <span>I accept the <Link className="font-semibold text-[#B6CB8D] hover:underline" href="/legal/terms">Terms</Link> and acknowledge the <Link className="font-semibold text-[#B6CB8D] hover:underline" href="/legal/privacy">Privacy Notice</Link>.</span>
+            <span>I accept the <Link className="font-semibold text-[#9ADB49] hover:underline" href="/legal/terms">Terms</Link> and acknowledge the <Link className="font-semibold text-[#9ADB49] hover:underline" href="/legal/privacy">Privacy Notice</Link>.</span>
           </label>}
 
 <button
   type="submit"
   disabled={loading}
-  className="w-full rounded-xl bg-[#D6A64C] px-5 py-3 font-bold text-[#171812] transition hover:bg-[#e0b965]"
+  className="w-full rounded-xl bg-[#86CF34] px-5 py-3 font-bold text-[#111516] transition hover:bg-[#9ADB49]"
 >
   {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (mode === "login" ? "Login" : "Create account")}
 </button>
@@ -217,7 +217,7 @@ const resendConfirmation = async () => {
 
         <p className="mt-6 text-center text-sm text-gray-400">
           {mode === "login" ? "New to CropNex?" : "Already registered?"}{" "}
-          <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} className="font-bold text-[#B6CB8D]">
+          <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} className="font-bold text-[#9ADB49]">
             {mode === "login" ? "Create account" : "Sign in"}
           </button>
         </p>

@@ -1,0 +1,24 @@
+CropNex Update V6.24.0
+
+Branding
+- Applies the selected Growing Row logo: a crop-green open ring, sprout, silver field rows and CropNex wordmark.
+- Updates the app icon, login appearance, navigation accents and interface palette to graphite, silver and crop green.
+- Renames the planning tool to “Find & Edit”.
+
+Field workflow
+- The Fields tab no longer creates fields without mapped boundaries. Create or import boundaries from Farm Map.
+- Select a field boundary on Farm Map to edit its name and hectares, redraw its outline, or split a simple outline into two named fields.
+- Redrawing uses the measured map area. Enter a different hectare value in the field editor when you need to keep an official area.
+- A split keeps existing plans with the first named field; the second field starts without copied plans or history. Splitting supports one simple outline without interior holes.
+
+No Supabase migration is required.
+
+Apply in GitHub Codespaces:
+1. Extract the ZIP and copy the project contents into /workspaces/cropnex-web, replacing matching files. Keep your .env.local; it is not included.
+2. In the terminal, run:
+   cd /workspaces/cropnex-web
+   git status
+   git add -A
+   git commit -m "CropNex v6.24.0 branding and field editing"
+   git push
+3. Wait for Vercel to finish deploying, then refresh CropNex.

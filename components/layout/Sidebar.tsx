@@ -71,8 +71,8 @@ export default function Sidebar({
                   onClick={onClose}
                   className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 transition ${
                     active
-                      ? "bg-[#D6A64C] text-[#171812] shadow-[0_8px_25px_rgba(0,0,0,.24)]"
-                      : "text-[#d4cbb8] hover:bg-white/[0.07] hover:text-white"
+                      ? "bg-[#86CF34] text-[#111516] shadow-[0_8px_25px_rgba(0,0,0,.24)]"
+                      : "text-[#c5cdd0] hover:bg-white/[0.07] hover:text-white"
                   }`}
                 >
                   <span className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${active ? "bg-black/10" : "bg-black/25 group-hover:bg-black/35"}`}>
@@ -88,16 +88,16 @@ export default function Sidebar({
                 </Link>
               );
             })}
-            {navigationGroups.map(group=>{const expanded=openGroup===group.label;return <div key={group.label}><button type="button" onClick={()=>setOpenGroup(expanded?"":group.label)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-bold ${activeGroup===group.label?"text-[#e0cda5]":"text-[#c1baaa] hover:bg-white/[0.06] hover:text-white"}`}><span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-black/30 text-sm">{group.icon}</span>{group.label}</span><span className="text-xs opacity-50">{expanded?"−":"+"}</span></button>{expanded&&<div className="ml-4 mt-1 space-y-1 border-l border-white/[.09] pl-2">{group.items.map(item=>{const active=pathname===item.href||pathname.startsWith(`${item.href}/`);return <Link key={item.href} href={item.href} onClick={onClose} className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition ${active?"bg-[#D6A64C] text-[#171812]":"text-[#bbb5a8] hover:bg-white/[.06] hover:text-white"}`}><span className={`flex h-7 w-7 items-center justify-center rounded text-sm font-bold ${active?"bg-black/10":"bg-black/30"}`}>{item.icon}</span><span className="text-sm font-semibold">{item.label}</span></Link>})}</div>}</div>})}
+            {navigationGroups.map(group=>{const expanded=openGroup===group.label;return <div key={group.label}><button type="button" onClick={()=>setOpenGroup(expanded?"":group.label)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-bold ${activeGroup===group.label?"text-[#b7db92]":"text-[#c1c9cc] hover:bg-white/[0.06] hover:text-white"}`}><span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-black/30 text-sm">{group.icon}</span>{group.label}</span><span className="text-xs opacity-50">{expanded?"−":"+"}</span></button>{expanded&&<div className="ml-4 mt-1 space-y-1 border-l border-white/[.09] pl-2">{group.items.map(item=>{const active=pathname===item.href||pathname.startsWith(`${item.href}/`);return <Link key={item.href} href={item.href} onClick={onClose} className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition ${active?"bg-[#86CF34] text-[#111516]":"text-[#c1c9cc] hover:bg-white/[.06] hover:text-white"}`}><span className={`flex h-7 w-7 items-center justify-center rounded text-sm font-bold ${active?"bg-black/10":"bg-black/30"}`}>{item.icon}</span><span className="text-sm font-semibold">{item.label}</span></Link>})}</div>}</div>})}
           </div>
         </nav>
 
         <div className="relative z-10 border-t border-white/10 p-4">
           <div className="rounded-xl border border-white/10 bg-black/35 p-4 backdrop-blur-md">
-            <p className="text-sm font-bold text-[#E6C784]">
+            <p className="text-sm font-bold text-[#A7DB69]">
               CropNex v{APP_VERSION} · {APP_STAGE}
             </p>
-            <p className="mt-2 text-[10px] font-bold uppercase leading-5 tracking-[.2em] text-[#aaa08c]">
+            <p className="mt-2 text-[10px] font-bold uppercase leading-5 tracking-[.2em] text-[#aab3b6]">
               People · Land · Insight
             </p>
           </div>

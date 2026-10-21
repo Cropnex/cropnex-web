@@ -1,6 +1,6 @@
 "use client";
 
-import { GoogleMap, GroundOverlayF, Marker, OverlayViewF, Polygon, useLoadScript } from "@react-google-maps/api";
+import { GoogleMap, GroundOverlayF, Marker, OverlayViewF, Polygon, Polyline, useLoadScript } from "@react-google-maps/api";
 import Link from "next/link";
 import type { Libraries } from "@react-google-maps/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,7 +13,8 @@ import type { ActivityPlan, ActivityPlanProduct } from "@/types/planning";
 import type { InventoryItem } from "@/types/inventory";
 import { useSeason } from "@/components/season/SeasonProvider";
 import { categoryColor } from "@/lib/geojson-layer";
-import { boundaryHasShape, boundaryPoints, boundaryPolygonPaths } from "@/lib/field-boundary";
+import { boundaryGeoJson, boundaryHasShape, boundaryPoints, boundaryPolygonPaths } from "@/lib/field-boundary";
+import { splitFieldBoundary } from "@/lib/split-field-boundary";
 type PlanOperation={id:string;plan_id:string;operation_name:string;unit:string;planned_rate_per_ha:number;planned_cost:number;actual_rate_per_ha:number|null;actual_cost:number|null};
 type Farmer={id:string;name:string};
 type Farm={id:string;name:string;farmer_id:string};
@@ -43,6 +44,9 @@ export default function FarmMapPage() {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [points, setPoints] = useState<Point[]>([]);
+  const [splitting, setSplitting] = useState(false);
+  const [splitPoints, setSplitPoints] = useState<Point[]>([]);
+  const [splitNames, setSplitNames] = useState({ first: "", second: "" });
   const [fields, setFields] = useState<Field[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState("");
   const [selectedField, setSelectedField] = useState<Field | null>(null);
@@ -172,8 +176,10 @@ export default function FarmMapPage() {
       void saveFarmPin({ lat: event.latLng.lat(), lng: event.latLng.lng() });
       return;
     }
-    if (!drawing || !event.latLng) return;
+    if (!event.latLng) return;
     const point = { lat: event.latLng.lat(), lng: event.latLng.lng() };
+    if (splitting) { setSplitPoints((current) => current.length < 2 ? [...current, point] : current); return; }
+    if (!drawing) return;
     setPoints((current) => { const next = [...current, point]; setCalculatedAreaHa(next.length >= 3 ? calculateAreaHa(next) : null); return next; });
   }
 
@@ -189,13 +195,69 @@ export default function FarmMapPage() {
     if (!selectedFieldId) return alert("Select a field first.");
     if (points.length < 3) return alert("Tap at least three points to create a boundary.");
     const area = calculateAreaHa(points);
-    const { error } = await supabase.from("fields").update({ boundary: points, area_ha: Number(area.toFixed(2)) }).eq("id", selectedFieldId);
+    const { data: updated, error } = await supabase.from("fields").update({ boundary: points, area_ha: Number(area.toFixed(2)) }).eq("id", selectedFieldId).select("*").single();
     if (error) return alert(error.message);
-    setDrawing(false); setPoints([]); setCalculatedAreaHa(null); await loadFields(); alert("Boundary saved.");
+    setDrawing(false); setPoints([]); setCalculatedAreaHa(null); if(updated)setSelectedField(updated as Field); await loadFields(); alert("Boundary saved. The field area now matches the measured outline.");
+  }
+
+  function beginBoundaryEdit() {
+    setShowNewField(false); setSplitting(false); setSplitPoints([]); setPlacingFarmPin(false); setPoints([]); setCalculatedAreaHa(null); setDrawing(true);
+  }
+
+  async function saveSelectedFieldDetails(fieldName: string, areaHa: number) {
+    if (!selectedField) return;
+    const name = fieldName.trim();
+    if (!name || !Number.isFinite(areaHa) || areaHa <= 0) throw new Error("Enter a field name and a positive hectare value.");
+    const { data, error } = await supabase.from("fields").update({ field_name: name, area_ha: Number(areaHa.toFixed(2)) }).eq("id", selectedField.id).select("*").single();
+    if (error) throw error;
+    const updated = data as Field;
+    setSelectedField(updated);
+    await loadFields();
+  }
+
+  function beginSplit() {
+    if (!selectedField) return;
+    setDrawing(false); setPlacingFarmPin(false); setPoints([]); setCalculatedAreaHa(null); setSplitPoints([]); setSplitting(true);
+    setSplitNames({ first: `${selectedField.field_name} A`, second: `${selectedField.field_name} B` });
+  }
+
+  function cancelSplit() { setSplitting(false); setSplitPoints([]); }
+
+  async function confirmSplit() {
+    if (!selectedField || splitPoints.length !== 2) return alert("Tap two points across the field to draw the split line.");
+    const firstName = splitNames.first.trim(); const secondName = splitNames.second.trim();
+    if (!firstName || !secondName || firstName.toLowerCase() === secondName.toLowerCase()) return alert("Enter two different field names.");
+    if (fields.some((field) => field.id !== selectedField.id && [firstName, secondName].some((name) => name.toLowerCase() === field.field_name.trim().toLowerCase()))) return alert("Those names are already used by another field in this season. Choose two unique names.");
+    setSavingField(true);
+    let createdId = "";
+    try {
+      const [firstPart, secondPart] = splitFieldBoundary(selectedField.boundary, splitPoints[0], splitPoints[1]);
+      const firstArea = Number(calculateAreaHa(firstPart).toFixed(2));
+      const secondArea = Number(calculateAreaHa(secondPart).toFixed(2));
+      if (firstArea <= 0 || secondArea <= 0) throw new Error("The split did not create two positive field areas.");
+      const { data: auth } = await supabase.auth.getSession();
+      const ownerId = selectedField.user_id || auth.session?.user.id;
+      if (!ownerId) throw new Error("Your sign-in session has expired. Sign in again before splitting the field.");
+      const common = { user_id: ownerId, farmer_id: selectedField.farmer_id || null, farm_id: selectedField.farm_id || null, farm_name: selectedField.farm_name, crop: selectedField.crop, season: selectedField.season, planting_date: selectedField.planting_date, cultivar: selectedField.cultivar, cultivar_id: selectedField.cultivar_id || null, soil_type: selectedField.soil_type, expected_yield: selectedField.expected_yield, status: selectedField.status || "Unplanned", notes: selectedField.notes };
+      const { data: created, error: insertError } = await supabase.from("fields").insert({ ...common, field_name: secondName, area_ha: secondArea, boundary: boundaryGeoJson(secondPart) }).select("id").single();
+      if (insertError) throw insertError;
+      createdId = created.id as string;
+      const { data: updated, error: updateError } = await supabase.from("fields").update({ field_name: firstName, area_ha: firstArea, boundary: boundaryGeoJson(firstPart) }).eq("id", selectedField.id).select("*").single();
+      if (updateError) {
+        await supabase.from("fields").delete().eq("id", createdId);
+        createdId = "";
+        throw updateError;
+      }
+      setSplitting(false); setSplitPoints([]); await loadFields(); selectField(updated as Field);
+      alert(`Field split into ${firstName} (${firstArea.toFixed(2)} ha) and ${secondName} (${secondArea.toFixed(2)} ha). Existing plans remain with ${firstName}.`);
+    } catch (error) {
+      if (createdId) await supabase.from("fields").delete().eq("id", createdId);
+      alert(error instanceof Error ? error.message : "The field could not be split.");
+    } finally { setSavingField(false); }
   }
 
   function beginNewField(){
-    setSelectedField(null); setSelectedFieldId(""); setPoints([]); setCalculatedAreaHa(null); setShowNewField(true); setDrawing(false);
+    setSelectedField(null); setSelectedFieldId(""); setPoints([]); setCalculatedAreaHa(null); setShowNewField(true); setDrawing(false); setSplitting(false); setSplitPoints([]); setPlacingFarmPin(false);
   }
 
   async function saveNewField(){
@@ -327,8 +389,8 @@ export default function FarmMapPage() {
         {visibleThematicLayers.length>0&&<ThematicGeoJsonOverlay map={map} layers={visibleThematicLayers}/>}
         {farmPin && <Marker position={farmPin} title="Main farm" label={{ text: "F", color: "#17382E", fontWeight: "800" }} />}
         {rainGauges.filter(g=>g.latitude!==null&&g.longitude!==null).map(g=><Marker key={`rain-${g.id}`} position={{lat:Number(g.latitude),lng:Number(g.longitude)}} title={`Rain gauge · ${g.name}`} label={{text:"R",color:"#17382E",fontWeight:"900"}} icon={{path:google.maps.SymbolPath.CIRCLE,fillColor:"#52b9e9",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2,scale:13}}/>)}
-        {filteredFields.flatMap((field) => boundaryPolygonPaths(field.boundary).map((polygon, partIndex) => <Polygon key={`${field.id}-${partIndex}`} paths={polygon} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop), fillOpacity: selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: true, zIndex: selectedFieldId === field.id ? 3 : 1 }} />))}
-        {filteredFields.filter((field) => field.id === selectedFieldId).map((field) => {
+        {filteredFields.flatMap((field) => boundaryPolygonPaths(field.boundary).map((polygon, partIndex) => <Polygon key={`${field.id}-${partIndex}`} paths={polygon} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop), fillOpacity: selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: !drawing && !splitting, zIndex: selectedFieldId === field.id ? 3 : 1 }} />))}
+        {!drawing&&!splitting&&filteredFields.filter((field) => field.id === selectedFieldId).map((field) => {
           const points = boundaryPoints(field.boundary);
           if (!points.length) return null;
           const position = points.reduce((value, point) => ({ lat: value.lat + point.lat / points.length, lng: value.lng + point.lng / points.length }), { lat: 0, lng: 0 });
@@ -336,6 +398,8 @@ export default function FarmMapPage() {
         })}
         {points.map((point, index) => <Marker key={`${point.lat}-${point.lng}-${index}`} position={point} label={(index + 1).toString()} />)}
         {points.length >= 3 && <Polygon paths={points} options={{ fillColor: "#B6CB8D", fillOpacity: 0.32, strokeColor: "#ffffff", strokeWeight: 3, clickable: false }} />}
+        {splitPoints.map((point,index)=><Marker key={`split-${index}`} position={point} label={{text:String(index+1),color:"#111516",fontWeight:"900"}} icon={{path:google.maps.SymbolPath.CIRCLE,fillColor:"#A5DE50",fillOpacity:1,strokeColor:"#111516",strokeWeight:2,scale:10}}/>)}
+        {splitPoints.length===2&&<Polyline path={splitPoints} options={{strokeColor:"#A5DE50",strokeWeight:4,strokeOpacity:.95,clickable:false}}/>}
       </GoogleMap>
 
       <section className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center gap-2 lg:left-[336px] lg:right-4">
@@ -347,8 +411,9 @@ export default function FarmMapPage() {
           <button type="button" onClick={() => setPlacingFarmPin((value) => !value)} className={`rounded-lg px-3 py-2 text-xs font-bold ${placingFarmPin ? "bg-amber-400 text-black" : "bg-white/[0.06]"}`}>{placingFarmPin ? "Tap farm location" : farmPin ? "Move farm pin" : "Set farm pin"}</button>
           <button type="button" onClick={beginNewField} className="rounded-lg bg-[#789B58] px-3 py-2 text-xs font-bold text-[#17382E]">+ Create new field</button>
           <button type="button" onClick={createSeason} className="rounded-lg border border-[#789B58]/35 bg-[#789B58]/10 px-3 py-2 text-xs font-bold text-[#b8e77d]">+ New season</button>
-          {selectedFieldId&&<button type="button" onClick={() => { setShowNewField(false);setDrawing((value) => !value); setPoints([]); setCalculatedAreaHa(null); }} className={`rounded-lg px-3 py-2 text-xs font-bold ${drawing ? "bg-amber-400 text-black" : "bg-white/[0.06]"}`}>{drawing ? "Cancel boundary edit" : "Redraw boundary"}</button>}
-          {drawing&&!showNewField && <><button type="button" onClick={saveBoundary} className="rounded-lg bg-white px-3 py-2 text-xs font-bold text-black">Save boundary</button><button type="button" onClick={() => { setPoints([]); setCalculatedAreaHa(null); }} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Clear</button></>}
+          {selectedFieldId&&!drawing&&!splitting&&<button type="button" onClick={beginBoundaryEdit} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Edit boundary</button>}
+          {drawing&&!showNewField&&<><span className="rounded-lg bg-black/40 px-3 py-2 text-xs">Tap around the boundary · {points.length} points</span><button type="button" onClick={()=>{setDrawing(false);setPoints([]);setCalculatedAreaHa(null)}} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Cancel</button><button type="button" disabled={points.length<3} onClick={saveBoundary} className="rounded-lg bg-[#86CF34] px-3 py-2 text-xs font-extrabold text-[#111516] disabled:opacity-40">Save edited boundary</button><button type="button" onClick={() => { setPoints([]); setCalculatedAreaHa(null); }} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Clear</button></>}
+          {splitting&&<><span className="rounded-lg bg-black/40 px-3 py-2 text-xs">Tap two points across the field · {splitPoints.length}/2</span><button type="button" onClick={cancelSplit} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Cancel split</button><button type="button" onClick={()=>setSplitPoints([])} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Clear line</button></>}
         </div>
       </section>
 
@@ -375,7 +440,8 @@ export default function FarmMapPage() {
         <p className="mt-3 text-xs leading-5 text-[#77887e]">Tap around the field boundary. Keep the measured hectares or enter the official registered area.</p><button type="button" disabled={savingField||points.length<3} onClick={saveNewField} className="mt-4 w-full rounded-xl bg-[#789B58] py-3.5 font-extrabold text-[#17382E] disabled:opacity-40">{savingField?"Creating…":"Create field"}</button>
       </section>}
 
-      {selectedField && <FieldDrawer field={selectedField} activities={fieldActivities} loadingActivities={loadingActivities} showActivityForm={showActivityForm} activityMode={activityMode} activityType={activityType} activityDate={activityDate} activityNotes={activityNotes} savingActivity={savingActivity} plans={plans.filter((plan) => plan.field_id === selectedField.id)} planProducts={planProducts} planOperations={planOperations} actualisingPlanId={actualisingPlanId} inventory={inventory} ndviLayers={ndviLayers} ndviUrls={ndviUrls} selectedNdviId={selectedNdviId} ndviOpacity={ndviOpacity} onSelectNdvi={chooseNdvi} onNdviOpacityChange={setNdviOpacity} onClose={() => { setSelectedField(null); setShowActivityForm(false); }} onShowActivityForm={(mode) => { setActivityMode(mode); setShowActivityForm(true); }} onCancelActivityForm={() => setShowActivityForm(false)} onActivityModeChange={setActivityMode} onActivityTypeChange={setActivityType} onActivityDateChange={setActivityDate} onActivityNotesChange={setActivityNotes} onSaveActivity={saveFieldActivity} onActualisePlan={actualisePlan} />}
+      {selectedField&&!splitting && <FieldDrawer field={selectedField} activities={fieldActivities} loadingActivities={loadingActivities} showActivityForm={showActivityForm} activityMode={activityMode} activityType={activityType} activityDate={activityDate} activityNotes={activityNotes} savingActivity={savingActivity} plans={plans.filter((plan) => plan.field_id === selectedField.id)} planProducts={planProducts} planOperations={planOperations} actualisingPlanId={actualisingPlanId} inventory={inventory} ndviLayers={ndviLayers} ndviUrls={ndviUrls} selectedNdviId={selectedNdviId} ndviOpacity={ndviOpacity} onSelectNdvi={chooseNdvi} onNdviOpacityChange={setNdviOpacity} onClose={() => { setSelectedField(null); setShowActivityForm(false); }} onShowActivityForm={(mode) => { setActivityMode(mode); setShowActivityForm(true); }} onCancelActivityForm={() => setShowActivityForm(false)} onActivityModeChange={setActivityMode} onActivityTypeChange={setActivityType} onActivityDateChange={setActivityDate} onActivityNotesChange={setActivityNotes} onSaveActivity={saveFieldActivity} onActualisePlan={actualisePlan} onSaveFieldDetails={saveSelectedFieldDetails} onStartBoundaryEdit={beginBoundaryEdit} onStartSplit={beginSplit} />}
+      {splitting&&selectedField&&<section className="absolute right-3 top-20 z-30 w-[calc(100%-1.5rem)] max-w-sm rounded-2xl border border-white/10 bg-[#15191B]/95 p-5 text-white shadow-2xl backdrop-blur-xl"><p className="ag-kicker">Split boundary</p><h2 className="mt-1 text-lg font-extrabold">Name both field sections</h2><p className="mt-2 text-sm leading-5 text-white/70">Tap two points across the selected field. CropNex will extend the line to the boundary. {splitPoints.length}/2 points placed.</p><label className="field-label">First field name<input className="field-input" value={splitNames.first} onChange={event=>setSplitNames({...splitNames,first:event.target.value})}/></label><label className="field-label">Second field name<input className="field-input" value={splitNames.second} onChange={event=>setSplitNames({...splitNames,second:event.target.value})}/></label><p className="mt-2 text-xs leading-5 text-white/55">Existing plans stay with {splitNames.first || "the first field"}. The new field starts without copied plans or history. Works with a single outline without interior holes.</p><button type="button" disabled={savingField||splitPoints.length!==2||!splitNames.first.trim()||!splitNames.second.trim()||splitNames.first.trim()===splitNames.second.trim()} onClick={confirmSplit} className="mt-3 w-full rounded-xl bg-[#86CF34] py-2.5 text-sm font-extrabold text-[#111516] disabled:opacity-40">{savingField?"Splitting…":"Create both field boundaries"}</button><button type="button" onClick={cancelSplit} className="mt-2 w-full rounded-xl border border-white/10 py-2 text-sm">Cancel split</button></section>}
     </main>
   );
 }
