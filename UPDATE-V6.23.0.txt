@@ -1,0 +1,15 @@
+CropNex Update V6.23.0
+
+This update prevents the shared sign-in access check from blocking protected pages indefinitely. It now times out and presents a retry message. The AI Scanner now displays farm/inventory loading failures and scan service errors in the page, including a missing OPENAI_API_KEY setup message.
+
+No Supabase database migration is required. The AI document scanner needs OPENAI_API_KEY set in the Vercel project environment variables for Production (and Preview/Development if you test those deployments). Redeploy after changing Vercel environment variables.
+
+Apply in GitHub Codespaces:
+1. Extract this ZIP and copy all contents into /workspaces/cropnex-web, replacing matching files. Keep your .env.local; it is not included.
+2. In the terminal run:
+   cd /workspaces/cropnex-web
+   git status
+   git add -A
+   git commit -m "CropNex v6.23.0 scanner and access workflow fixes"
+   git push
+3. Wait for Vercel to finish deploying, then reload CropNex and open the AI Scanner.

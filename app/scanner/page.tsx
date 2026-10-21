@@ -59,10 +59,23 @@ type Mapping = {
 export default function ScannerPage() {
     const {currentSeason}=useSeason();
     const [type, setType] = useState("Transport delivery note"), [file, setFile] = useState<File | null>(null), [data, setData] = useState<ScanData | null>(null), [fields, setFields] = useState<Field[]>([]), [items, setItems] = useState<Item[]>([]), [masters, setMasters] = useState<Master[]>([]), [locations, setLocations] = useState<Location[]>([]), [fieldId, setFieldId] = useState(""), [locationId, setLocationId] = useState(""), [mappings, setMappings] = useState<Mapping[]>([]), [busy, setBusy] = useState(false), [stage, setStage] = useState("");
+    const [listError, setListError] = useState("");
+    const [scanError, setScanError] = useState("");
     const scanController = useRef<AbortController | null>(null);
     const cancelledByUser = useRef(false);
-    async function loadLists() { if(!currentSeason)return;const q = await Promise.all([supabase.from("fields").select("id,field_name,crop,season").eq("season",currentSeason).order("field_name"), supabase.from("inventory_items").select("id,name,unit,quantity,unit_cost,location_id").eq("season",currentSeason).neq("status", "Inactive").order("name"), supabase.from("master_products").select("id,catalogue_code,name,category,product_class,pack_unit").eq("status", "Approved").order("name"), supabase.from("inventory_locations").select("id,name").eq("active", true).order("name")]); setFields((q[0].data || []) as Field[]); setItems((q[1].data || []) as Item[]); setMasters((q[2].data || []) as Master[]); const loc = (q[3].data || []) as Location[]; setLocations(loc); if (loc[0])
-        setLocationId(x => x || loc[0].id); }
+    async function loadLists() {
+        if (!currentSeason) { setListError("Create or select a farm season before scanning transport documents or posting inventory receipts."); return; }
+        setListError("");
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 15000);
+        try {
+            const q = await Promise.all([supabase.from("fields").select("id,field_name,crop,season").eq("season",currentSeason).order("field_name").abortSignal(controller.signal), supabase.from("inventory_items").select("id,name,unit,quantity,unit_cost,location_id").eq("season",currentSeason).neq("status", "Inactive").order("name").abortSignal(controller.signal), supabase.from("master_products").select("id,catalogue_code,name,category,product_class,pack_unit").eq("status", "Approved").order("name").abortSignal(controller.signal), supabase.from("inventory_locations").select("id,name").eq("active", true).order("name").abortSignal(controller.signal)]);
+            const failure = q.find(result => result.error)?.error;
+            if (failure) throw failure;
+            setFields((q[0].data || []) as Field[]); setItems((q[1].data || []) as Item[]); setMasters((q[2].data || []) as Master[]); const loc = (q[3].data || []) as Location[]; setLocations(loc); if (loc[0]) setLocationId(x => x || loc[0].id);
+        } catch (error) { setListError(controller.signal.aborted ? "The scanner’s farm and inventory lists did not respond. Check your connection and retry." : error instanceof Error ? error.message : "CropNex could not load the scanner's farm and inventory lists."); }
+        finally { window.clearTimeout(timeout); }
+    }
     useEffect(() => { void loadLists(); }, [currentSeason]);
     function bestTarget(line: ScanLine) { const text = `${line.product_code || ""} ${line.product_name}`.toLowerCase(), existing = items.find(x => text.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(line.product_name.toLowerCase())); if (existing)
         return `item:${existing.id}`; const master = masters.find(x => text.includes(x.catalogue_code.toLowerCase()) || text.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(line.product_name.toLowerCase())); return master ? `master:${master.id}` : ""; }
@@ -92,10 +105,9 @@ export default function ScannerPage() {
         }
     }
     async function scan() {
-        if (!file)
-            return alert("Choose a JPG, PNG or WebP photo.");
-        if (file.size > 25 * 1024 * 1024)
-            return alert("Please use an image smaller than 25 MB.");
+        if (!file) { setScanError("Choose a JPG, PNG or WebP photo."); return; }
+        if (file.size > 25 * 1024 * 1024) { setScanError("Please use an image smaller than 25 MB."); return; }
+        setScanError("");
         cancelledByUser.current = false;
         const controller = new AbortController();
         scanController.current = controller;
@@ -127,12 +139,12 @@ export default function ScannerPage() {
                 setStage("Scan cancelled — the photo is still selected");
             else if (error instanceof DOMException && error.name === "AbortError") {
                 setStage("Scan timed out — the photo is still selected");
-                alert("The scan took longer than one minute. Try again; you do not need to choose the photo again.");
+                setScanError("The scan took longer than one minute. Try again; you do not need to choose the photo again.");
             }
             else {
                 const message = error instanceof Error ? error.message : "The document could not be read.";
                 setStage("Scan unsuccessful — the photo is still selected");
-                alert(message);
+                setScanError(message);
             }
         }
         finally {
@@ -226,8 +238,10 @@ export default function ScannerPage() {
         <div className="grid gap-6 xl:grid-cols-[390px_1fr]">
             <section className="ag-panel h-fit rounded-2xl p-5">
                 <label className="field-label">Document type<select className="field-input" value={type} onChange={e => setType(e.target.value)}><option>Transport delivery note</option><option>Inventory receipt</option></select></label>
-                <label className="field-label">Photo<input className="field-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => { setFile(e.target.files?.[0] || null); setStage(""); }}/></label>
-                {!busy ? <button disabled={!file} onClick={scan} className="primary mt-5 w-full">{stage ? "Try again" : "Scan document"}</button> : <button type="button" onClick={cancelScan} className="mt-5 w-full rounded-xl border border-red-400/40 px-4 py-3 font-bold text-red-300">Cancel scan</button>}
+                <label className="field-label">Photo<input className="field-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => { setFile(e.target.files?.[0] || null); setStage(""); setScanError(""); }}/></label>
+                {listError && <p role="alert" className="mt-3 rounded-xl border border-amber-300/30 bg-amber-300/[.08] p-3 text-sm leading-6 text-amber-100">{listError}</p>}
+                {scanError && <p role="alert" className="mt-3 rounded-xl border border-red-300/30 bg-red-300/[.08] p-3 text-sm leading-6 text-red-100">{scanError}</p>}
+                {!busy ? <button type="button" disabled={!file} onClick={scan} className="primary mt-5 w-full">{stage ? "Try again" : "Scan document"}</button> : <button type="button" onClick={cancelScan} className="mt-5 w-full rounded-xl border border-red-400/40 px-4 py-3 font-bold text-red-300">Cancel scan</button>}
                 {stage && <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-[#a9b8af]"><div className="flex items-center gap-2">{busy && <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#86cf3d] border-t-transparent"/>}<strong>{stage}</strong></div>{!busy && file && <p className="mt-1 text-xs text-[#718278]">Your selected photo is ready to scan again.</p>}</div>}
                 <p className="mt-4 text-xs text-[#718278]">Large photos are automatically reduced for a faster scan. Nothing is posted until you review and confirm it.</p>
             </section>

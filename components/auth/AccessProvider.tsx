@@ -1,17 +1,17 @@
 "use client";
-import {createContext,useContext,useEffect,useState} from "react";
+import {createContext,useCallback,useContext,useEffect,useState} from "react";
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {supabase} from "@/lib/supabase";
 
 type Application={id:string;user_id:string;requested_roles:string[];contact_name:string;business_name:string;registration_number:string|null;vat_number:string|null;phone:string|null;address:string|null;motivation:string|null;status:string;applicant_message:string|null;submitted_at:string|null};
-type Access={loading:boolean;userId:string;roles:string[];isAdmin:boolean;adminLevel:string|null;bootstrapAvailable:boolean;application:Application|null;refresh:()=>Promise<void>};
-const Context=createContext<Access>({loading:true,userId:"",roles:[],isAdmin:false,adminLevel:null,bootstrapAvailable:false,application:null,refresh:async()=>{}});
+type Access={loading:boolean;error:string|null;userId:string;roles:string[];isAdmin:boolean;adminLevel:string|null;bootstrapAvailable:boolean;application:Application|null;refresh:()=>Promise<void>};
+const Context=createContext<Access>({loading:true,error:null,userId:"",roles:[],isAdmin:false,adminLevel:null,bootstrapAvailable:false,application:null,refresh:async()=>{}});
 export const useAccess=()=>useContext(Context);
 
 export function AccessProvider({children}:{children:React.ReactNode}){
- const[access,setAccess]=useState<Omit<Access,"refresh">>({loading:true,userId:"",roles:[],isAdmin:false,adminLevel:null,bootstrapAvailable:false,application:null});
- async function refresh(){const{data:auth}=await supabase.auth.getUser(),uid=auth.user?.id||"";if(!uid){setAccess({...access,loading:false,userId:""});return}const[roleResult,adminResult,appResult,bootstrapResult]=await Promise.all([supabase.from("user_roles").select("role").eq("user_id",uid).eq("active",true),supabase.from("admin_users").select("admin_level").eq("user_id",uid).eq("active",true).maybeSingle(),supabase.from("role_applications").select("*").eq("user_id",uid).maybeSingle(),supabase.rpc("admin_bootstrap_available")]);setAccess({loading:false,userId:uid,roles:((roleResult.data||[]) as {role:string}[]).map(x=>x.role),isAdmin:Boolean(adminResult.data),adminLevel:adminResult.data?.admin_level||null,bootstrapAvailable:Boolean(bootstrapResult.data),application:(appResult.data||null) as Application|null})}
+ const[access,setAccess]=useState<Omit<Access,"refresh">>({loading:true,error:null,userId:"",roles:[],isAdmin:false,adminLevel:null,bootstrapAvailable:false,application:null});
+ const refresh=useCallback(async()=>{const controller=new AbortController();let timer=0;const deadline=new Promise<never>((_,reject)=>{timer=window.setTimeout(()=>{controller.abort();reject(new Error("CropNex access check timed out. Check your connection and try again."))},15000)});setAccess(current=>({...current,loading:true,error:null}));try{const{data:auth,error:authError}=await Promise.race([supabase.auth.getUser(),deadline]);if(authError)throw authError;const uid=auth.user?.id||"";if(!uid){setAccess(current=>({...current,loading:false,error:null,userId:"",roles:[],isAdmin:false,adminLevel:null,bootstrapAvailable:false,application:null}));return}const[roleResult,adminResult,appResult,bootstrapResult]=await Promise.race([Promise.all([supabase.from("user_roles").select("role").eq("user_id",uid).eq("active",true).abortSignal(controller.signal),supabase.from("admin_users").select("admin_level").eq("user_id",uid).eq("active",true).abortSignal(controller.signal).maybeSingle(),supabase.from("role_applications").select("*").eq("user_id",uid).abortSignal(controller.signal).maybeSingle(),supabase.rpc("admin_bootstrap_available").abortSignal(controller.signal)]),deadline]);const queryError=roleResult.error||adminResult.error||appResult.error||bootstrapResult.error;if(queryError)throw queryError;setAccess({loading:false,error:null,userId:uid,roles:((roleResult.data||[]) as {role:string}[]).map(x=>x.role),isAdmin:Boolean(adminResult.data),adminLevel:adminResult.data?.admin_level||null,bootstrapAvailable:Boolean(bootstrapResult.data),application:(appResult.data||null) as Application|null})}catch(reason){setAccess(current=>({...current,loading:false,error:reason instanceof Error?reason.message:"CropNex could not check your access. Check your connection and try again."}))}finally{window.clearTimeout(timer)}},[]);
  useEffect(()=>{void refresh()},[]);
  return <Context.Provider value={{...access,refresh}}>{children}</Context.Provider>
 }
@@ -19,6 +19,7 @@ export function AccessProvider({children}:{children:React.ReactNode}){
 export function AccessGate({children}:{children:React.ReactNode}){
  const a=useAccess(),pathname=usePathname();
  if(a.loading)return <main className="grid min-h-screen place-items-center bg-[#14261F] text-[#8d9d94]">Checking your CropNex access…</main>;
+ if(a.error)return <main className="grid min-h-screen place-items-center bg-[#14261F] p-5 text-white"><section className="ag-panel w-full max-w-xl rounded-2xl p-7"><h1 className="text-xl font-bold">Couldn’t load your CropNex access</h1><p className="mt-3 text-sm leading-6 text-[#9caaa2]">{a.error}</p><button type="button" onClick={()=>void a.refresh()} className="primary mt-5">Try again</button></section></main>;
  if(a.bootstrapAvailable&&!a.isAdmin)return <Bootstrap refresh={a.refresh}/>;
   if(!a.isAdmin&&!a.roles.length)return <ApplicationScreen application={a.application} refresh={a.refresh} userId={a.userId}/>;
   if(pathname.startsWith("/admin")&&!a.isAdmin)return <RoleLanding/>;
