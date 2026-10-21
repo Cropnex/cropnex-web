@@ -1,0 +1,15 @@
+CropNex Update V6.20.0
+
+This update fixes the Transport page's indefinite farm-season loading state. Season requests now time out and show a useful error with a retry button. It includes the Farm Setup visibility and CropNex login branding updates as well.
+
+No Supabase migration is required.
+
+Apply in GitHub Codespaces:
+1. Extract this ZIP and copy all contents into /workspaces/cropnex-web, replacing matching files. Keep your .env.local; it is not included.
+2. In the terminal run:
+   cd /workspaces/cropnex-web
+   git status
+   git add -A
+   git commit -m "CropNex v6.20.0 transport loading fix"
+   git push
+3. Wait for Vercel to finish deploying, then refresh the Transport page.

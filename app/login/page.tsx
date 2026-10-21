@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { LEGAL_VERSION } from "@/lib/app-meta";
+import CropNexLogo from "@/components/brand/CropNexLogo";
 
 export default function LoginPage() {
 
@@ -94,10 +95,8 @@ const handleRegister = async () => {
   return (
     <main className="min-h-screen bg-[#14261F] text-white flex items-center justify-center px-6">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-black">
-            AG<span className="text-green-500">CORE</span>
-          </h1>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <CropNexLogo className="justify-center" />
           <p className="mt-3 text-gray-400">{mode === "login" ? "Sign in to your CropNex workspace" : "Create an account and request verified access"}</p>
         </div>
 
@@ -143,16 +142,16 @@ const handleRegister = async () => {
               type="checkbox"
               checked={acceptedLegal}
               onChange={(event) => setAcceptedLegal(event.target.checked)}
-              className="mt-1 h-4 w-4 accent-green-500"
+              className="mt-1 h-4 w-4 accent-[#B6CB8D]"
             />
-            <span>I accept the <Link className="font-semibold text-green-400 hover:underline" href="/legal/terms">Terms</Link> and acknowledge the <Link className="font-semibold text-green-400 hover:underline" href="/legal/privacy">Privacy Notice</Link>.</span>
+            <span>I accept the <Link className="font-semibold text-[#B6CB8D] hover:underline" href="/legal/terms">Terms</Link> and acknowledge the <Link className="font-semibold text-[#B6CB8D] hover:underline" href="/legal/privacy">Privacy Notice</Link>.</span>
           </label>}
 
 <button
   type="button"
   onClick={mode === "login" ? handleLogin : handleRegister}
   disabled={loading}
-  className="w-full rounded-xl bg-green-500 px-5 py-3 font-bold text-black"
+  className="w-full rounded-xl bg-[#D6A64C] px-5 py-3 font-bold text-[#171812] transition hover:bg-[#e0b965]"
 >
   {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (mode === "login" ? "Login" : "Create account")}
 </button>
@@ -162,7 +161,7 @@ const handleRegister = async () => {
 
         <p className="mt-6 text-center text-sm text-gray-400">
           {mode === "login" ? "New to CropNex?" : "Already registered?"}{" "}
-          <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} className="font-bold text-green-400">
+          <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} className="font-bold text-[#B6CB8D]">
             {mode === "login" ? "Create account" : "Sign in"}
           </button>
         </p>

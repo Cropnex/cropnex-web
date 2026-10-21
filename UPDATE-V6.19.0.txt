@@ -1,0 +1,15 @@
+CropNex Update V6.19.0
+
+This update replaces the old AGCORE text on the login page with the CropNex logo and aligns the login controls with CropNex brand colours. It also includes the Farm Setup navigation and first-field guidance from V6.18.0.
+
+No Supabase migration is required.
+
+Apply in GitHub Codespaces:
+1. Extract this ZIP and copy all contents into the existing /workspaces/cropnex-web folder, replacing matching files. Keep your existing .env.local; it is not included.
+2. In the terminal run:
+   cd /workspaces/cropnex-web
+   git status
+   git add -A
+   git commit -m "CropNex v6.19.0 branding cleanup"
+   git push
+3. Wait for Vercel to finish deploying, then refresh the login page. If it still shows the old logo, hard-refresh the page (Ctrl+F5).
