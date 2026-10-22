@@ -1,0 +1,31 @@
+CropNex Update V6.28.0
+
+This combined update includes the V6.27.0 workflow changes plus pre-subscription and launch access controls.
+
+Install
+1. Extract this ZIP.
+2. Copy the files and folders inside it into the root of your Codespaces project, keeping the folder structure. Choose Replace when asked. Preserve the existing .git folder and your private .env.local file.
+3. In Codespaces, run:
+
+   cd /workspaces/cropnex-web
+   npx supabase db push
+   npx supabase migration list
+   git status
+   git add -A
+   git commit -m "CropNex v6.28.0 pre-subscription launch gate"
+   git push
+
+The included migration 202610220001_actuals_allow_negative_stock.sql is required for activity actualisation when stock is short or missing. There is no new migration for pre-subscription.
+
+Launch control
+- In Vercel, set NEXT_PUBLIC_CROPNEX_LAUNCHED to false for Production and Preview while CropNex is pre-launch, then redeploy.
+- The landing page keeps login and registration available. The Pre-subscribe button opens account creation with name and farm/business profile fields.
+- Internal app pages show the pre-launch screen, and CropNex API routes return 503 until launch.
+- When the company is ready to launch, change NEXT_PUBLIC_CROPNEX_LAUNCHED to true and redeploy. Existing CropNex account verification and role approval rules still apply after launch.
+
+Included changes
+- Fixes the scanner JSX build error from V6.27.0.
+- Adds the pre-subscription landing calls to action and saves the new user's name and farm/business name to their CropNex profile after successful signup/email confirmation.
+- Keeps app pages and API routes closed until the launch flag is enabled.
+- Includes V6.27.0 company details, scanner extraction/review, negative inventory actualisation and transparent field overlays.
+- Updates the displayed app and service-worker cache version to 6.28.0.

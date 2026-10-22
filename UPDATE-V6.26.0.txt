@@ -24,4 +24,5 @@ Included changes
 - AI scanner extraction and review cover delivery-note references, destination, vehicle and driver details, gross/tare/net/accepted/rejected tonnes, moisture and grade. Supplier/reference details are retained in load notes where no dedicated database column exists.
 - Activity actualisation can proceed with insufficient or missing shed stock. It records usage as a negative balance and raises a critical inventory alert.
 - Field interiors become transparent while NDVI or thematic overlays are shown, retaining the field outlines.
+- Scanner page JSX syntax is fixed so the project build can parse the transport and receipt review form.
 - App version and service-worker cache are updated to 6.26.0.

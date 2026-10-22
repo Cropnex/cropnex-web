@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import CropNexLogo from "@/components/brand/CropNexLogo";
+import { CROPNEX_LAUNCHED } from "@/lib/app-meta";
 
 const landingTitle = "CropNex | Field intelligence for modern farming";
 const landingDescription =
@@ -58,7 +59,7 @@ export default function HomePage() {
         <nav className="hidden items-center gap-7 text-sm font-semibold text-white/70 md:flex">
           <a href="#platform" className="hover:text-white">Platform</a><a href="#how" className="hover:text-white">How it works</a><a href="#about" className="hover:text-white">About</a>
         </nav>
-        <Link href="/login" className="rounded-xl bg-[var(--brand-leaf)] px-5 py-2.5 text-sm font-bold text-[var(--brand-forest)] transition hover:bg-[var(--brand-leaf-light)]">Log in</Link>
+        <div className="flex items-center gap-3"><Link href="/login" className="hidden text-sm font-semibold text-white/75 hover:text-white sm:block">Log in</Link><Link href={CROPNEX_LAUNCHED ? "/login?mode=register" : "/login?mode=register&presubscribe=1"} className="rounded-xl bg-[var(--brand-leaf)] px-5 py-2.5 text-sm font-bold text-[var(--brand-forest)] transition hover:bg-[var(--brand-leaf-light)]">{CROPNEX_LAUNCHED ? "Create account" : "Pre-subscribe"}</Link></div>
       </div>
     </header>
 
@@ -71,8 +72,8 @@ export default function HomePage() {
           <p className="ag-kicker">Field intelligence for the whole operation</p>
           <h1 className="mt-5 text-5xl font-extrabold leading-[1.02] md:text-7xl">A clearer view of every field.</h1>
           <p className="mt-7 max-w-2xl text-lg leading-8 text-white/78">CropNex brings field planning, farm records, inventory, equipment, harvest and financial insight into one connected workspace.</p>
-          <div className="mt-9 flex flex-wrap gap-3"><Link href="/login" className="rounded-xl bg-[var(--brand-leaf)] px-7 py-4 font-extrabold text-[var(--brand-forest)] hover:bg-[var(--brand-leaf-light)]">Log in to CropNex</Link><a href="#platform" className="rounded-xl border border-white/25 bg-white/5 px-7 py-4 font-bold backdrop-blur hover:bg-white/10">Explore the platform</a></div>
-          <p className="mt-4 text-sm font-semibold text-white/65">Public launch coming soon · cropnex.com</p>
+          <div className="mt-9 flex flex-wrap gap-3"><Link href={CROPNEX_LAUNCHED ? "/login?mode=register" : "/login?mode=register&presubscribe=1"} className="rounded-xl bg-[var(--brand-leaf)] px-7 py-4 font-extrabold text-[var(--brand-forest)] hover:bg-[var(--brand-leaf-light)]">{CROPNEX_LAUNCHED ? "Create your CropNex account" : "Pre-subscribe to CropNex"}</Link><a href="#platform" className="rounded-xl border border-white/25 bg-white/5 px-7 py-4 font-bold backdrop-blur hover:bg-white/10">Explore the platform</a></div>
+          <p className="mt-4 text-sm font-semibold text-white/65">{CROPNEX_LAUNCHED ? "Your farm workspace starts here" : "Create your profile now · App access opens at launch"} · cropnex.com</p>
           <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm text-white/75"><span>Season-aware planning</span><span>Field-to-harvest records</span><span>Works offline</span></div>
         </div>
         <FieldIllustration />
@@ -92,7 +93,7 @@ export default function HomePage() {
 
     <section id="about" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="grid gap-8 lg:grid-cols-[1.1fr_.9fr]"><div><p className="ag-kicker">About CropNex</p><h2 className="mt-3 max-w-2xl text-4xl font-extrabold">Better information should make farming simpler.</h2></div><p className="self-end text-lg leading-8 text-white/65">CropNex is a practical farm-management workspace for the people, land and decisions behind each season.</p></div></section>
 
-    <section id="contact" className="mx-auto max-w-7xl px-5 pb-24 lg:px-8"><div className="relative overflow-hidden rounded-[2rem] bg-[var(--brand-leaf)] p-8 text-[var(--brand-forest)] md:p-12"><div className="absolute -right-10 -top-20 h-64 w-64 rounded-full bg-white/20 blur-3xl"/><div className="relative flex flex-wrap items-end justify-between gap-7"><div><p className="text-xs font-extrabold uppercase tracking-[.18em]">CropNex</p><h2 className="mt-3 max-w-2xl text-4xl font-extrabold">Bring the season and the operation into focus.</h2><p className="mt-4 max-w-xl">Sign in to continue to your secure CropNex workspace.</p></div><Link href="/login" className="rounded-xl bg-[var(--brand-forest)] px-7 py-4 font-bold text-white">Log in to CropNex</Link></div></div></section>
+    <section id="contact" className="mx-auto max-w-7xl px-5 pb-24 lg:px-8"><div className="relative overflow-hidden rounded-[2rem] bg-[var(--brand-leaf)] p-8 text-[var(--brand-forest)] md:p-12"><div className="absolute -right-10 -top-20 h-64 w-64 rounded-full bg-white/20 blur-3xl"/><div className="relative flex flex-wrap items-end justify-between gap-7"><div><p className="text-xs font-extrabold uppercase tracking-[.18em]">CropNex</p><h2 className="mt-3 max-w-2xl text-4xl font-extrabold">Bring the season and the operation into focus.</h2><p className="mt-4 max-w-xl">{CROPNEX_LAUNCHED ? "Create your CropNex account to get started." : "Create your profile now. App access opens at launch."}</p></div><Link href={CROPNEX_LAUNCHED ? "/login?mode=register" : "/login?mode=register&presubscribe=1"} className="rounded-xl bg-[var(--brand-forest)] px-7 py-4 font-bold text-white">{CROPNEX_LAUNCHED ? "Create account" : "Pre-subscribe to CropNex"}</Link></div></div></section>
 
     <footer className="border-t border-white/10"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-8 text-sm text-white/55 lg:px-8"><div className="flex flex-wrap items-center gap-5"><Link href="/" aria-label="CropNex home"><CropNexLogo /></Link><div><p>© {new Date().getFullYear()} CropNex</p><p className="mt-1 text-xs">Operated by CROPNEX (PTY) LTD · Registration 2026/452524/07</p></div></div><div className="flex flex-wrap gap-5"><Link href="/legal/privacy">Privacy</Link><Link href="/legal/terms">Terms</Link><Link href="/legal/acceptable-use">Acceptable use</Link><Link href="/login" className="font-bold text-[var(--brand-leaf-light)]">Login</Link></div></div></footer>
   </main>;
