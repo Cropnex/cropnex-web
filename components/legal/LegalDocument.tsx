@@ -9,8 +9,8 @@ export default function LegalDocument({ title, summary, children }: { title: str
         <p className="mt-8 text-xs font-black uppercase tracking-[0.24em] text-[#89A968]">{APP_NAME} · {APP_STAGE} · v{APP_VERSION}</p>
         <h1 className="mt-3 text-3xl font-black sm:text-5xl">{title}</h1>
         <p className="mt-4 max-w-3xl leading-7 text-[#9aaba1]">{summary}</p>
-        <p className="mt-3 text-xs text-[#6f8177]">Effective 25 September 2026 · Policy version {LEGAL_VERSION}</p>
-        <p className="mt-1 text-xs text-[#6f8177]">Service provider: {COMPANY_NAME} · Registration {COMPANY_REGISTRATION}</p>
+        <p className="mt-3 text-xs text-[#6f8177]">Effective 22 October 2026 · Policy version {LEGAL_VERSION}</p>
+        <p className="mt-1 text-xs text-[#6f8177]">CropNex is operated by {COMPANY_NAME} · Company registration {COMPANY_REGISTRATION}</p>
         <div className="prose prose-invert mt-10 max-w-none prose-headings:text-white prose-h2:mt-10 prose-h2:text-2xl prose-p:leading-7 prose-p:text-[#b7c3bc] prose-li:text-[#b7c3bc] prose-a:text-[#89A968]">
           {children}
         </div>

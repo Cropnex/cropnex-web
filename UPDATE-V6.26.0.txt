@@ -1,0 +1,27 @@
+CropNex Full Project V6.26.0
+
+This ZIP contains the complete CropNex project source, based on V6.25.0 and updated with the V6.26.0 company details, scanner, actuals and map changes.
+
+Replace the project source
+1. Extract the ZIP.
+2. Copy all files and folders inside the extracted folder into the root of /workspaces/cropnex-web. Choose Replace when asked.
+3. Preserve the existing .git folder so your GitHub connection and commit history remain. Preserve your private .env.local file; it is not included in the ZIP. Do not copy any .env.local secrets into GitHub.
+4. In the Codespaces terminal, run:
+
+   cd /workspaces/cropnex-web
+   npx supabase link --project-ref oauwokzqyvmmaqakjwoy
+   npx supabase db push
+   npx supabase migration list
+   git status
+   git add -A
+   git commit -m "CropNex v6.26.0 workflow updates"
+   git push
+
+If Supabase already reports this CropNex project as linked, you can skip the link command. Do not link this project to AGCORE.
+
+Included changes
+- Landing page and legal pages identify CROPNEX (PTY) LTD, registration number 2026/452524/07, with the policy date updated to 22 October 2026. Legal terms and privacy remain drafts for attorney review.
+- AI scanner extraction and review cover delivery-note references, destination, vehicle and driver details, gross/tare/net/accepted/rejected tonnes, moisture and grade. Supplier/reference details are retained in load notes where no dedicated database column exists.
+- Activity actualisation can proceed with insufficient or missing shed stock. It records usage as a negative balance and raises a critical inventory alert.
+- Field interiors become transparent while NDVI or thematic overlays are shown, retaining the field outlines.
+- App version and service-worker cache are updated to 6.26.0.

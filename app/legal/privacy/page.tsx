@@ -15,7 +15,7 @@ export default function PrivacyPage() {
     <h2>Cookies, devices and third-party links</h2>
     <p>CropNex may use essential browser storage for authentication, offline operation, preferences and security. External mapping, infrastructure or linked services have their own terms and privacy practices.</p>
     <h2>Contact and updates</h2>
-    <p>Privacy questions and data-subject requests can be submitted through CropNex support. Before commercial launch, CropNex will publish its responsible-party details, Information Officer contact details and formal request process. Material notice changes will be shown in the platform.</p>
+    <p>CropNex is operated by CROPNEX (PTY) LTD, a company registered in South Africa under registration number 2026/452524/07. Privacy questions and data-subject requests can be submitted through CropNex support. CropNex will publish its Information Officer contact details and formal request process before commercial launch. Material notice changes will be shown in the platform.</p>
   </LegalDocument>;
 }
 

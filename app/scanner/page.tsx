@@ -15,11 +15,20 @@ type ScanLine = {
 type ScanData = {
     document_type: string;
     document_date: string | null;
+    load_number: string | null;
     ticket_number: string | null;
     driver_name: string | null;
     truck_registration: string | null;
+    trailer_registration: string | null;
+    transporter: string | null;
     destination_name: string | null;
+    gross_tonnes: number | null;
+    tare_tonnes: number | null;
     net_tonnes: number | null;
+    accepted_tonnes: number | null;
+    rejected_tonnes: number | null;
+    moisture_percent: number | null;
+    grade: string | null;
     supplier: string | null;
     reference: string | null;
     inventory_items: ScanLine[];
@@ -89,7 +98,7 @@ export default function ScannerPage() {
                 next.onerror = () => reject(new Error("The selected photo could not be opened."));
                 next.src = url;
             });
-            const maximumSide = 2200;
+            const maximumSide = 3200;
             const scale = Math.min(1, maximumSide / Math.max(image.width, image.height));
             const canvas = document.createElement("canvas");
             canvas.width = Math.max(1, Math.round(image.width * scale));
@@ -98,7 +107,7 @@ export default function ScannerPage() {
             if (!context)
                 throw new Error("The photo could not be prepared.");
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL("image/jpeg", 0.82);
+            return canvas.toDataURL("image/jpeg", 0.92);
         }
         finally {
             URL.revokeObjectURL(url);
@@ -159,7 +168,7 @@ export default function ScannerPage() {
         cancelledByUser.current = true;
         scanController.current?.abort();
     }
-    function setHeader(key: keyof ScanData, value: string) { setData(current => current ? { ...current, [key]: key === 'net_tonnes' ? (value === '' ? null : Number(value)) : value } : current); }
+    function setHeader(key: keyof ScanData, value: string) { setData(current => current ? { ...current, [key]: ['net_tonnes','gross_tonnes','tare_tonnes','accepted_tonnes','rejected_tonnes','moisture_percent'].includes(key) ? (value === '' ? null : Number(value)) : value } : current); }
     function setLine(index: number, key: keyof ScanLine, value: string) { setData(current => current ? { ...current, inventory_items: current.inventory_items.map((line, i) => i === index ? { ...line, [key]: ['quantity', 'unit_price', 'confidence'].includes(key) ? (value === '' ? null : Number(value)) : value } : line) } : current); }
     async function postInventory(uid: string) {
         if (!data)
@@ -204,11 +213,11 @@ export default function ScannerPage() {
         let errorMessage = "";
         if (data.document_type === "Transport delivery note") {
             const field = fields.find(x => x.id === fieldId);
-            if (!field || !data.net_tonnes) {
+            if (!field || data.net_tonnes === null || data.net_tonnes <= 0) {
                 setBusy(false);
                 return alert("Choose the field and confirm a net weight.");
             }
-            const load = await supabase.from("transport_loads").insert({ user_id: uid, load_number: data.ticket_number || `SCAN-${Date.now()}`, load_date: data.document_date || new Date().toISOString().slice(0, 10), destination_name: data.destination_name, truck_registration: data.truck_registration, driver_name: data.driver_name, ticket_number: data.ticket_number, net_tonnes: data.net_tonnes, accepted_tonnes: data.net_tonnes, status: "Reconciled", source: "AI Scanner", created_by: uid, notes: data.notes }).select("id").single();
+            const load = await supabase.from("transport_loads").insert({ user_id: uid, load_number: data.load_number || data.ticket_number || `SCAN-${Date.now()}`, load_date: data.document_date || new Date().toISOString().slice(0, 10), destination_name: data.destination_name, truck_registration: data.truck_registration, trailer_registration: data.trailer_registration, transporter: data.transporter, driver_name: data.driver_name, ticket_number: data.ticket_number, gross_tonnes: data.gross_tonnes, tare_tonnes: data.tare_tonnes, net_tonnes: data.net_tonnes, accepted_tonnes: data.accepted_tonnes, rejected_tonnes: data.rejected_tonnes, moisture_percent: data.moisture_percent, grade: data.grade, status: "Reconciled", source: "AI Scanner", created_by: uid, notes: [data.notes, data.reference ? `Reference: ${data.reference}` : null, data.supplier ? `Supplier: ${data.supplier}` : null].filter(Boolean).join(" · ") || null }).select("id").single();
             if (load.error)
                 errorMessage = load.error.message;
             else {
@@ -243,12 +252,12 @@ export default function ScannerPage() {
                 {scanError && <p role="alert" className="mt-3 rounded-xl border border-red-300/30 bg-red-300/[.08] p-3 text-sm leading-6 text-red-100">{scanError}</p>}
                 {!busy ? <button type="button" disabled={!file} onClick={scan} className="primary mt-5 w-full">{stage ? "Try again" : "Scan document"}</button> : <button type="button" onClick={cancelScan} className="mt-5 w-full rounded-xl border border-red-400/40 px-4 py-3 font-bold text-red-300">Cancel scan</button>}
                 {stage && <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-[#a9b8af]"><div className="flex items-center gap-2">{busy && <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#86cf3d] border-t-transparent"/>}<strong>{stage}</strong></div>{!busy && file && <p className="mt-1 text-xs text-[#718278]">Your selected photo is ready to scan again.</p>}</div>}
-                <p className="mt-4 text-xs text-[#718278]">Large photos are automatically reduced for a faster scan. Nothing is posted until you review and confirm it.</p>
+                <p className="mt-4 text-xs text-[#718278]">High-resolution photos are retained for clear reading of small ticket fields. Nothing is posted until you review and confirm it.</p>
             </section>
             <section className="ag-panel rounded-2xl p-5">
                 {!data ? <div className="grid min-h-80 place-items-center text-center text-[#718278]">{busy ? stage : "The extracted information will appear here for review."}</div> : <>
                     <div className="flex justify-between"><div><p className="ag-kicker">Review required</p><h2 className="mt-1 text-2xl font-bold">Confirm the document</h2></div><span className={`h-fit rounded-full px-3 py-2 text-xs font-bold ${data.confidence >= 80 ? 'bg-green-400/10 text-green-300' : 'bg-amber-400/10 text-amber-300'}`}>{data.confidence}% confidence</span></div>
-                    <div className="mt-5 grid gap-3 md:grid-cols-2">{(['document_date', 'ticket_number', 'supplier', 'reference', 'driver_name', 'truck_registration', 'destination_name', 'net_tonnes', 'notes'] as (keyof ScanData)[]).filter(k => data.document_type === 'Inventory receipt' || !['supplier'].includes(k)).map(k => <label key={k} className="field-label">{k.replaceAll('_', ' ')}<input className="field-input" type={k === 'net_tonnes' ? 'number' : 'text'} value={String(data[k] ?? '')} onChange={e => setHeader(k, e.target.value)}/></label>)}</div>
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">{(data.document_type === 'Transport delivery note' ? ['document_date','load_number','ticket_number','reference','destination_name','supplier','transporter','driver_name','truck_registration','trailer_registration','gross_tonnes','tare_tonnes','net_tonnes','accepted_tonnes','rejected_tonnes','moisture_percent','grade','notes'] : ['document_date','ticket_number','supplier','reference','notes']) as (keyof ScanData)[].map(k => <label key={k} className="field-label">{k.replaceAll('_', ' ')}<input className="field-input" type={['gross_tonnes','tare_tonnes','net_tonnes','accepted_tonnes','rejected_tonnes','moisture_percent'].includes(k) ? 'number' : k === 'document_date' ? 'date' : 'text'} value={String(data[k] ?? '')} onChange={e => setHeader(k, e.target.value)}/></label>)}</div>
                     {data.document_type === "Transport delivery note" ? <label className="field-label">Post to field<select className="field-input" value={fieldId} onChange={e => setFieldId(e.target.value)}><option value="">Choose field</option>{fields.map(x => <option key={x.id} value={x.id}>{x.field_name} · {x.crop || "Unplanned"}</option>)}</select></label> : <>
                         <div className="mt-6 flex flex-wrap items-end justify-between gap-3"><div><p className="ag-kicker">Products found</p><h3 className="mt-1 text-xl font-bold">{data.inventory_items.length} receipt lines</h3></div><label className="field-label min-w-64">Receiving shed<select className="field-input" value={locationId} onChange={e => setLocationId(e.target.value)}><option value="">Choose location</option>{locations.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label></div>
                         <div className="mt-3 space-y-3">{data.inventory_items.map((line, index) => <article key={index} className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={mappings[index]?.enabled ?? true} onChange={e => setMappings(x => x.map((m, i) => i === index ? { ...m, enabled: e.target.checked } : m))}/>{line.product_name}</label><span className="text-xs text-[#829087]">{line.confidence}% confidence</span></div><div className="mt-3 grid gap-3 sm:grid-cols-3"><Field label="Product name" value={line.product_name} set={v => setLine(index, 'product_name', v)}/><Field label="Quantity" type="number" value={String(line.quantity)} set={v => setLine(index, 'quantity', v)}/><Field label="Unit" value={line.unit} set={v => setLine(index, 'unit', v)}/><Field label="Unit price" type="number" value={String(line.unit_price ?? '')} set={v => setLine(index, 'unit_price', v)}/><Field label="Batch" value={line.batch_number || ''} set={v => setLine(index, 'batch_number', v)}/><label className="field-label">Inventory match<select className="field-input" value={mappings[index]?.target || ''} onChange={e => setMappings(x => x.map((m, i) => i === index ? { ...m, target: e.target.value } : m))}><option value="">Choose product</option><optgroup label="Existing inventory">{items.map(x => <option key={x.id} value={`item:${x.id}`}>{x.name} · {x.quantity} {x.unit}</option>)}</optgroup><optgroup label="Create from approved catalogue">{masters.map(x => <option key={x.id} value={`master:${x.id}`}>+ {x.catalogue_code} · {x.name}</option>)}</optgroup></select></label></div></article>)}</div>

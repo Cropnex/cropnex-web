@@ -3,6 +3,7 @@ import LegalDocument from "@/components/legal/LegalDocument";
 export default function TermsPage() {
   return <LegalDocument title="Terms of Use" summary="These terms govern access to the CropNex private-beta farm operating system. They are written for the pilot and must be reviewed by a South African attorney before commercial launch.">
     <h2>1. Using CropNex</h2>
+    <p>CropNex is operated by CROPNEX (PTY) LTD, a company registered in South Africa under registration number 2026/452524/07. In these Terms, “CropNex”, “we”, “us” and “our” refer to that company.</p>
     <p>You must provide accurate registration information, protect your login details and only use the platform for lawful agricultural and business purposes. Access is subject to account verification, role permissions and the Acceptable Use Policy.</p>
     <h2>2. Private-beta service</h2>
     <p>CropNex is currently a private-beta product. Features, calculations, integrations and availability may change. Keep independent copies of records that are essential to your operation and verify important outputs before acting on them.</p>

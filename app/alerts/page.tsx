@@ -134,11 +134,22 @@ export default function AlertsPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    inventory.filter(item => Number(item.quantity) < 0).forEach(item => {
+      result.push({
+        id: `negative-stock-${item.id}`,
+        title: `${item.name} is below zero`,
+        description: `${Math.abs(Number(item.quantity)).toLocaleString()} ${item.unit} below zero at ${item.location || "its shed"}. Confirm the stock record and post a receipt or correction.`,
+        severity: "critical",
+        href: "/inventory",
+        category: "Inventory",
+      });
+    });
+
     if (preferences.low_stock_enabled) {
       inventory
         .filter(
           (item) =>
-            item.minimum_quantity !== null &&
+            Number(item.quantity) >= 0 && item.minimum_quantity !== null &&
             item.quantity <= item.minimum_quantity
         )
         .forEach((item) => {
