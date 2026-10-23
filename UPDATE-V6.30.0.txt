@@ -1,0 +1,30 @@
+CropNex v6.30.0 — WhatsApp Farm Inbox pilot
+
+This full-project update adds an authorised-sender list and an inbound WhatsApp inbox for text, voice-note, image, and delivery-note messages. Incoming messages are held for a human review. This version does not transcribe voice notes, download attachments, or make automatic inventory changes.
+
+Database
+Apply supabase/migrations/202610230001_cropnex_whatsapp_farm_inbox.sql to the CropNex Supabase project. The tables are tenant-protected. The server-side webhook stores only messages from phone numbers a farm has authorised.
+
+Meta and Vercel setup
+1. Create/configure CropNex's WhatsApp Business Platform number in Meta and subscribe its webhook to the `messages` field.
+2. Set the callback URL to https://www.cropnex.com/api/whatsapp/webhook.
+3. Choose a long random WHATSAPP_VERIFY_TOKEN. Enter the same value in Meta's webhook verification form and Vercel.
+4. In Vercel Production, add WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET (from the Meta app), and SUPABASE_SERVICE_ROLE_KEY (from the CropNex Supabase project). Set these as server-only secrets; never add a NEXT_PUBLIC_ prefix or paste the values into a chat.
+5. Redeploy the Production deployment after adding the variables. Authorise foremen in Farm Inbox.
+
+Full project update in Codespaces
+Keep the existing `.git` and `.env.local` files when replacing source files. Then run:
+
+  cd /workspaces/cropnex-web
+  pnpm install
+  npx supabase login
+  npx supabase link --project-ref oauwokzqyvmmaqakjwoy
+  npx supabase db push
+  npx supabase migration list
+  pnpm build
+  git status
+  git add -A
+  git commit -m "CropNex v6.30.0 WhatsApp Farm Inbox"
+  git push
+
+The incoming webhook remains available while the app is pre-launch so Meta can verify it and deliver signed events. Other application API routes retain the existing launch gate. Do not turn on WhatsApp messaging until the Meta webhook verification succeeds and an authorised sender is configured.

@@ -1,0 +1,15 @@
+CropNex V6.29.0 — Pre-subscription lead capture
+
+This is a complete source project update. It adds an admin-only pre-subscriber list to Administration > Verification Centre, captures existing and new pre-subscription registrations in Supabase, and lets admins track follow-up status. The pre-launch gate remains on for ordinary users; active CropNex administrators can reach the app while the launch flag is false.
+
+Supabase migration
+Apply supabase/migrations/202610220002_cropnex_pre_subscribers.sql to the CropNex project. It creates the admin-protected pre_subscribers table, captures new pre-subscriptions, and imports existing Auth users whose metadata has pre_subscribe=true.
+
+After copying the full ZIP into Codespaces:
+1. Keep the existing .git and .env.local files.
+2. Run pnpm install.
+3. Link the intended CropNex Supabase project and run npx supabase db push.
+4. Run pnpm build.
+5. Commit and push the source changes to deploy.
+
+Pre-subscribers must still submit an access application before an administrator can approve their Farmer, Buyer, or Transporter role. The new pre-subscriber panel is for lead visibility and follow-up, not automatic app access.

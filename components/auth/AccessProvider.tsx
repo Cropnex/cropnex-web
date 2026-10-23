@@ -23,7 +23,7 @@ export function AccessGate({children}:{children:React.ReactNode}){
  if(a.bootstrapAvailable&&!a.isAdmin)return <Bootstrap refresh={a.refresh}/>;
   if(!a.isAdmin&&!a.roles.length)return <ApplicationScreen application={a.application} refresh={a.refresh} userId={a.userId}/>;
   if(pathname.startsWith("/admin")&&!a.isAdmin)return <RoleLanding/>;
- const farmRoutes=["/farm-map","/fields","/planning","/activities","/scouting","/jobs","/inventory","/equipment","/fuel","/labour","/financials","/harvest","/transport","/analytics","/reports","/weather","/rainfall","/scanner","/alerts","/standards","/offline-sync"],allowed=a.isAdmin||a.roles.includes("Farmer")||!farmRoutes.some(route=>pathname===route||pathname.startsWith(`${route}/`));
+ const farmRoutes=["/farm-map","/fields","/planning","/activities","/scouting","/jobs","/inventory","/equipment","/fuel","/labour","/financials","/harvest","/transport","/analytics","/reports","/weather","/rainfall","/scanner","/alerts","/standards","/offline-sync","/whatsapp-inbox"],allowed=a.isAdmin||a.roles.includes("Farmer")||!farmRoutes.some(route=>pathname===route||pathname.startsWith(`${route}/`));
  if(!allowed)return <RoleLanding/>;
  if(pathname==="/dashboard"&&!a.isAdmin&&!a.roles.includes("Farmer"))return <RoleLanding/>;
  return <>{children}</>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import ServiceWorkerRegistration from "@/components/pwa/ServiceWorkerRegistration";
-import { AccessGate, AccessProvider } from "@/components/auth/AccessProvider";
+import { AccessGate, AccessProvider, useAccess } from "@/components/auth/AccessProvider";
 import LegalFooter from "@/components/layout/LegalFooter";
 import { SeasonProvider } from "@/components/season/SeasonProvider";
 import Link from "next/link";
@@ -16,16 +16,20 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  return <AccessProvider><LaunchAwareShell sidebarOpen={sidebarOpen} onOpenMenu={() => setSidebarOpen(true)} onCloseMenu={() => setSidebarOpen(false)}>{children}</LaunchAwareShell></AccessProvider>;
+}
 
-  if (!CROPNEX_LAUNCHED) return <PreLaunchGate />;
+function LaunchAwareShell({children,sidebarOpen,onOpenMenu,onCloseMenu}:{children:React.ReactNode;sidebarOpen:boolean;onOpenMenu:()=>void;onCloseMenu:()=>void}) {
+  const access=useAccess();
+  if (!CROPNEX_LAUNCHED && !access.isAdmin) return <PreLaunchGate />;
 
-  return <AccessProvider><AccessGate><SeasonProvider>
+  return <AccessGate><SeasonProvider>
     <div className="ag-app-shell min-h-screen bg-[#F2F0E8] text-[#181a15]">
       <ServiceWorkerRegistration />
 
       <Sidebar
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        onClose={onCloseMenu}
       />
 
       <div className="ag-app-content min-h-screen lg:pl-64">
@@ -37,7 +41,7 @@ export default function AppShell({
         <LegalFooter />
       </div>
     </div>
-  </SeasonProvider></AccessGate></AccessProvider>;
+  </SeasonProvider></AccessGate>;
 }
 
 function PreLaunchGate() {

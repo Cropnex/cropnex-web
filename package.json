@@ -1,6 +1,6 @@
 {
   "name": "cropnex-web",
-  "version": "6.28.0",
+  "version": "6.30.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
