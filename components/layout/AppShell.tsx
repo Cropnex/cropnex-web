@@ -33,7 +33,7 @@ function LaunchAwareShell({children,sidebarOpen,onOpenMenu,onCloseMenu}:{childre
       />
 
       <div className="ag-app-content min-h-screen lg:pl-64">
-        <TopBar onOpenMenu={() => setSidebarOpen(true)} />
+        <TopBar onOpenMenu={onOpenMenu} />
 
         <div className="min-h-[calc(100vh-5rem)]">
           {children}
