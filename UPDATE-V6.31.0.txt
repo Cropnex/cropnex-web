@@ -1,0 +1,5 @@
+CropNex v6.31.0 — Grouped activity actuals
+
+Farm Planning now opens a guided actualisation window. Confirm the products and operations actually used, set a start and finish date, and select every field where the same planned activity was completed. CropNex records a separate actual, stock movement, and cost allocation for each selected field in one database transaction. Negative stock remains allowed and flagged for review. Actual date ranges are stored on each field activity; the existing actual date remains the finish date for older screens and integrations.
+
+Database update required: apply supabase/migrations/202610260001_grouped_activity_actuals.sql before using grouped actualisation.

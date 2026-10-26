@@ -18,6 +18,8 @@ export type ActivityPlan = {
   notes: string | null;
   planned_total: number;
   actual_date: string | null;
+  actual_start_date?: string | null;
+  actual_end_date?: string | null;
   actual_total: number;
   actual_notes: string | null;
   created_at: string;
