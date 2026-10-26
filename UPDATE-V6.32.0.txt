@@ -1,0 +1,7 @@
+CropNex v6.32.0 — Field map actualisation and readable planning
+
+The Farm Map field drawer now supports grouped actuals: open a planned activity, choose every matching planned field, enter a start and finish date, and confirm which products and operations were used. Inventory movements and actual costs are posted to each selected field in one grouped transaction. Existing negative-stock handling and alerts remain in place.
+
+Farm Planning activity cards now use stronger text contrast for headings, dates, crop, products, rates, prices, costs and instructions.
+
+Database update: this version uses the grouped actuals function introduced in V6.31.0. If supabase/migrations/202610260001_grouped_activity_actuals.sql has not yet been applied to your Supabase project, apply it before using grouped actualisation. No new migration is included in V6.32.0.
