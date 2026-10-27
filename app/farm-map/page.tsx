@@ -17,6 +17,8 @@ import { boundaryGeoJson, boundaryHasShape, boundaryPoints, boundaryPolygonPaths
 import { splitFieldBoundary } from "@/lib/split-field-boundary";
 type PlanOperation={id:string;plan_id:string;operation_name:string;unit:string;planned_rate_per_ha:number;planned_cost:number;actual_rate_per_ha:number|null;actual_cost:number|null};
 type InventoryLocation={id:string;name:string};
+type ProductOption={id:string;name:string;category:string;pack_unit:string|null};
+type StandardOperationOption={id:string;name:string;unit:string;unit_cost:number};
 type Farmer={id:string;name:string};
 type Farm={id:string;name:string;farmer_id:string};
 type NdviLayer={id:string;field_id:string|null;field_name:string|null;captured_date:string|null;storage_path:string;file_format:string|null;metadata:{average_ndvi?:number|null;cloud_cover_percent?:number|null}|null};
@@ -72,6 +74,8 @@ export default function FarmMapPage() {
   const [actualisingPlanId, setActualisingPlanId] = useState<string | null>(null);
   const [inventory,setInventory]=useState<InventoryItem[]>([]);
   const [inventoryLocations,setInventoryLocations]=useState<InventoryLocation[]>([]);
+  const [catalogueProducts,setCatalogueProducts]=useState<ProductOption[]>([]);
+  const [standardOperations,setStandardOperations]=useState<StandardOperationOption[]>([]);
   const [farmers,setFarmers]=useState<Farmer[]>([]);
   const [farms,setFarms]=useState<Farm[]>([]);
   const [showNewField,setShowNewField]=useState(false);
@@ -90,13 +94,15 @@ export default function FarmMapPage() {
 
   async function loadFields() {
     if(!currentSeason)return;
-    const [{ data, error }, planResult, productResult,operationResult,inventoryResult,locationResult,farmerResult,farmResult,ndviResult,thematicResult] = await Promise.all([
+    const [{ data, error }, planResult, productResult,operationResult,inventoryResult,locationResult,catalogueResult,standardOperationResult,farmerResult,farmResult,ndviResult,thematicResult] = await Promise.all([
       supabase.from("fields").select("*").eq("season",currentSeason).order("field_name", { ascending: true }),
       supabase.from("activity_plans").select("*").eq("season",currentSeason).order("planned_date"),
       supabase.from("activity_plan_products").select("*").order("created_at"),
       supabase.from("activity_plan_operations").select("*").order("created_at"),
       supabase.from("inventory_items").select("*").eq("status","Active").eq("season",currentSeason).order("name"),
       supabase.from("inventory_locations").select("id,name").eq("active",true).order("name"),
+      supabase.from("master_products").select("id,name,category,pack_unit").eq("status","Approved").order("name"),
+      supabase.from("standard_operations").select("id,name,unit,unit_cost").eq("active",true).order("name"),
       supabase.from("farmers").select("id,name").eq("active",true).order("name"),
       supabase.from("farms").select("id,name,farmer_id").eq("active",true).order("name"),
       supabase.from("map_layers").select("id,field_id,field_name,captured_date,storage_path,file_format,metadata").eq("layer_type","NDVI").eq("season",currentSeason).in("file_format",["PNG","JPG","JPEG"]).order("captured_date",{ascending:false}),
@@ -109,6 +115,8 @@ export default function FarmMapPage() {
     setPlanOperations((operationResult.data||[]) as PlanOperation[]);
     setInventory((inventoryResult.data||[]) as InventoryItem[]);
     setInventoryLocations((locationResult.data||[]) as InventoryLocation[]);
+    setCatalogueProducts((catalogueResult.data||[]) as ProductOption[]);
+    setStandardOperations((standardOperationResult.data||[]) as StandardOperationOption[]);
     const loadedFarmers=(farmerResult.data||[]) as Farmer[];
     const standardFarms=(farmResult.data||[]) as Farm[];
     const legacyFarms=((data||[]) as Field[]).reduce<Farm[]>((rows,field)=>{const name=field.farm_name?.trim();const farmer_id=field.farmer_id||loadedFarmers[0]?.id;if(!name||!farmer_id||standardFarms.some(item=>item.name.toLowerCase()===name.toLowerCase()&&item.farmer_id===farmer_id)||rows.some(item=>item.name.toLowerCase()===name.toLowerCase()&&item.farmer_id===farmer_id))return rows;rows.push({id:`legacy:${farmer_id}:${name}`,name,farmer_id});return rows},[]);
@@ -306,7 +314,7 @@ export default function FarmMapPage() {
     } finally { setSavingActivity(false); }
   }
 
-  async function actualisePlan(plan: ActivityPlan,startDate:string,endDate:string,entries:{plan_id:string;products:{id:string;inventory_item_id:string|null;location_id:string|null;rate:number}[];operations:{id:string;rate:number}[]}[]) {
+  async function actualisePlan(plan: ActivityPlan,startDate:string,endDate:string,entries:{plan_id:string;products:{id:string|null;master_product_id:string;product_name:string;unit:string;unit_price:number;inventory_item_id:string|null;location_id:string|null;rate:number}[];operations:{id:string|null;operation_id:string;operation_name:string;unit:string;unit_price:number;rate:number}[]}[]) {
     if (!startDate||!endDate||endDate<startDate||!entries.length||entries.some(entry=>entry.products.some(x=>(!x.inventory_item_id&&!x.location_id)||x.rate<0)||entry.operations.some(x=>x.rate<0))) return alert("Confirm the date range, source sheds and actual rates.");
     setActualisingPlanId(plan.id);
     try {
@@ -444,7 +452,7 @@ export default function FarmMapPage() {
         <p className="mt-3 text-xs leading-5 text-[#77887e]">Tap around the field boundary. Keep the measured hectares or enter the official registered area.</p><button type="button" disabled={savingField||points.length<3} onClick={saveNewField} className="mt-4 w-full rounded-xl bg-[#789B58] py-3.5 font-extrabold text-[#17382E] disabled:opacity-40">{savingField?"Creating…":"Create field"}</button>
       </section>}
 
-      {selectedField&&!splitting && <FieldDrawer field={selectedField} activities={fieldActivities} loadingActivities={loadingActivities} showActivityForm={showActivityForm} activityMode={activityMode} activityType={activityType} activityDate={activityDate} activityNotes={activityNotes} savingActivity={savingActivity} plans={plans} planProducts={planProducts} planOperations={planOperations} actualisingPlanId={actualisingPlanId} inventory={inventory} inventoryLocations={inventoryLocations} ndviLayers={ndviLayers} ndviUrls={ndviUrls} selectedNdviId={selectedNdviId} ndviOpacity={ndviOpacity} onSelectNdvi={chooseNdvi} onNdviOpacityChange={setNdviOpacity} onClose={() => { setSelectedField(null); setShowActivityForm(false); }} onShowActivityForm={(mode) => { setActivityMode(mode); setShowActivityForm(true); }} onCancelActivityForm={() => setShowActivityForm(false)} onActivityModeChange={setActivityMode} onActivityTypeChange={setActivityType} onActivityDateChange={setActivityDate} onActivityNotesChange={setActivityNotes} onSaveActivity={saveFieldActivity} onActualisePlan={actualisePlan} onSaveFieldDetails={saveSelectedFieldDetails} onStartBoundaryEdit={beginBoundaryEdit} onStartSplit={beginSplit} />}
+      {selectedField&&!splitting && <FieldDrawer field={selectedField} activities={fieldActivities} loadingActivities={loadingActivities} showActivityForm={showActivityForm} activityMode={activityMode} activityType={activityType} activityDate={activityDate} activityNotes={activityNotes} savingActivity={savingActivity} plans={plans} planProducts={planProducts} planOperations={planOperations} catalogueProducts={catalogueProducts} standardOperations={standardOperations} actualisingPlanId={actualisingPlanId} inventory={inventory} inventoryLocations={inventoryLocations} ndviLayers={ndviLayers} ndviUrls={ndviUrls} selectedNdviId={selectedNdviId} ndviOpacity={ndviOpacity} onSelectNdvi={chooseNdvi} onNdviOpacityChange={setNdviOpacity} onClose={() => { setSelectedField(null); setShowActivityForm(false); }} onShowActivityForm={(mode) => { setActivityMode(mode); setShowActivityForm(true); }} onCancelActivityForm={() => setShowActivityForm(false)} onActivityModeChange={setActivityMode} onActivityTypeChange={setActivityType} onActivityDateChange={setActivityDate} onActivityNotesChange={setActivityNotes} onSaveActivity={saveFieldActivity} onActualisePlan={actualisePlan} onSaveFieldDetails={saveSelectedFieldDetails} onStartBoundaryEdit={beginBoundaryEdit} onStartSplit={beginSplit} />}
       {splitting&&selectedField&&<section className="absolute right-3 top-20 z-30 w-[calc(100%-1.5rem)] max-w-sm rounded-2xl border border-white/10 bg-[#15191B]/95 p-5 text-white shadow-2xl backdrop-blur-xl"><p className="ag-kicker">Split boundary</p><h2 className="mt-1 text-lg font-extrabold">Name both field sections</h2><p className="mt-2 text-sm leading-5 text-white/70">Tap two points across the selected field. CropNex will extend the line to the boundary. {splitPoints.length}/2 points placed.</p><label className="field-label">First field name<input className="field-input" value={splitNames.first} onChange={event=>setSplitNames({...splitNames,first:event.target.value})}/></label><label className="field-label">Second field name<input className="field-input" value={splitNames.second} onChange={event=>setSplitNames({...splitNames,second:event.target.value})}/></label><p className="mt-2 text-xs leading-5 text-white/55">Existing plans stay with {splitNames.first || "the first field"}. The new field starts without copied plans or history. Works with a single outline without interior holes.</p><button type="button" disabled={savingField||splitPoints.length!==2||!splitNames.first.trim()||!splitNames.second.trim()||splitNames.first.trim()===splitNames.second.trim()} onClick={confirmSplit} className="mt-3 w-full rounded-xl bg-[#86CF34] py-2.5 text-sm font-extrabold text-[#111516] disabled:opacity-40">{savingField?"Splitting…":"Create both field boundaries"}</button><button type="button" onClick={cancelSplit} className="mt-2 w-full rounded-xl border border-white/10 py-2 text-sm">Cancel split</button></section>}
     </main>
   );

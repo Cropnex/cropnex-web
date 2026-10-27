@@ -41,6 +41,7 @@ export default function AssistantPage() {
   const [positions, setPositions] = useState<GrainPosition[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [answering, setAnswering] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -322,9 +323,9 @@ export default function AssistantPage() {
     return "I can currently answer questions about open jobs, equipment service, low stock, gross margin, farm hectares, grain exposure, harvest yield and a general farm briefing.";
   }
 
-  function submitQuestion(questionOverride?: string) {
+  async function submitQuestion(questionOverride?: string) {
     const question = (questionOverride || query).trim();
-    if (!question) return;
+    if (!question || answering) return;
 
     const userMessage: Message = {
       id: `${Date.now()}-user`,
@@ -335,7 +336,7 @@ export default function AssistantPage() {
     const assistantMessage: Message = {
       id: `${Date.now()}-assistant`,
       role: "assistant",
-      text: answerQuestion(question),
+      text: "Reviewing your farm records…",
     };
 
     setMessages((current) => [
@@ -344,6 +345,30 @@ export default function AssistantPage() {
       assistantMessage,
     ]);
     setQuery("");
+    setAnswering(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Your session expired. Please sign in again.");
+      const response = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          question,
+          season: currentSeason,
+          context: {
+            fields: fields.map(({ field_name, farm_name, crop, cultivar, area_ha, expected_yield, harvest_status }) => ({ field_name, farm_name, crop, cultivar, area_ha, expected_yield, harvest_status })),
+            equipment, inventory, jobs, transactions, harvests, forecasts, positions,
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The assistant could not answer right now.");
+      setMessages(current => current.map(message => message.id === assistantMessage.id ? { ...message, text: result.answer } : message));
+    } catch (error) {
+      setMessages(current => current.map(message => message.id === assistantMessage.id ? { ...message, text: error instanceof Error ? error.message : "The assistant could not answer right now." } : message));
+    } finally {
+      setAnswering(false);
+    }
   }
 
   return (
@@ -412,17 +437,17 @@ export default function AssistantPage() {
                     ? "Loading farm data..."
                     : "Ask CropNex a farm question..."
                 }
-                disabled={loading}
+                disabled={loading || answering}
                 className="flex-1 rounded-xl border border-white/10 bg-black/40 px-4 py-3 outline-none focus:border-green-500/50 disabled:opacity-50"
               />
 
               <button
                 type="button"
                 onClick={() => submitQuestion()}
-                disabled={loading}
+                disabled={loading || answering}
                 className="rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50"
               >
-                Ask
+                {answering ? "Thinking…" : "Ask"}
               </button>
             </div>
           </div>

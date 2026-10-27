@@ -22,6 +22,8 @@ export type Field = {
   soil_type: string | null;
   expected_yield: number | null;
   status: string | null;
+  harvest_status?: string | null;
+  harvest_completed_at?: string | null;
   area_ha: number;
   notes: string | null;
   boundary: FieldBoundary | null;

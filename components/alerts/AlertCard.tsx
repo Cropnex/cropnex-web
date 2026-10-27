@@ -7,11 +7,11 @@ export default function AlertCard({
   alert: SmartAlert;
 }) {
   const styles = {
-    info: "border-blue-500/20 bg-blue-500/10 text-blue-400",
+    info: "border-blue-700/25 bg-blue-50 text-blue-950",
     warning:
-      "border-amber-500/20 bg-amber-500/10 text-amber-400",
+      "border-amber-700/25 bg-amber-50 text-amber-950",
     critical:
-      "border-red-500/20 bg-red-500/10 text-red-400",
+      "border-red-700/25 bg-red-50 text-red-950",
   }[alert.severity];
 
   return (
@@ -29,12 +29,12 @@ export default function AlertCard({
           </h3>
         </div>
 
-        <span className="rounded-full bg-black/20 px-3 py-1 text-xs font-bold uppercase">
+        <span className="rounded-full bg-black/10 px-3 py-1 text-xs font-bold uppercase">
           {alert.severity}
         </span>
       </div>
 
-      <p className="mt-3 text-sm leading-6 text-gray-300">
+      <p className="mt-3 text-sm leading-6 text-slate-800">
         {alert.description}
       </p>
     </Link>

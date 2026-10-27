@@ -71,7 +71,7 @@ export default function ReportsPage() {
         .from("work_orders")
         .select("*")
         .order("planned_date", { ascending: false }),
-      supabase.from("field_harvest_live_summary").select("*").eq("season",currentSeason).gt("reconciled_tonnes",0).order("finished").order("field_name"),
+      supabase.from("field_harvest_live_summary").select("*").eq("season",currentSeason).order("finished").order("field_name"),
       supabase.from("field_performance_report").select("*").eq("season",currentSeason).order("field_name"),
       supabase.from("business_commitment_summary").select("*").order("category"),
       supabase.from("rainfall_readings").select("id,gauge_id,reading_date,rainfall_mm,notes").order("reading_date", { ascending: false }),
@@ -97,8 +97,9 @@ export default function ReportsPage() {
 
     setFields(loadedFields);
     setActivities((activitiesResult.data || []) as Activity[]);
-    const fieldIds=new Set(loadedFields.map(field=>field.id));
-    setTransactions(((transactionsResult.data || []) as FinancialTransaction[]).filter(row=>row.field_id&&fieldIds.has(row.field_id)));
+    // Keep farm-wide transactions (for example living expenses) in cash flow.
+    // Field margin calculations use field_performance_report separately.
+    setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
     setInventory((inventoryResult.data || []) as InventoryItem[]);
     setEquipment((equipmentResult.data || []) as Equipment[]);
     setJobs((jobsResult.data || []) as WorkOrder[]);
@@ -152,7 +153,7 @@ export default function ReportsPage() {
   }, [fields, performance]);
 
   const projectedTotals=useMemo(()=>fieldSummaries.reduce((totals,row)=>({income:totals.income+row.incomeTotal,expenses:totals.expenses+row.expenseTotal,margin:totals.margin+row.grossMargin}),{income:0,expenses:0,margin:0}),[fieldSummaries]);
-  const commitmentTotal=useMemo(()=>commitmentSummary.reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0),[commitmentSummary]);
+  const commitmentTotal=useMemo(()=>commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason).reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0),[commitmentSummary,currentSeason]);
   const businessProjectedMargin=projectedTotals.margin-commitmentTotal;
 
   const categoryTotals: CategoryTotal[] = useMemo(() => {
@@ -259,7 +260,7 @@ export default function ReportsPage() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall, gauges: rainGauges })}
+            onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall, gauges: rainGauges, performance, commitments: commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason) })}
             disabled={loading}
             className="rounded-xl bg-[#789B58] px-5 py-3 font-bold text-[#17382E] disabled:opacity-50"
           >

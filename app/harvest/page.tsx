@@ -19,6 +19,7 @@ const emptyForm = {
   transport_cost: "",
   other_cost: "",
   notes: "",
+  complete_field: false,
 };
 
 export default function HarvestPage() {
@@ -188,6 +189,18 @@ export default function HarvestPage() {
         }
       }
 
+      if (form.complete_field) {
+        const { error: completionError } = await supabase.rpc("complete_transport_field_harvest", {
+          p_field_id: field.id,
+          p_completion_date: form.harvest_date,
+          p_notes: form.notes.trim() || null,
+        });
+        if (completionError) {
+          alert(`Harvest record saved, but the field could not be marked complete: ${completionError.message}`);
+          return;
+        }
+      }
+
       setForm(emptyForm);
       await loadAll();
     } finally {
@@ -224,6 +237,7 @@ export default function HarvestPage() {
 
   const fieldSummaries = useMemo(() => {
     const grouped = new Map<string, { fieldId:string; latestDate:string; crop:string|null; area:number; tonnes:number; weightedMoisture:number; pricedTonnes:number; revenue:number; loads:number }>();
+    fields.forEach(field => grouped.set(field.id, { fieldId:field.id, latestDate:"", crop:field.crop, area:Number(field.area_ha||0), tonnes:0, weightedMoisture:0, pricedTonnes:0, revenue:0, loads:0 }));
     records.forEach(record => {
       const row = grouped.get(record.field_id) || { fieldId:record.field_id, latestDate:record.harvest_date, crop:record.crop, area:record.area_ha, tonnes:0, weightedMoisture:0, pricedTonnes:0, revenue:0, loads:0 };
       row.latestDate = row.latestDate > record.harvest_date ? row.latestDate : record.harvest_date;
@@ -234,7 +248,7 @@ export default function HarvestPage() {
       grouped.set(record.field_id, row);
     });
     return Array.from(grouped.values()).sort((a,b) => b.latestDate.localeCompare(a.latestDate));
-  }, [records]);
+  }, [records,fields]);
 
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
@@ -415,6 +429,11 @@ export default function HarvestPage() {
           className="mt-4 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3"
         />
 
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-green-300/20 bg-green-300/5 p-4 text-sm">
+          <input type="checkbox" checked={form.complete_field} onChange={event => setForm({ ...form, complete_field: event.target.checked })} className="mt-0.5 h-4 w-4 accent-green-500" />
+          <span><strong>Mark this field’s harvest complete</strong><span className="mt-1 block text-xs text-gray-400">Use after all harvest records and transport tonnes for the field have been entered.</span></span>
+        </label>
+
         <button
           type="button"
           onClick={saveHarvest}
@@ -444,6 +463,7 @@ export default function HarvestPage() {
                 <th className="px-4 py-3">Avg. moisture</th>
                 <th className="px-4 py-3">Avg. price</th>
                 <th className="px-4 py-3">Revenue</th>
+                <th className="px-4 py-3">Field status</th>
               </tr>
             </thead>
 
@@ -502,6 +522,7 @@ export default function HarvestPage() {
                         ? `R${record.revenue.toFixed(2)}`
                         : "Not set"}
                     </td>
+                    <td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${field?.harvest_status === "Completed" ? "bg-green-500/15 text-green-300" : "bg-amber-500/15 text-amber-200"}`}>{field?.harvest_status === "Completed" ? "Complete" : "In progress"}</span></td>
                   </tr>
                 );
               })}

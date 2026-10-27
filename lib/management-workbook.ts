@@ -26,7 +26,7 @@ function worksheet(sheet: Sheet) {
   return `<Worksheet ss:Name="${xmlEscape(safeName)}"><Table>${sheet.rows.map((row, index) => `<Row>${row.map(value => cell(value, index === 0)).join("")}</Row>`).join("")}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>`;
 }
 
-export function downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall = [], gauges = [] }: {
+export function downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall = [], gauges = [], performance = [], commitments = [] }: {
   fields: Field[];
   activities: Activity[];
   transactions: FinancialTransaction[];
@@ -34,6 +34,8 @@ export function downloadManagementWorkbook({ fields, activities, transactions, i
   equipment: Equipment[];
   rainfall?: RainfallExportRow[];
   gauges?: RainGaugeExportRow[];
+  performance?: { field_id: string; planning_cost: number; remaining_planned_cost: number; actualised_cost: number; additional_expenses: number; total_cost: number; harvested_tonnes: number; projected_income: number; projected_margin: number }[];
+  commitments?: { source: string; category: string; name: string; season: string | null; seasonal_amount: number }[];
 }) {
   const income = transactions.filter(item => item.transaction_type === "Income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = transactions.filter(item => item.transaction_type === "Expense").reduce((sum, item) => sum + item.amount, 0);
@@ -56,12 +58,13 @@ export function downloadManagementWorkbook({ fields, activities, transactions, i
     cashFlowRows.push([month, totals.income, totals.expenses, net, runningBalance]);
   });
 
-  const fieldRows: Cell[][] = [["Farmer", "Farm", "Field", "Season", "Crop", "Cultivar", "Area (ha)", "Income (R)", "Expenses (R)", "Cost/ha (R)", "Margin (R)"]];
+  const fieldRows: Cell[][] = [["Farmer", "Farm", "Field", "Season", "Crop", "Cultivar", "Area (ha)", "Projected income (R)", "Total field cost (R)", "Cost/ha (R)", "Projected margin (R)", "Harvest (t)", "Actualised cost (R)", "Remaining planned cost (R)", "Additional field expenses (R)"]];
   fields.forEach(field => {
     const linked = transactions.filter(item => item.field_id === field.id);
-    const fieldIncome = linked.filter(item => item.transaction_type === "Income").reduce((sum, item) => sum + item.amount, 0);
-    const fieldExpenses = linked.filter(item => item.transaction_type === "Expense").reduce((sum, item) => sum + item.amount, 0);
-    fieldRows.push(["", field.farm_name, field.field_name, field.season, field.crop, field.cultivar, field.area_ha, fieldIncome, fieldExpenses, field.area_ha ? fieldExpenses / field.area_ha : 0, fieldIncome - fieldExpenses]);
+    const report = performance.find(item => item.field_id === field.id);
+    const fieldIncome = Number(report?.projected_income ?? linked.filter(item => item.transaction_type === "Income").reduce((sum, item) => sum + item.amount, 0));
+    const fieldExpenses = Number(report?.total_cost ?? linked.filter(item => item.transaction_type === "Expense").reduce((sum, item) => sum + item.amount, 0));
+    fieldRows.push(["", field.farm_name, field.field_name, field.season, field.crop, field.cultivar, field.area_ha, fieldIncome, fieldExpenses, field.area_ha ? fieldExpenses / field.area_ha : 0, Number(report?.projected_margin ?? fieldIncome - fieldExpenses), Number(report?.harvested_tonnes ?? 0), Number(report?.actualised_cost ?? 0), Number(report?.remaining_planned_cost ?? 0), Number(report?.additional_expenses ?? 0)]);
   });
 
   const sheets: Sheet[] = [
@@ -74,6 +77,7 @@ export function downloadManagementWorkbook({ fields, activities, transactions, i
     ]},
     { name: "Cash Flow", rows: cashFlowRows },
     { name: "Field Margins", rows: fieldRows },
+    { name: "Business Commitments", rows: [["Source", "Category", "Commitment", "Applies to", "Annual or seasonal amount (R)"], ...commitments.map(item => [item.source, item.category, item.name, item.season || "Every season", Number(item.seasonal_amount)])] },
     { name: "Activity Detail", rows: [["Date", "Farm", "Field", "Crop", "Activity", "Area (ha)", "Notes"], ...activities.map(item => {
       const field = fields.find(candidate => candidate.field_name === item.field_name);
       return [item.date, field?.farm_name, item.field_name, item.crop || field?.crop, item.activity_type, item.area_ha, item.notes];

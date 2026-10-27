@@ -47,7 +47,7 @@ const emptyBudget = {
   budgeted_cost_per_ha: "",
   notes: "",
 };
-const emptyCommitment={name:"",category:"Living expenses",amount:"",frequency:"Monthly",season:"2026/2027",notes:""};
+const emptyCommitment={name:"",category:"Living expenses",amount:"",frequency:"Monthly",season:"",notes:""};
 
 export default function FinancialsPage() {
   const{currentSeason}=useSeason();
@@ -93,9 +93,9 @@ export default function FinancialsPage() {
     if (transactionsResult.error) alert(transactionsResult.error.message);
     if (budgetsResult.error) alert(budgetsResult.error.message);
 
-    const activeFields=(fieldsResult.data || []) as Field[];const activeFieldIds=new Set(activeFields.map(field=>field.id));
+    const activeFields=(fieldsResult.data || []) as Field[];
     setFields(activeFields);
-    setTransactions(((transactionsResult.data || []) as FinancialTransaction[]).filter(row=>row.field_id&&activeFieldIds.has(row.field_id)));
+    setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
     setBudgets((budgetsResult.data || []) as FieldBudget[]);
     setCropForecasts((cropForecastResult.data || []) as CropRevenueForecast[]);
     setPerformance((performanceResult.data||[]) as FieldPerformance[]);
@@ -285,7 +285,7 @@ export default function FinancialsPage() {
     0
   );
   const projectedFieldCosts=performance.reduce((sum,row)=>sum+Number(row.total_cost||0),0);
-  const businessCommitmentCost=commitmentSummary.reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0);
+  const businessCommitmentCost=commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason).reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0);
   const businessProjectedMargin=forecastIncome-projectedFieldCosts-businessCommitmentCost;
 
   return (
@@ -626,10 +626,10 @@ export default function FinancialsPage() {
           <Select label="Category" value={commitmentForm.category} onChange={value=>setCommitmentForm({...commitmentForm,category:value})}>{["Living expenses","Insurance","Rent","Salaries","Loan repayment","Other"].map(value=><option key={value}>{value}</option>)}</Select>
           <Input label="Amount (R)" type="number" value={commitmentForm.amount} onChange={value=>setCommitmentForm({...commitmentForm,amount:value})}/>
           <Select label="Frequency" value={commitmentForm.frequency} onChange={value=>setCommitmentForm({...commitmentForm,frequency:value})}>{["Monthly","Quarterly","Annual","Per season","Once-off"].map(value=><option key={value}>{value}</option>)}</Select>
-          <Input label="Season" value={commitmentForm.season} onChange={value=>setCommitmentForm({...commitmentForm,season:value})}/>
+          <Select label="Applies to" value={commitmentForm.season} onChange={value=>setCommitmentForm({...commitmentForm,season:value})}><option value="">Every season · carries forward</option>{currentSeason&&<option value={currentSeason}>{currentSeason} only</option>}</Select>
         </div>
         <button type="button" onClick={saveCommitment} disabled={saving} className="mt-5 rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50">Add commitment</button>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{commitmentSummary.map((item,index)=><article key={`${item.source}-${item.name}-${index}`} className="rounded-xl bg-black/20 p-4"><div className="flex justify-between gap-3"><div><b>{item.name}</b><p className="text-xs text-gray-500">{item.category} · {item.source}</p></div><strong className="text-green-400">R{Number(item.seasonal_amount).toLocaleString("en-ZA",{maximumFractionDigits:0})}</strong></div></article>)}{!commitmentSummary.length&&<p className="text-sm text-gray-400">No business commitments recorded yet.</p>}</div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{commitmentSummary.filter(item=>item.source==="Equipment finance"||!item.season||item.season===currentSeason).map((item,index)=><article key={`${item.source}-${item.name}-${index}`} className="rounded-xl bg-black/20 p-4"><div className="flex justify-between gap-3"><div><b>{item.name}</b><p className="text-xs text-gray-500">{item.category} · {item.source}{item.season?` · ${item.season}`:" · Every season"}</p></div><strong className="text-green-400">R{Number(item.seasonal_amount).toLocaleString("en-ZA",{maximumFractionDigits:0})}</strong></div></article>)}{!commitmentSummary.length&&<p className="text-sm text-gray-400">No business commitments recorded yet.</p>}</div>
       </section>
 
       <section className="mt-8">

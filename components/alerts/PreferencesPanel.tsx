@@ -19,8 +19,8 @@ export default function PreferencesPanel({
   onSave,
 }: Props) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 className="text-2xl font-bold text-green-400">
+    <section className="rounded-2xl border border-slate-300 bg-white p-6 text-slate-950 shadow-sm">
+      <h2 className="text-2xl font-bold text-[#244d32]">
         Alert Preferences
       </h2>
 
@@ -66,7 +66,7 @@ export default function PreferencesPanel({
         />
 
         <div>
-          <label className="mb-2 block text-sm text-gray-400">
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
             Upcoming job window (days)
           </label>
 
@@ -81,7 +81,7 @@ export default function PreferencesPanel({
                 Number(event.target.value)
               )
             }
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950"
           />
         </div>
       </div>
@@ -108,8 +108,8 @@ function Toggle({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-black/20 p-4">
-      <span className="text-sm text-gray-300">{label}</span>
+    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <span className="text-sm font-semibold text-slate-800">{label}</span>
 
       <input
         type="checkbox"

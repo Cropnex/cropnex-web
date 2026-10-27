@@ -1,0 +1,21 @@
+CropNex v6.33.0 — Farm reporting and harvest workflows
+
+Included updates
+- Alert cards and alert preferences use readable high-contrast text.
+- Management report cash flow retains farm-wide transactions such as living expenses.
+- Management workbook includes field performance income, cost, harvest and margin columns.
+- Field Cost Report groups activities into a single row per field and includes operation costs.
+- Business commitments can apply every season or to the current season only; summary totals respect season scope.
+- Management workbook separates annualized business commitments from actual cash transactions to avoid treating planned commitments as already-paid cash expenses.
+- Harvest summary lists every field, including fields with no harvest entered yet.
+- Manual harvest can mark a field complete.
+- Manual harvest and reconciled transport allocations feed the same field yield and harvest totals without counting transport-synced records twice.
+- AI Assistant uses the OpenAI API to answer broader questions grounded in the signed-in user's loaded farm records; it states when records are incomplete.
+
+Database update required
+Apply both files in supabase/migrations/202610270001_harvest_reporting_and_completion.sql and supabase/migrations/202610270002_map_actuals_add_replace_catalogue_items.sql to the CropNex Supabase project before deploying this release.
+
+For Supabase Dashboard users: open SQL Editor, create a new query, paste the full contents of the migration file, and run it. Back up the database before applying production schema updates.
+
+Environment variables
+The AI Assistant uses the existing OPENAI_API_KEY configured for the scanner. Optional model override: OPENAI_ASSISTANT_MODEL. Both are server-only Vercel variables.
