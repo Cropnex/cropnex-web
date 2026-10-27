@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navigationItems } from "@/components/layout/navigation";
+import { navigationItems,organizationModuleForRoute } from "@/components/layout/navigation";
 import PWAInstallButton from "@/components/pwa/PWAInstallButton";
 import SyncStatus from "@/components/offline/SyncStatus";
 import { useSeason } from "@/components/season/SeasonProvider";
+import {useAccess} from "@/components/auth/AccessProvider";
 
 type TopBarProps = {
   onOpenMenu: () => void;
@@ -16,6 +17,7 @@ export default function TopBar({
   onOpenMenu,
 }: TopBarProps) {
   const pathname = usePathname();
+  const access=useAccess();
   const {currentSeason,seasons,setCurrentSeason,loading:seasonLoading}=useSeason();
   const [query, setQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] =
@@ -33,12 +35,12 @@ export default function TopBar({
 
     if (!normalized) return [];
 
-    return navigationItems.filter((item) =>
+    return navigationItems.filter((item) => (access.isAdmin||(access.roles.includes("Farmer")&&!access.organizationRoles.length)||access.modules.includes(organizationModuleForRoute(item.href))||item.href==="/grain-marketing"&&(access.roles.includes("Buyer")||access.roles.includes("Transporter")))&&
       `${item.label} ${item.description}`
         .toLowerCase()
         .includes(normalized)
     );
-  }, [query]);
+  }, [query,access.isAdmin,access.roles,access.modules,access.organizationRoles]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-black/20 bg-[#151611]/95 text-white shadow-[0_8px_30px_rgba(0,0,0,.16)] backdrop-blur-xl">

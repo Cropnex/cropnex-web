@@ -21,7 +21,10 @@ export default function AppShell({
 
 function LaunchAwareShell({children,sidebarOpen,onOpenMenu,onCloseMenu}:{children:React.ReactNode;sidebarOpen:boolean;onOpenMenu:()=>void;onCloseMenu:()=>void}) {
   const access=useAccess();
-  if (!CROPNEX_LAUNCHED && !access.isAdmin) return <PreLaunchGate />;
+  // An organisation administrator explicitly grants dashboard access to each
+  // team account, so those invited members can use their assigned workspace
+  // before the public launch. Everyone else remains on the pre-launch screen.
+  if (!CROPNEX_LAUNCHED && !access.isAdmin && !access.modules.length) return <PreLaunchGate />;
 
   return <AccessGate><SeasonProvider>
     <div className="ag-app-shell min-h-screen bg-[#F2F0E8] text-[#181a15]">

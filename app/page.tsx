@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import CropNexLogo from "@/components/brand/CropNexLogo";
+import MobileNav from "@/components/landing/MobileNav";
 import { CROPNEX_LAUNCHED } from "@/lib/app-meta";
 
 const landingTitle = "CropNex | Field intelligence for modern farming";
@@ -54,13 +55,14 @@ const steps = [
 export default function HomePage() {
   return <main className="min-h-screen overflow-hidden bg-[var(--brand-forest)] text-white">
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[var(--brand-forest)]/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
-        <Link href="/" aria-label="CropNex home"><CropNexLogo /></Link>
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-3 sm:px-5 lg:px-8">
+        <Link href="/" aria-label="CropNex home"><span className="inline-flex items-center gap-2 sm:hidden"><CropNexLogo compact tagline={false}/><b className="font-display text-xl font-extrabold tracking-[-.055em] text-white">Crop<span className="text-[var(--brand-leaf-light)]">Nex</span></b></span><span className="hidden sm:inline-flex"><CropNexLogo /></span></Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-white/70 md:flex">
           <a href="#platform" className="hover:text-white">Platform</a><a href="#how" className="hover:text-white">How it works</a><a href="#about" className="hover:text-white">About</a>
         </nav>
-        <div className="flex items-center gap-3"><Link href="/login" className="hidden text-sm font-semibold text-white/75 hover:text-white sm:block">Log in</Link><Link href={CROPNEX_LAUNCHED ? "/login?mode=register" : "/login?mode=register&presubscribe=1"} className="rounded-xl bg-[var(--brand-leaf)] px-5 py-2.5 text-sm font-bold text-[var(--brand-forest)] transition hover:bg-[var(--brand-leaf-light)]">{CROPNEX_LAUNCHED ? "Create account" : "Pre-subscribe"}</Link></div>
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3"><Link href="/login" className="rounded-lg px-2 py-2 text-xs font-semibold text-white/80 hover:text-white sm:px-0 sm:text-sm">Log in</Link><Link href={CROPNEX_LAUNCHED ? "/login?mode=register" : "/login?mode=register&presubscribe=1"} className="rounded-xl bg-[var(--brand-leaf)] px-3 py-2.5 text-xs font-bold text-[var(--brand-forest)] transition hover:bg-[var(--brand-leaf-light)] sm:px-5 sm:text-sm">{CROPNEX_LAUNCHED ? "Create account" : "Pre-subscribe"}</Link></div>
       </div>
+      <MobileNav />
     </header>
 
     <section className="relative isolate min-h-[660px] overflow-hidden">

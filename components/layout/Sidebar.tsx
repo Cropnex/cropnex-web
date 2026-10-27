@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { homeItem, navigationGroups as allNavigationGroups } from "@/components/layout/navigation";
+import { homeItem, navigationGroups as allNavigationGroups, organizationModuleForRoute } from "@/components/layout/navigation";
 import { useAccess } from "@/components/auth/AccessProvider";
 import { APP_STAGE, APP_VERSION } from "@/lib/app-meta";
 import CropNexLogo from "@/components/brand/CropNexLogo";
@@ -19,8 +19,9 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const access=useAccess();
-  const roleGroups=(access.isAdmin||access.roles.includes("Farmer"))?allNavigationGroups:allNavigationGroups.map(group=>({...group,items:group.items.filter(item=>item.href==="/grain-marketing"||item.href==="/assistant"||item.href==="/settings")})).filter(group=>group.items.length);
-  const navigationGroups=access.isAdmin?[...roleGroups,{label:"Administration",icon:"ADM",items:[{href:"/admin",label:"Verification Centre",description:"Applications and access",icon:"✓"},{href:"/admin/organizations",label:"Organisations",description:"Users, roles and farmer assignments",icon:"ORG"}]}]:roleGroups;
+  const fullFarmAccess=access.isAdmin||(access.roles.includes("Farmer")&&!access.organizationRoles.length);
+  const roleGroups=fullFarmAccess?allNavigationGroups:allNavigationGroups.map(group=>({...group,items:group.items.filter(item=>access.modules.includes(organizationModuleForRoute(item.href))||item.href==="/grain-marketing"&&(access.roles.includes("Buyer")||access.roles.includes("Transporter")))})).filter(group=>group.items.length);
+  const navigationGroups=access.isAdmin?[...roleGroups,{label:"Administration",icon:"ADM",items:[{href:"/admin",label:"Verification Centre",description:"Applications and access",icon:"✓"},{href:"/admin/organizations",label:"Organisations",description:"Users, roles and farmer assignments",icon:"ORG"}]}]:access.isOrganizationAdmin?[...roleGroups,{label:"Organisation",icon:"ORG",items:[{href:"/admin/organizations",label:"Team & dashboards",description:"Manage people and dashboard access",icon:"ORG"}]}]:roleGroups;
   const activeGroup=navigationGroups.find(group=>group.items.some(item=>pathname===item.href||pathname.startsWith(`${item.href}/`)))?.label||"";
   const[openGroup,setOpenGroup]=useState(activeGroup);
   useEffect(()=>{if(activeGroup)setOpenGroup(activeGroup)},[activeGroup]);
@@ -59,7 +60,7 @@ export default function Sidebar({
 
         <nav className="relative z-10 flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-2">
-            {[homeItem].map((item) => {
+            {((fullFarmAccess||access.modules.includes("dashboard"))?[homeItem]:[]).map((item) => {
               const active =
                 pathname === item.href ||
                 pathname.startsWith(`${item.href}/`);

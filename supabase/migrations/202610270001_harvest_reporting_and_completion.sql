@@ -40,8 +40,8 @@ select p.user_id,p.id plan_id,p.farmer_name,p.farm_name,p.field_name,p.activity_
   p.planned_date,p.actual_date,p.planned_area_ha,p.status,
   coalesce(p.planned_total,0)::numeric(16,2) planned_cost,
   coalesce(p.actual_total,0)::numeric(16,2) actual_cost,
-  (coalesce(p.actual_total,0)-coalesce(p.planned_total,0))::numeric(16,2) variance,
-  count(pp.id)::integer product_count
+  coalesce(p.actual_total,0)-coalesce(p.planned_total,0) variance,
+  count(pp.id) product_count
 from public.activity_plans p left join public.activity_plan_products pp on pp.plan_id=p.id and pp.user_id=p.user_id
 group by p.user_id,p.id;
 grant select on public.activity_plan_report to authenticated;

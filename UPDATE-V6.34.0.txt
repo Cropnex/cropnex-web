@@ -1,0 +1,35 @@
+CropNex v6.34.0 — Organisation dashboards and mobile access
+
+Organisation teams
+- Create an organisation and set its owner using an existing CropNex account email.
+- Organisation owners and administrators can add registered team accounts by email.
+- Role presets include Accountant, Farm Operator, Foreman, Office Manager and Read Only Analyst.
+- Assign individual CropNex dashboards to each team member and separately choose which areas allow editing.
+- Accountants and farm operators start with editing off. Owners/admins can grant edit access by dashboard after confirming the workflow.
+- Organisation members see only assigned dashboard links. Direct route checks and Supabase row policies enforce access; edit permission is checked separately.
+- Members can link a farmer's existing account to the organisation and make field-manager assignments.
+- An explicitly assigned team account can access its granted workspace before public launch; other pre-subscribers remain on the launch screen.
+
+Mobile landing and login
+- The landing page shows a visible Log in link on narrow screens and provides a compact mobile site menu.
+- Registration and sign-in remain vertically scrollable and use full-width touch-friendly controls.
+
+Database update required
+Apply supabase/migrations/202610270003_organization_dashboard_access.sql to the CropNex Supabase project after the existing organisation and farmer-assignment migration (202609300004_organizations_and_assignments.sql) and other current migrations.
+
+Organisation setup
+1. Ensure the company owner has a registered CropNex account.
+2. As CropNex administrator, open Administration → Organisations, create the organisation, and enter the owner’s account email.
+3. The owner can open Organisation → Team & dashboards, add each registered team account by email, select the role preset and adjust dashboard/edit access.
+4. Link existing farmer accounts to the organisation. Assign foremen/operators to the farmer portfolios they work with.
+
+Team accounts must register before an organisation administrator can add them. Existing user accounts and farmer data ownership are retained. Verify module access with a test account for each role before inviting a full team.
+
+Important data-entry limitation
+- Several existing forms still create new records under the signed-in account. Dashboard Edit access can therefore permit edits to shared farmer records while newly created records may belong to the team member account. Keep team Edit access disabled until the signed-in user's active farmer/workspace context has been verified for the specific workflow.
+
+Mobile workflow review
+- Landing page navigation anchors: Platform, How it works, About CropNex and Contact.
+- Landing calls to action continue to point to the pre-subscribe registration flow while launch is closed.
+- The Log in link opens the sign-in form, and registration remains available through the create-account link and CTA.
+- Physical-device authentication and registration still depend on the production Supabase URL, email confirmation settings and deployed Vercel environment variables.

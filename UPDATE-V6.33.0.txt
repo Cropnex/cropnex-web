@@ -15,6 +15,8 @@ Included updates
 Database update required
 Apply both files in supabase/migrations/202610270001_harvest_reporting_and_completion.sql and supabase/migrations/202610270002_map_actuals_add_replace_catalogue_items.sql to the CropNex Supabase project before deploying this release.
 
+Migration note: 202610270001 preserves the existing activity_plan_report numeric column types. If you tried an earlier copy and saw “cannot change data type of view column variance,” use this corrected copy and rerun the full migration file; its DDL uses CREATE OR REPLACE and is safe to rerun.
+
 For Supabase Dashboard users: open SQL Editor, create a new query, paste the full contents of the migration file, and run it. Back up the database before applying production schema updates.
 
 Environment variables
