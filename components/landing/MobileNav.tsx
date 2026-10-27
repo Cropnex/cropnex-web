@@ -2,7 +2,7 @@
 
 import {useState} from "react";
 
-const links=[["#platform","Platform"],["#how","How it works"],["#about","About CropNex"],["#contact","Contact"]];
+const links=[["#features","What CropNex does"],["#inside","Inside CropNex"],["#access","Request account access"],["#about","About CropNex"]];
 
 export default function MobileNav(){
  const[open,setOpen]=useState(false);

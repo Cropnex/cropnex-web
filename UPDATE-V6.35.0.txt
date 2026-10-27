@@ -1,0 +1,17 @@
+CropNex v6.35.0 — Landing page refresh
+
+Landing page
+- Expanded the CropNex description to cover maps and fields, seasonal planning, inventory, harvest and transport, finance and reports, farm operations, and AI-assisted tools.
+- Added three responsive CropNex workspace previews for farm mapping, seasonal planning and shed inventory. They are clearly marked as illustrative and use sample content.
+- Added another full-width farm photograph and reused existing field photography in the showcase.
+- Reworked the mobile and desktop navigation to point to the feature, product-preview and access sections.
+- Added a clear four-step account request and review explanation. Every new account remains subject to administrator approval before farm access.
+- Registration calls to action now say “Create account & request access.”
+
+Deployment
+- Upload or merge the full project into the repository.
+- Run `npm install` to synchronize package-lock.json with package.json, then `npm run build`.
+- Commit and push the updated project to deploy through Vercel.
+
+Screenshots
+- The project did not contain clean, current in-app screenshots suitable for public marketing. The new product windows are illustrative previews, not live screenshots or farm data. Replace them with approved current screenshots when available.

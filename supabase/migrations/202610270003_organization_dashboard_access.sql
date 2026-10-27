@@ -255,12 +255,15 @@ do $$ declare r record; begin
     ('fields','fields'),('farmers','farm-map'),('farms','farm-map'),('map_layers','farm-map'),
     ('activity_plans','planning'),('activity_plan_products','activities'),('activity_plan_operations','activities'),('activities','activities'),
     ('inventory_items','inventory'),('inventory_transactions','inventory'),('inventory_locations','inventory'),('inventory_transfers','inventory'),('inventory_transfer_lines','inventory'),('inventory_stocktakes','inventory'),('inventory_stocktake_counts','inventory'),
-    ('harvest_records','harvest'),('financial_transactions','financials'),('field_budgets','financials'),('crop_revenue_forecast','financials'),('business_commitments','financials'),
+    ('harvest_records','harvest'),('financial_transactions','financials'),('field_budgets','financials'),('business_commitments','financials'),
     ('equipment','equipment'),('fuel_records','fuel'),('fuel_logs','fuel'),('work_orders','jobs'),('scouting_records','scouting'),('scouting_observations','scouting'),
     ('transport_loads','transport'),('transport_load_allocations','transport'),('market_listings','grain-market'),('rain_gauges','rainfall'),('rainfall_readings','rainfall')
   ) as m(table_name,module_key)
   loop
-    if exists(select 1 from information_schema.columns where table_schema='public' and table_name=r.table_name and column_name='user_id') then
+    if exists(
+      select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname='public' and c.relname=r.table_name and c.relkind in ('r','p')
+    ) and exists(select 1 from information_schema.columns where table_schema='public' and table_name=r.table_name and column_name='user_id') then
       execute format('drop policy if exists organization_authorized_access on public.%I',r.table_name);
       execute format('drop policy if exists organization_dashboard_select on public.%I',r.table_name);
       execute format('drop policy if exists organization_dashboard_insert on public.%I',r.table_name);
