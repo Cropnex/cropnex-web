@@ -1,6 +1,7 @@
 export type WorkOrder = {
   id: string;
   user_id?: string;
+  assigned_user_id?: string | null;
   created_at?: string;
   title: string;
   field_id: string | null;

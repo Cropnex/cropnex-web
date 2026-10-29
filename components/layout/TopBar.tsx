@@ -35,7 +35,7 @@ export default function TopBar({
 
     if (!normalized) return [];
 
-    return navigationItems.filter((item) => (access.isAdmin||(access.roles.includes("Farmer")&&!access.organizationRoles.length)||access.modules.includes(organizationModuleForRoute(item.href))||item.href==="/grain-marketing"&&(access.roles.includes("Buyer")||access.roles.includes("Transporter")))&&
+    return navigationItems.filter((item) => (item.href==="/help"||access.isAdmin||(access.roles.includes("Farmer")&&!access.organizationRoles.length)||access.modules.includes(organizationModuleForRoute(item.href))||item.href==="/grain-marketing"&&(access.roles.includes("Buyer")||access.roles.includes("Transporter")))&&
       `${item.label} ${item.description}`
         .toLowerCase()
         .includes(normalized)

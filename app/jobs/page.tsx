@@ -8,6 +8,7 @@ import type { Equipment } from "@/types/equipment";
 import type { InventoryItem } from "@/types/inventory";
 import type { WorkOrder, WorkOrderProduct } from "@/types/work-order";
 import { useSeason } from "@/components/season/SeasonProvider";
+import { useAccess } from "@/components/auth/AccessProvider";
 
 type JobForm = {
   title: string;
@@ -15,6 +16,7 @@ type JobForm = {
   activity_type: string;
   planned_date: string;
   operator_name: string;
+  assigned_user_id: string;
   equipment_id: string;
   implement_name: string;
   estimated_hours: string;
@@ -34,6 +36,7 @@ const emptyJob: JobForm = {
   activity_type: "Spraying",
   planned_date: "",
   operator_name: "",
+  assigned_user_id: "",
   equipment_id: "",
   implement_name: "",
   estimated_hours: "",
@@ -49,6 +52,7 @@ const emptyProduct: ProductForm = {
 
 export default function JobsPage() {
   const { currentSeason } = useSeason();
+  const access=useAccess();
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -58,6 +62,7 @@ export default function JobsPage() {
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [selectedJob, setSelectedJob] = useState<WorkOrder | null>(null);
   const [saving, setSaving] = useState(false);
+  const [employees,setEmployees]=useState<{user_id:string;full_name:string}[]>([]);
 
   async function loadAll() {
     if (!currentSeason) return;
@@ -113,6 +118,7 @@ export default function JobsPage() {
         activity_type: form.activity_type,
         planned_date: form.planned_date || null,
         operator_name: form.operator_name.trim() || null,
+        assigned_user_id: form.assigned_user_id || null,
         equipment_id: form.equipment_id || null,
         implement_name: form.implement_name.trim() || null,
         estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
@@ -245,6 +251,8 @@ export default function JobsPage() {
     void loadAll();
   }, [currentSeason]);
 
+  useEffect(()=>{const selected=fields.find(f=>f.id===form.field_id);if(!selected?.user_id){setEmployees([]);return}void supabase.rpc("get_organization_job_assignees",{p_farmer_user_id:selected.user_id}).then(({data,error})=>{if(error){setEmployees([]);return}setEmployees((data||[]) as {user_id:string;full_name:string}[])})},[form.field_id,fields]);
+
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -266,7 +274,7 @@ export default function JobsPage() {
         </Link>
       </div>
 
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+      {access.canEditModule("jobs")&&<section className="rounded-2xl border border-white/10 bg-white/5 p-6">
         <h2 className="mb-5 text-2xl font-bold text-green-400">New Job Card</h2>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -284,6 +292,10 @@ export default function JobsPage() {
           </Select>
           <Input label="Planned date" type="date" value={form.planned_date} onChange={(value) => setForm({ ...form, planned_date: value })} />
           <Input label="Operator" value={form.operator_name} onChange={(value) => setForm({ ...form, operator_name: value })} />
+          <Select label="Assign employee account" value={form.assigned_user_id} onChange={(value) => setForm({ ...form, assigned_user_id: value })}>
+            <option value="">No account assigned</option>
+            {employees.map(person=><option key={person.user_id} value={person.user_id}>{person.full_name||"Employee"}</option>)}
+          </Select>
           <Select label="Machine" value={form.equipment_id} onChange={(value) => setForm({ ...form, equipment_id: value })}>
             <option value="">Select machine</option>
             {equipment.map((item) => (
@@ -311,7 +323,7 @@ export default function JobsPage() {
         >
           {saving ? "Saving..." : "Save Job Card"}
         </button>
-      </section>
+      </section>}
 
       <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {jobs.map((job) => (
@@ -323,6 +335,7 @@ export default function JobsPage() {
                 <p className="mt-1 text-sm text-gray-400">
                   {job.field_name || "No field"} · {job.planned_date || "No date"}
                 </p>
+                {job.assigned_user_id&&<p className="mt-1 text-xs text-[#b6cb8d]">Assigned to an employee account</p>}
               </div>
               <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs text-green-400">
                 {job.status}
@@ -330,7 +343,7 @@ export default function JobsPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <button
+              {access.canEditModule("jobs")&&<button
                 type="button"
                 onClick={async () => {
                   setSelectedJob(job);
@@ -339,9 +352,9 @@ export default function JobsPage() {
                 className="rounded-xl border border-white/10 px-4 py-2"
               >
                 Products
-              </button>
+              </button>}
 
-              {job.status !== "Completed" && (
+              {access.canEditModule("jobs")&&job.status !== "Completed" && (
                 <button
                   type="button"
                   onClick={() => updateStatus(job, "Completed")}

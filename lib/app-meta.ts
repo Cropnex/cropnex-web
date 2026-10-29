@@ -1,5 +1,5 @@
 export const APP_NAME = "CropNex";
-export const APP_VERSION = "6.35.0";
+export const APP_VERSION = "6.36.0";
 export const CROPNEX_LAUNCHED = process.env.NEXT_PUBLIC_CROPNEX_LAUNCHED === "true";
 export const APP_STAGE = "Private Beta";
 export const LEGAL_VERSION = "2026-10-23";
