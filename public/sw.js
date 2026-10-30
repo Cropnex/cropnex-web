@@ -1,4 +1,4 @@
-const CACHE_NAME = "cropnex-shell-v6-36";
+const CACHE_NAME = "cropnex-shell-v6-37";
 
 const CORE_FILES = [
   "/offline",

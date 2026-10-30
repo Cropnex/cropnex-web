@@ -13,7 +13,7 @@ Organisation teams
 Trials
 - Added trial records by field and season, objectives, dates, crop sale price, control and treatment groups, input rates and prices, operation costs, strip measurements, field-average yield estimates, notes and photos.
 - Added treatment comparison and strip/input tables, plus yield and gross-margin comparison graphs.
-- Added an Excel workbook export with a summary tab and one worksheet per treatment, including costs, strip yields, notes and comparison data. The summary workbook also includes compact in-cell graph bars.
+- Added an Excel workbook export with a summary tab and one worksheet per trial, including treatment costs, strip yields, notes and comparison data. The summary workbook also includes compact in-cell graph bars.
 
 Database migration
 - Apply supabase/migrations/202610290001_trials_and_team_roles.sql to add the trial tables, private photo storage policies, account assignments, organisation roles and access rules.

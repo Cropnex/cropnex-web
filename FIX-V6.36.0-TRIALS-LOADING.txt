@@ -1,0 +1,27 @@
+CropNex v6.36.0 — Trials and Help loading repair
+
+Cause
+The Trials and Help route folders were missing layout.tsx. Without AppShell, Trials had no access or season providers, no navigation, no current season and no permission to display its creation form. Its initial loading state could therefore never finish.
+
+Repair
+- Added app/trials/layout.tsx and app/help/layout.tsx using the same AppShell as the other farm pages.
+- Added clear Trials states for an unavailable season, a failed season request and a failed Trials request.
+- Trials requests now stop after 15 seconds and offer a retry.
+- Selecting a trial no longer reloads the complete season list.
+- No SQL migration changes are required for this repair. Do not rerun the migration that already succeeded.
+
+Quick repair for an already deployed v6.36.0 project
+The commands below add just the two missing layouts to your existing project. No dependency reinstall or database migration is needed. The full corrected ZIP also contains the additional loading and error handling described above.
+
+cd /workspaces/cropnex-web &&
+cp app/fields/layout.tsx app/trials/layout.tsx &&
+cp app/fields/layout.tsx app/help/layout.tsx &&
+npm run build &&
+git add app/trials/layout.tsx app/help/layout.tsx &&
+git commit -m "Fix Trials and Help app layouts" &&
+git push origin main
+
+Checks
+- Seven targeted regression checks passed, covering page layouts, absent season, season errors, successful data loading, database errors and request timeout.
+- The full project's TypeScript check passed.
+- The local Next production build could not complete because Windows rejected Next's child process with spawn EPERM. The build command above must pass in Codespaces before it commits and pushes.

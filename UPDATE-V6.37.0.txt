@@ -1,0 +1,49 @@
+CropNex v6.37.0 — Trial records and independent strips
+
+Workflow
+1. Create a named trial against a field and season. Enter its description, notes, dates and average SAFEX price in R/tonne.
+2. The trial is immediately listed and selected. Open it later to find all its records.
+3. Add strips. Each strip has its own name, description, hectares, product/seed/operation inputs, rates and prices. Products belong directly to strips.
+4. Log trial visits with visit dates, descriptions and observations. Add photographs with captions and dates, optionally linked to a visit and/or strip.
+5. After harvest, edit each strip, tick harvested, and enter tonnes, harvest date and optional moisture.
+6. Compare strip yield, costs, SAFEX value and gross margin in the Results tab. Changing the main trial SAFEX price recalculates every harvested strip.
+
+Calculations
+- Input cost per hectare = rate per hectare x unit price.
+- Strip cost per hectare = its own input costs + additional operation costs.
+- Yield t/ha = confirmed harvested tonnes / strip hectares.
+- SAFEX value per hectare = yield t/ha x the main trial average SAFEX price.
+- Gross margin per hectare = SAFEX value per hectare - recorded strip cost per hectare.
+- Pending harvest is shown as pending, never as a completed zero yield. Confirmed zero tonnes remains a valid result.
+- Old field-average estimates are retained but are not treated as measured strip harvests.
+- Comparison records do not deduct shed stock. Financial results exclude unrecorded overheads and selling costs.
+
+Trial list stability
+- Creating a second trial updates the list and selection directly; it does not trigger competing list reloads.
+- Selecting another trial clears the previous detail panel and cancels its requests.
+- Late responses and outdated refreshes cannot overwrite the active trial.
+- Failed and timed-out requests show an error and retry action.
+
+Reports
+- Export the selected trial or all trials in the season.
+- A summary sheet and one worksheet per trial include strip comparisons, product cost breakdowns, visit records and photo captions.
+- Yield and gross-margin charts are embedded as images in each trial worksheet. Available photographs are also included.
+
+ONE NEW MIGRATION
+Apply supabase/migrations/202610290002_trial_strips_and_visits.sql once, after the original Trials migration has succeeded.
+Do not rerun 202610290001 if it already succeeded.
+The new migration preserves trial records, strips and photos. Existing group inputs are copied to the related strips; original templates are retained in the database. Inputs that had no strip remain visible for allocation.
+The new trial_visits table has Row Level Security and the existing organisation permissions apply. This workspace did not change the live Supabase database.
+
+Deployment after copying the FULL ZIP contents and applying the new migration
+cd /workspaces/cropnex-web
+npm install &&
+npm run build &&
+git add -A &&
+git commit -m "CropNex v6.37.0 strip trials, visits and harvest comparisons" &&
+git push origin main
+
+Validation
+- TypeScript project check and targeted regression checks cover the trial list, switching, independent strip costs, SAFEX pricing, pending/zero harvests, cancellation/timeouts and workbook export.
+- Browser checks with synthetic farm data cover two trial creation, switching, per-strip input entry, dated visits, harvest comparisons and price changes. These checks did not use live farm data or production credentials.
+- A production Next build remains subject to the Windows child-process restriction in this workspace; run the build command in Codespaces before pushing.
