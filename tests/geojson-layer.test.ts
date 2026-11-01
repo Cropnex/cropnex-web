@@ -21,17 +21,38 @@ describe("GeoJSON normalization and validation", () => {
     expect(
       geometryPolygons({
         type: "MultiPolygon",
-        coordinates: [null, [[[0, 0], [1, 0], [1, 1]]]],
+        coordinates: [
+          null,
+          [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+            ],
+          ],
+        ],
       }),
-    ).toEqual([[[
-      { lat: 0, lng: 0 },
-      { lat: 0, lng: 1 },
-      { lat: 1, lng: 1 },
-    ]]]);
+    ).toEqual([
+      [
+        [
+          { lat: 0, lng: 0 },
+          { lat: 0, lng: 1 },
+          { lat: 1, lng: 1 },
+        ],
+      ],
+    ]);
     expect(
       geometryPolygons({
         type: "Polygon",
-        coordinates: [null, [[1, 2]], [[1, 2], ["no", 4], [3, 5]]],
+        coordinates: [
+          null,
+          [[1, 2]],
+          [
+            [1, 2],
+            ["no", 4],
+            [3, 5],
+          ],
+        ],
       }),
     ).toEqual([]);
     expect(geometryPoints(null)).toEqual([]);

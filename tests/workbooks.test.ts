@@ -191,57 +191,60 @@ describe("master data workbook", () => {
 
   it("exports the maintenance template and product values", async () => {
     const downloads = stubDownloads();
-    await downloadMasterDataWorkbook([
-      {
-        id: "record-1",
-        catalogue_code: "A-1",
-        name: "Maize seed",
-        manufacturer: null,
-        product_class: "Seed",
-        crop_type: "White Maize",
-        formulation: null,
-        pack_size: 10,
-        pack_unit: "bag",
-        status: "Approved",
-        description: null,
-      },
-      {
-        id: "record-2",
-        catalogue_code: "A-2",
-        name: "Fertiliser",
-        manufacturer: "",
-        product_class: "Fertiliser",
-        crop_type: "Multi-crop",
-        formulation: "",
-        pack_size: null,
-        pack_unit: null,
-        status: "Inactive",
-        description: null,
-      },
-    ], [
-      {
-        id: "operation-1",
-        catalogue_code: "CNO-1",
-        name: "Spraying",
-        unit: "ha",
-        category: "Crop care",
-        description: "Apply spray",
-        unit_cost: 15,
-        supplier: "Supplier",
-        active: true,
-      },
-      {
-        id: "operation-2",
-        catalogue_code: "CNO-2",
-        name: "Harvest",
-        unit: "ha",
-        category: "Other",
-        description: null,
-        unit_cost: 0,
-        supplier: null,
-        active: false,
-      },
-    ]);
+    await downloadMasterDataWorkbook(
+      [
+        {
+          id: "record-1",
+          catalogue_code: "A-1",
+          name: "Maize seed",
+          manufacturer: null,
+          product_class: "Seed",
+          crop_type: "White Maize",
+          formulation: null,
+          pack_size: 10,
+          pack_unit: "bag",
+          status: "Approved",
+          description: null,
+        },
+        {
+          id: "record-2",
+          catalogue_code: "A-2",
+          name: "Fertiliser",
+          manufacturer: "",
+          product_class: "Fertiliser",
+          crop_type: "Multi-crop",
+          formulation: "",
+          pack_size: null,
+          pack_unit: null,
+          status: "Inactive",
+          description: null,
+        },
+      ],
+      [
+        {
+          id: "operation-1",
+          catalogue_code: "CNO-1",
+          name: "Spraying",
+          unit: "ha",
+          category: "Crop care",
+          description: "Apply spray",
+          unit_cost: 15,
+          supplier: "Supplier",
+          active: true,
+        },
+        {
+          id: "operation-2",
+          catalogue_code: "CNO-2",
+          name: "Harvest",
+          unit: "ha",
+          category: "Other",
+          description: null,
+          unit_cost: 0,
+          supplier: null,
+          active: false,
+        },
+      ],
+    );
     expect(downloads.click).toHaveBeenCalledOnce();
     expect(downloads.blobs).toHaveLength(1);
     const workbook = new ExcelJS.Workbook();
@@ -295,7 +298,9 @@ describe("master data workbook", () => {
     for (let i = 0; i < 3; i++) operations.addRow([]);
     operations.addRow(["operation-1", "", "Harvest", "", "", "", "", "", "No"]);
 
-    const result = await readMasterDataWorkbook(await makeWorkbookFile(workbook));
+    const result = await readMasterDataWorkbook(
+      await makeWorkbookFile(workbook),
+    );
 
     expect(result.products[0]).toMatchObject({
       product_class: "Unclassified",

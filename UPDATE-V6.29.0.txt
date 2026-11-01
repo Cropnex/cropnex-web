@@ -1,4 +1,4 @@
-CropNex V6.29.0 — Pre-subscription lead capture
+updaCropNex V6.29.0 — Pre-subscription lead capture
 
 This is a complete source project update. It adds an admin-only pre-subscriber list to Administration > Verification Centre, captures existing and new pre-subscription registrations in Supabase, and lets admins track follow-up status. The pre-launch gate remains on for ordinary users; active CropNex administrators can reach the app while the launch flag is false.
 

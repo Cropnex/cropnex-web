@@ -1,3 +1,5 @@
+import { requireSupabaseUser } from "@/lib/api-auth";
+
 export const runtime = "nodejs";
 const schema = {
   type: "object",
@@ -39,6 +41,9 @@ const schema = {
   ],
 };
 export async function POST(request: Request) {
+  const authError = await requireSupabaseUser(request);
+  if (authError) return authError;
+
   const controller = new AbortController(),
     timer = setTimeout(() => controller.abort(), 50000);
   try {

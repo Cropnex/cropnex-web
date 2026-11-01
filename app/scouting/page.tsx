@@ -291,9 +291,15 @@ export default function ScoutingPage() {
         reader.onerror = reject;
         reader.readAsDataURL(photoFile);
       });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Sign in to use crop diagnosis.");
       const response = await fetch("/api/scouting-diagnosis", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           image,
           crop: field.crop,

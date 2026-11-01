@@ -27,6 +27,22 @@ In the Codespaces terminal, run `npm install`, then `npm run dev`. Use the **Por
 
 For a live deployment, add the same environment values to the hosting provider's protected environment settings. The app's canonical site address is set to `https://www.cropnex.com` in `app/layout.tsx`. Configure the custom domain in your hosting provider, then update the domain's DNS records at its registrar using the values that provider gives you. DNS records depend on the chosen host.
 
+## Testing
+
+Install dependencies with `npm install`, then run the test suite from the project root:
+
+```powershell
+npm test
+```
+
+Vitest runs the unit tests for application utilities, workbook handling, offline behavior, and API routes. To run tests continuously while editing, use `npm run test:watch`. To run the suite with coverage reporting and enforce the configured coverage thresholds, use:
+
+```powershell
+npm run test:coverage
+```
+
+You can run a focused test file with `npx vitest run tests/workbooks.test.ts`, replacing the path with the test file you want to check.
+
 ## Notes
 
 - Use a new Supabase project for CropNex if the new owner should have separate accounts and data. The database schema and migration history are in `supabase/migrations/`; review and apply them to the new project in order before using the app.

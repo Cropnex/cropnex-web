@@ -107,8 +107,24 @@ export async function updateQueuedRestMutation(item: QueuedRestMutation) {
   await transact(MUTATION_STORE, "readwrite", (store) => store.put(item));
 }
 
-function cacheKey(url: string, headers: Headers) {
-  return `${url}|${headers.get("accept-profile") || "public"}`;
+async function cacheKey(url: string, headers: Headers) {
+  const authorization = headers.get("authorization");
+  let userScope = "public";
+  if (authorization) {
+    if (!globalThis.crypto?.subtle) return null;
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(authorization),
+    );
+    userScope = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+  }
+  return JSON.stringify([
+    url,
+    headers.get("accept-profile") || "public",
+    userScope,
+  ]);
 }
 
 function safeHeaders(headers: Headers) {
@@ -129,10 +145,10 @@ export function createOfflineFetch(
     if (!isRestRequest || !available()) return baseFetch(request);
 
     if (request.method === "GET" || request.method === "HEAD") {
-      const key = cacheKey(request.url, request.headers);
+      const key = await cacheKey(request.url, request.headers);
       try {
         const response = await baseFetch(request);
-        if (response.ok && request.method === "GET") {
+        if (key && response.ok && request.method === "GET") {
           const clone = response.clone();
           await putCachedResponse({
             key,
@@ -145,7 +161,7 @@ export function createOfflineFetch(
         }
         return response;
       } catch (error) {
-        const cached = await getCachedResponse(key);
+        const cached = key ? await getCachedResponse(key) : undefined;
         if (cached) {
           return new Response(cached.body, {
             status: cached.status,

@@ -208,7 +208,9 @@ describe("createTrialsWorkbook", () => {
     expect(workbook.getWorksheet("Invalid--Name")?.getCell("B3").value).toBe(
       "Maize · Hybrid",
     );
-    expect(workbook.getWorksheet("Trials Summary")?.getCell("B5").value).toBeNull();
+    expect(
+      workbook.getWorksheet("Trials Summary")?.getCell("B5").value,
+    ).toBeNull();
     expect(chartRenderer).toHaveBeenCalledTimes(2);
     expect(chartRenderer).toHaveBeenCalledWith(
       "Yield by strip (t/ha)",
@@ -249,8 +251,7 @@ describe("createTrialsWorkbook", () => {
     const rows = sheet ? (sheet.getRows(1, sheet.rowCount) ?? []) : [];
     const stripDescription = rows.find(
       (row) =>
-        row.getCell(1).value === "Description" &&
-        row.getCell(2).value === "",
+        row.getCell(1).value === "Description" && row.getCell(2).value === "",
     );
     const operationCost = rows.find(
       (row) => row.getCell(1).value === "Additional operation R/ha",
@@ -264,7 +265,6 @@ describe("createTrialsWorkbook", () => {
     expect(stripDescription?.getCell(2).value).toBe("");
     expect(operationCost?.getCell(2).value).toBe(0);
   });
-
 });
 
 describe("renderTrialReportChart", () => {
@@ -306,7 +306,10 @@ describe("renderTrialReportChart", () => {
       renderTrialReportChart(
         "Margin",
         [
-          { name: "A very long strip name that should be shortened", value: -3 },
+          {
+            name: "A very long strip name that should be shortened",
+            value: -3,
+          },
           { name: "Positive", value: 7 },
         ],
         true,
@@ -316,7 +319,9 @@ describe("renderTrialReportChart", () => {
       renderTrialReportChart("Zero", [{ name: "Zero", value: 0 }], false),
     ).toBe("data:image/png;base64,test");
     expect(
-      calls.some((text) => text.startsWith("A very long") && text.endsWith("…")),
+      calls.some(
+        (text) => text.startsWith("A very long") && text.endsWith("…"),
+      ),
     ).toBe(true);
     expect(calls).toContain("R -3");
     expect(context.stroke).toHaveBeenCalledTimes(2);

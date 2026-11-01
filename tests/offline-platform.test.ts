@@ -26,7 +26,11 @@ describe("offline platform storage and fetch", () => {
 
   it("stores cached responses and returns undefined outside the browser", async () => {
     const value = {
-      key: "https://example.supabase.co/rest/v1/fields|public",
+      key: JSON.stringify([
+        "https://example.supabase.co/rest/v1/fields",
+        "public",
+        "public",
+      ]),
       body: "[]",
       status: 200,
       statusText: "OK",
@@ -115,13 +119,11 @@ describe("offline platform storage and fetch", () => {
   });
 
   it("caches successful GET responses by URL and accept-profile", async () => {
-    const baseFetch = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response('[{"id":"field-1"}]', {
-          headers: { "content-type": "application/json" },
-        }),
-      );
+    const baseFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('[{"id":"field-1"}]', {
+        headers: { "content-type": "application/json" },
+      }),
+    );
     const offlineFetch = createOfflineFetch(baseFetch);
     const response = await offlineFetch(
       "https://example.supabase.co/rest/v1/fields",
@@ -131,8 +133,74 @@ describe("offline platform storage and fetch", () => {
     );
     expect(await response.text()).toBe('[{"id":"field-1"}]');
     await expect(
-      getCachedResponse("https://example.supabase.co/rest/v1/fields|tenant"),
+      getCachedResponse(
+        JSON.stringify([
+          "https://example.supabase.co/rest/v1/fields",
+          "tenant",
+          "public",
+        ]),
+      ),
     ).resolves.toMatchObject({ body: '[{"id":"field-1"}]', status: 200 });
+  });
+
+  it("isolates authenticated offline responses by a non-reversible token scope", async () => {
+    const url = "https://example.supabase.co/rest/v1/financial_transactions";
+    const baseFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("user A data"))
+      .mockRejectedValue(new Error("offline"));
+    const offlineFetch = createOfflineFetch(baseFetch);
+
+    await offlineFetch(url, {
+      headers: { authorization: "Bearer user-a-token" },
+    });
+
+    await expect(
+      offlineFetch(url, {
+        headers: { authorization: "Bearer user-b-token" },
+      }),
+    ).rejects.toThrow("offline");
+
+    const cachedForA = await offlineFetch(url, {
+      headers: { authorization: "Bearer user-a-token" },
+    });
+    expect(await cachedForA.text()).toBe("user A data");
+    expect(cachedForA.headers.get("x-agcore-cache")).toBe("offline");
+
+    const stored = await getCachedResponse(
+      JSON.stringify([
+        url,
+        "public",
+        Array.from(
+          new Uint8Array(
+            await crypto.subtle.digest(
+              "SHA-256",
+              new TextEncoder().encode("Bearer user-a-token"),
+            ),
+          ),
+          (byte) => byte.toString(16).padStart(2, "0"),
+        ).join(""),
+      ]),
+    );
+    expect(stored?.key).not.toContain("user-a-token");
+  });
+
+  it("does not use a shared cache when an authenticated request cannot be scoped", async () => {
+    const baseFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("private data"))
+      .mockRejectedValue(new Error("offline"));
+    const offlineFetch = createOfflineFetch(baseFetch);
+    vi.stubGlobal("crypto", {});
+
+    await offlineFetch("https://example.supabase.co/rest/v1/fields", {
+      headers: { authorization: "Bearer user-token" },
+    });
+    await expect(
+      offlineFetch("https://example.supabase.co/rest/v1/fields", {
+        headers: { authorization: "Bearer user-token" },
+      }),
+    ).rejects.toThrow("offline");
   });
 
   it("uses a cached GET response after a network failure and rethrows when no cache exists", async () => {
@@ -164,7 +232,13 @@ describe("offline platform storage and fetch", () => {
     });
     await offlineFetch("https://example.supabase.co/rest/v1/fields");
     await expect(
-      getCachedResponse("https://example.supabase.co/rest/v1/fields|public"),
+      getCachedResponse(
+        JSON.stringify([
+          "https://example.supabase.co/rest/v1/fields",
+          "public",
+          "public",
+        ]),
+      ),
     ).resolves.toBeUndefined();
   });
 

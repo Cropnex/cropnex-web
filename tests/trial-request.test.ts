@@ -58,13 +58,10 @@ describe("trialRequest", () => {
   it("aborts an in-flight request when the caller cancels", async () => {
     const controller = new AbortController();
     let requestSignal: AbortSignal | undefined;
-    const request = trialRequest(
-      (signal) => {
-        requestSignal = signal;
-        return new Promise<string>(() => {});
-      },
-      controller.signal,
-    );
+    const request = trialRequest((signal) => {
+      requestSignal = signal;
+      return new Promise<string>(() => {});
+    }, controller.signal);
 
     controller.abort();
     await expect(request).rejects.toThrow("Request cancelled");

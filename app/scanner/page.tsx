@@ -212,9 +212,15 @@ export default function ScannerPage() {
         () => setStage("Reading every product line"),
         900,
       );
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Sign in to scan documents.");
       const response = await fetch("/api/scanner", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ image, documentType: type }),
         signal: controller.signal,
       });

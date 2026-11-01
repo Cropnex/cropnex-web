@@ -18,9 +18,9 @@ describe("field boundary normalization", () => {
         coordinates: [],
       } as unknown as FieldBoundary),
     ).toEqual([]);
-    expect(boundaryPolygonPaths({ type: "Polygon", coordinates: null })).toEqual(
-      [],
-    );
+    expect(
+      boundaryPolygonPaths({ type: "Polygon", coordinates: null }),
+    ).toEqual([]);
     expect(
       boundaryPolygonPaths({
         type: "MultiPolygon",
@@ -40,14 +40,7 @@ describe("field boundary normalization", () => {
           [0, 0],
           [1, 1],
         ],
-        [
-          ["1", "2"],
-          ["invalid", 3],
-          [4, "5"],
-          [6, 7],
-          [8],
-          null,
-        ],
+        [["1", "2"], ["invalid", 3], [4, "5"], [6, 7], [8], null],
       ],
     };
 

@@ -4,7 +4,12 @@ import {
   initialTrialWorkspace,
   trialWorkspaceReducer,
 } from "@/lib/trial-results";
-import type { Trial, TrialDetails, TrialInput, TrialStrip } from "@/types/trial";
+import type {
+  Trial,
+  TrialDetails,
+  TrialInput,
+  TrialStrip,
+} from "@/types/trial";
 
 const trial = (id = "trial-1"): Trial => ({
   id,
@@ -22,7 +27,10 @@ const trial = (id = "trial-1"): Trial => ({
   created_at: "2026-01-01",
 });
 
-const strip = (id: string, overrides: Partial<TrialStrip> = {}): TrialStrip => ({
+const strip = (
+  id: string,
+  overrides: Partial<TrialStrip> = {},
+): TrialStrip => ({
   id,
   trial_id: "trial-1",
   user_id: "user-1",
@@ -274,8 +282,8 @@ describe("trialWorkspaceReducer", () => {
       detailLoading: false,
       detailError: null,
     });
-    expect(
-      trialWorkspaceReducer(state, { type: "reset" }),
-    ).toBe(initialTrialWorkspace);
+    expect(trialWorkspaceReducer(state, { type: "reset" })).toBe(
+      initialTrialWorkspace,
+    );
   });
 });
