@@ -34,8 +34,7 @@ export default function AssistantPage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
-  const [transactions, setTransactions] =
-    useState<FinancialTransaction[]>([]);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [harvests, setHarvests] = useState<HarvestRecord[]>([]);
   const [forecasts, setForecasts] = useState<ProductionForecast[]>([]);
   const [positions, setPositions] = useState<GrainPosition[]>([]);
@@ -46,8 +45,7 @@ export default function AssistantPage() {
     {
       id: "welcome",
       role: "assistant",
-      text:
-        "Welcome to CropNex. I can analyse the farm data already stored in your account. Ask about jobs, equipment, inventory, financials, fields, harvests or grain exposure.",
+      text: "Welcome to CropNex. I can analyse the farm data already stored in your account. Ask about jobs, equipment, inventory, financials, fields, harvests or grain exposure.",
     },
   ]);
 
@@ -70,7 +68,10 @@ export default function AssistantPage() {
       supabase.from("work_orders").select("*"),
       supabase.from("financial_transactions").select("*"),
       supabase.from("harvest_records").select("*").eq("season", currentSeason),
-      supabase.from("production_forecasts").select("*").eq("season", currentSeason),
+      supabase
+        .from("production_forecasts")
+        .select("*")
+        .eq("season", currentSeason),
       supabase.from("grain_positions").select("*").eq("season", currentSeason),
     ]);
 
@@ -78,13 +79,9 @@ export default function AssistantPage() {
     setEquipment((equipmentResult.data || []) as Equipment[]);
     setInventory((inventoryResult.data || []) as InventoryItem[]);
     setJobs((jobsResult.data || []) as WorkOrder[]);
-    setTransactions(
-      (transactionsResult.data || []) as FinancialTransaction[]
-    );
+    setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
     setHarvests((harvestsResult.data || []) as HarvestRecord[]);
-    setForecasts(
-      (forecastsResult.data || []) as ProductionForecast[]
-    );
+    setForecasts((forecastsResult.data || []) as ProductionForecast[]);
     setPositions((positionsResult.data || []) as GrainPosition[]);
     setLoading(false);
   }
@@ -92,39 +89,30 @@ export default function AssistantPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (currentSeason) void loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSeason]);
 
   const farmSummary = useMemo(() => {
-    const totalArea = fields.reduce(
-      (sum, field) => sum + field.area_ha,
-      0
-    );
+    const totalArea = fields.reduce((sum, field) => sum + field.area_ha, 0);
 
     const lowStock = inventory.filter(
       (item) =>
         item.minimum_quantity !== null &&
-        item.quantity <= item.minimum_quantity
+        item.quantity <= item.minimum_quantity,
     );
 
     const serviceDue = equipment.filter((item) => {
-      if (
-        item.service_interval === null ||
-        item.last_service_hours === null
-      ) {
+      if (item.service_interval === null || item.last_service_hours === null) {
         return item.status === "Service Due";
       }
 
       return (
-        item.engine_hours - item.last_service_hours >=
-          item.service_interval ||
+        item.engine_hours - item.last_service_hours >= item.service_interval ||
         item.status === "Service Due"
       );
     });
 
-    const openJobs = jobs.filter(
-      (job) => job.status !== "Completed"
-    );
+    const openJobs = jobs.filter((job) => job.status !== "Completed");
 
     const income = transactions
       .filter((item) => item.transaction_type === "Income")
@@ -136,17 +124,17 @@ export default function AssistantPage() {
 
     const totalHarvestTonnes = harvests.reduce(
       (sum, item) => sum + item.tonnes_harvested,
-      0
+      0,
     );
 
     const totalHarvestArea = harvests.reduce(
       (sum, item) => sum + item.area_ha,
-      0
+      0,
     );
 
     const expectedTonnes = forecasts.reduce(
       (sum, item) => sum + item.expected_tonnes,
-      0
+      0,
     );
 
     const hedgedTonnes = positions
@@ -162,15 +150,10 @@ export default function AssistantPage() {
       expenses,
       grossMargin: income - expenses,
       averageYield:
-        totalHarvestArea > 0
-          ? totalHarvestTonnes / totalHarvestArea
-          : 0,
+        totalHarvestArea > 0 ? totalHarvestTonnes / totalHarvestArea : 0,
       expectedTonnes,
       hedgedTonnes,
-      unpricedTonnes: Math.max(
-        expectedTonnes - hedgedTonnes,
-        0
-      ),
+      unpricedTonnes: Math.max(expectedTonnes - hedgedTonnes, 0),
     };
   }, [
     fields,
@@ -201,7 +184,7 @@ export default function AssistantPage() {
           (job) =>
             `${job.title} (${job.field_name || "no field"}, ${
               job.planned_date || "no date"
-            })`
+            })`,
         )
         .join("; ");
 
@@ -237,30 +220,19 @@ export default function AssistantPage() {
       return `${farmSummary.lowStock.length} low-stock item${
         farmSummary.lowStock.length === 1 ? "" : "s"
       }: ${farmSummary.lowStock
-        .map(
-          (item) =>
-            `${item.name} (${item.quantity} ${item.unit})`
-        )
+        .map((item) => `${item.name} (${item.quantity} ${item.unit})`)
         .join(", ")}.`;
     }
 
-    if (
-      normalized.includes("gross margin") ||
-      normalized.includes("profit")
-    ) {
+    if (normalized.includes("gross margin") || normalized.includes("profit")) {
       return `Recorded income is R${farmSummary.income.toFixed(
-        2
+        2,
       )}, expenses are R${farmSummary.expenses.toFixed(
-        2
-      )}, and gross margin is R${farmSummary.grossMargin.toFixed(
-        2
-      )}.`;
+        2,
+      )}, and gross margin is R${farmSummary.grossMargin.toFixed(2)}.`;
     }
 
-    if (
-      normalized.includes("hectare") ||
-      normalized.includes("farm area")
-    ) {
+    if (normalized.includes("hectare") || normalized.includes("farm area")) {
       return `You currently have ${fields.length} field${
         fields.length === 1 ? "" : "s"
       } covering ${farmSummary.totalArea.toFixed(2)} hectares.`;
@@ -273,20 +245,16 @@ export default function AssistantPage() {
     ) {
       const hedgePercentage =
         farmSummary.expectedTonnes > 0
-          ? (farmSummary.hedgedTonnes /
-              farmSummary.expectedTonnes) *
-            100
+          ? (farmSummary.hedgedTonnes / farmSummary.expectedTonnes) * 100
           : 0;
 
       return `Expected production is ${farmSummary.expectedTonnes.toFixed(
-        2
+        2,
       )} t. Recorded hedged or contracted tonnes are ${farmSummary.hedgedTonnes.toFixed(
-        2
+        2,
       )} t (${hedgePercentage.toFixed(
-        1
-      )}%). Unpriced exposure is ${farmSummary.unpricedTonnes.toFixed(
-        2
-      )} t.`;
+        1,
+      )}%). Unpriced exposure is ${farmSummary.unpricedTonnes.toFixed(2)} t.`;
     }
 
     if (
@@ -294,7 +262,7 @@ export default function AssistantPage() {
       normalized.includes("harvest average")
     ) {
       return `The average recorded harvested yield is ${farmSummary.averageYield.toFixed(
-        2
+        2,
       )} t/ha across ${harvests.length} harvest record${
         harvests.length === 1 ? "" : "s"
       }.`;
@@ -306,18 +274,14 @@ export default function AssistantPage() {
       normalized.includes("briefing")
     ) {
       return `Farm briefing: ${farmSummary.totalArea.toFixed(
-        2
+        2,
       )} ha across ${fields.length} fields; ${
         farmSummary.openJobs.length
-      } open jobs; ${
-        farmSummary.lowStock.length
-      } low-stock items; ${
+      } open jobs; ${farmSummary.lowStock.length} low-stock items; ${
         farmSummary.serviceDue.length
       } equipment service alerts; gross margin R${farmSummary.grossMargin.toFixed(
-        2
-      )}; unpriced grain exposure ${farmSummary.unpricedTonnes.toFixed(
-        2
-      )} t.`;
+        2,
+      )}; unpriced grain exposure ${farmSummary.unpricedTonnes.toFixed(2)} t.`;
     }
 
     return "I can currently answer questions about open jobs, equipment service, low stock, gross margin, farm hectares, grain exposure, harvest yield and a general farm briefing.";
@@ -339,33 +303,80 @@ export default function AssistantPage() {
       text: "Reviewing your farm records…",
     };
 
-    setMessages((current) => [
-      ...current,
-      userMessage,
-      assistantMessage,
-    ]);
+    setMessages((current) => [...current, userMessage, assistantMessage]);
     setQuery("");
     setAnswering(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Your session expired. Please sign in again.");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token)
+        throw new Error("Your session expired. Please sign in again.");
       const response = await fetch("/api/assistant", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           question,
           season: currentSeason,
           context: {
-            fields: fields.map(({ field_name, farm_name, crop, cultivar, area_ha, expected_yield, harvest_status }) => ({ field_name, farm_name, crop, cultivar, area_ha, expected_yield, harvest_status })),
-            equipment, inventory, jobs, transactions, harvests, forecasts, positions,
+            fields: fields.map(
+              ({
+                field_name,
+                farm_name,
+                crop,
+                cultivar,
+                area_ha,
+                expected_yield,
+                harvest_status,
+              }) => ({
+                field_name,
+                farm_name,
+                crop,
+                cultivar,
+                area_ha,
+                expected_yield,
+                harvest_status,
+              }),
+            ),
+            equipment,
+            inventory,
+            jobs,
+            transactions,
+            harvests,
+            forecasts,
+            positions,
           },
         }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "The assistant could not answer right now.");
-      setMessages(current => current.map(message => message.id === assistantMessage.id ? { ...message, text: result.answer } : message));
+      if (!response.ok)
+        throw new Error(
+          result.error || "The assistant could not answer right now.",
+        );
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantMessage.id
+            ? { ...message, text: result.answer }
+            : message,
+        ),
+      );
     } catch (error) {
-      setMessages(current => current.map(message => message.id === assistantMessage.id ? { ...message, text: error instanceof Error ? error.message : "The assistant could not answer right now." } : message));
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantMessage.id
+            ? {
+                ...message,
+                text:
+                  error instanceof Error
+                    ? error.message
+                    : "The assistant could not answer right now.",
+              }
+            : message,
+        ),
+      );
     } finally {
       setAnswering(false);
     }
@@ -379,9 +390,7 @@ export default function AssistantPage() {
             CropNex
           </p>
 
-          <h1 className="mt-2 text-4xl font-black">
-            Smart Farm Assistant
-          </h1>
+          <h1 className="mt-2 text-4xl font-black">Smart Farm Assistant</h1>
 
           <p className="mt-2 text-gray-400">
             Ask questions about the live data stored in CropNex.
@@ -404,9 +413,7 @@ export default function AssistantPage() {
               <div
                 key={message.id}
                 className={`flex ${
-                  message.role === "user"
-                    ? "justify-end"
-                    : "justify-start"
+                  message.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
@@ -510,9 +517,7 @@ export default function AssistantPage() {
             href="/reports"
             className="block rounded-2xl border border-white/10 bg-white/5 p-5 hover:border-green-500/40"
           >
-            <p className="font-bold text-green-400">
-              Open Full Reports
-            </p>
+            <p className="font-bold text-green-400">Open Full Reports</p>
             <p className="mt-2 text-sm text-gray-400">
               View detailed field, financial and operational analytics.
             </p>
@@ -521,20 +526,14 @@ export default function AssistantPage() {
       </div>
 
       <p className="mt-6 text-xs text-gray-500">
-        This version is a rules-based assistant using your CropNex data.
-        It does not send farm data to an external AI service.
+        This version is a rules-based assistant using your CropNex data. It does
+        not send farm data to an external AI service.
       </p>
     </main>
   );
 }
 
-function Row({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-gray-400">{label}</span>

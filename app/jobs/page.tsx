@@ -52,26 +52,42 @@ const emptyProduct: ProductForm = {
 
 export default function JobsPage() {
   const { currentSeason } = useSeason();
-  const access=useAccess();
+  const access = useAccess();
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [products, setProducts] = useState<Record<string, WorkOrderProduct[]>>({});
+  const [products, setProducts] = useState<Record<string, WorkOrderProduct[]>>(
+    {},
+  );
   const [form, setForm] = useState<JobForm>(emptyJob);
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [selectedJob, setSelectedJob] = useState<WorkOrder | null>(null);
   const [saving, setSaving] = useState(false);
-  const [employees,setEmployees]=useState<{user_id:string;full_name:string}[]>([]);
+  const [employees, setEmployees] = useState<
+    { user_id: string; full_name: string }[]
+  >([]);
 
   async function loadAll() {
     if (!currentSeason) return;
     const [jobsResult, fieldsResult, equipmentResult, inventoryResult] =
       await Promise.all([
-        supabase.from("work_orders").select("*").order("planned_date", { ascending: true }),
-        supabase.from("fields").select("*").eq("season", currentSeason).order("farm_name").order("field_name"),
+        supabase
+          .from("work_orders")
+          .select("*")
+          .order("planned_date", { ascending: true }),
+        supabase
+          .from("fields")
+          .select("*")
+          .eq("season", currentSeason)
+          .order("farm_name")
+          .order("field_name"),
         supabase.from("equipment").select("*").order("name"),
-        supabase.from("inventory_items").select("*").eq("season", currentSeason).order("name"),
+        supabase
+          .from("inventory_items")
+          .select("*")
+          .eq("season", currentSeason)
+          .order("name"),
       ]);
 
     if (jobsResult.error) alert(jobsResult.error.message);
@@ -121,7 +137,9 @@ export default function JobsPage() {
         assigned_user_id: form.assigned_user_id || null,
         equipment_id: form.equipment_id || null,
         implement_name: form.implement_name.trim() || null,
-        estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
+        estimated_hours: form.estimated_hours
+          ? Number(form.estimated_hours)
+          : null,
         diesel_litres: form.diesel_litres ? Number(form.diesel_litres) : null,
         status: form.status,
         notes: form.notes.trim() || null,
@@ -143,7 +161,7 @@ export default function JobsPage() {
     }
 
     const item = inventory.find(
-      (inventoryItem) => inventoryItem.id === productForm.inventory_item_id
+      (inventoryItem) => inventoryItem.id === productForm.inventory_item_id,
     );
 
     if (!item) return;
@@ -175,7 +193,7 @@ export default function JobsPage() {
         if (!product.inventory_item_id) continue;
 
         const item = inventory.find(
-          (inventoryItem) => inventoryItem.id === product.inventory_item_id
+          (inventoryItem) => inventoryItem.id === product.inventory_item_id,
         );
 
         if (!item) continue;
@@ -189,7 +207,7 @@ export default function JobsPage() {
         if (!product.inventory_item_id) continue;
 
         const item = inventory.find(
-          (inventoryItem) => inventoryItem.id === product.inventory_item_id
+          (inventoryItem) => inventoryItem.id === product.inventory_item_id,
         );
         if (!item) continue;
 
@@ -220,15 +238,17 @@ export default function JobsPage() {
 
       const field = fields.find((item) => item.id === job.field_id);
 
-      const { error: activityError } = await supabase.from("activities").insert({
-        user_id: job.user_id,
-        activity_type: job.activity_type,
-        field_name: job.field_name || "Unassigned",
-        crop: field?.crop || null,
-        date: new Date().toISOString().slice(0, 10),
-        area_ha: field?.area_ha || null,
-        notes: job.notes || `Completed work order: ${job.title}`,
-      });
+      const { error: activityError } = await supabase
+        .from("activities")
+        .insert({
+          user_id: job.user_id,
+          activity_type: job.activity_type,
+          field_name: job.field_name || "Unassigned",
+          crop: field?.crop || null,
+          date: new Date().toISOString().slice(0, 10),
+          area_ha: field?.area_ha || null,
+          notes: job.notes || `Completed work order: ${job.title}`,
+        });
 
       if (activityError) return alert(activityError.message);
     }
@@ -251,7 +271,24 @@ export default function JobsPage() {
     void loadAll();
   }, [currentSeason]);
 
-  useEffect(()=>{const selected=fields.find(f=>f.id===form.field_id);if(!selected?.user_id){setEmployees([]);return}void supabase.rpc("get_organization_job_assignees",{p_farmer_user_id:selected.user_id}).then(({data,error})=>{if(error){setEmployees([]);return}setEmployees((data||[]) as {user_id:string;full_name:string}[])})},[form.field_id,fields]);
+  useEffect(() => {
+    const selected = fields.find((f) => f.id === form.field_id);
+    if (!selected?.user_id) {
+      setEmployees([]);
+      return;
+    }
+    void supabase
+      .rpc("get_organization_job_assignees", {
+        p_farmer_user_id: selected.user_id,
+      })
+      .then(({ data, error }) => {
+        if (error) {
+          setEmployees([]);
+          return;
+        }
+        setEmployees((data || []) as { user_id: string; full_name: string }[]);
+      });
+  }, [form.field_id, fields]);
 
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
@@ -262,7 +299,8 @@ export default function JobsPage() {
           </p>
           <h1 className="mt-2 text-4xl font-black">Job Cards</h1>
           <p className="mt-2 text-gray-400">
-            Plan work, assign machinery and deduct products when jobs are completed.
+            Plan work, assign machinery and deduct products when jobs are
+            completed.
           </p>
         </div>
 
@@ -274,68 +312,144 @@ export default function JobsPage() {
         </Link>
       </div>
 
-      {access.canEditModule("jobs")&&<section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h2 className="mb-5 text-2xl font-bold text-green-400">New Job Card</h2>
+      {access.canEditModule("jobs") && (
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <h2 className="mb-5 text-2xl font-bold text-green-400">
+            New Job Card
+          </h2>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Input label="Job title" value={form.title} onChange={(value) => setForm({ ...form, title: value })} />
-          <Select label="Field" value={form.field_id} onChange={(value) => setForm({ ...form, field_id: value })}>
-            <option value="">Select field</option>
-            {fields.map((field) => (
-              <option key={field.id} value={field.id}>{field.field_name}</option>
-            ))}
-          </Select>
-          <Select label="Activity" value={form.activity_type} onChange={(value) => setForm({ ...form, activity_type: value })}>
-            {["Spraying","Planting","Fertilising","Harvesting","Scouting","Cultivation"].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </Select>
-          <Input label="Planned date" type="date" value={form.planned_date} onChange={(value) => setForm({ ...form, planned_date: value })} />
-          <Input label="Operator" value={form.operator_name} onChange={(value) => setForm({ ...form, operator_name: value })} />
-          <Select label="Assign employee account" value={form.assigned_user_id} onChange={(value) => setForm({ ...form, assigned_user_id: value })}>
-            <option value="">No account assigned</option>
-            {employees.map(person=><option key={person.user_id} value={person.user_id}>{person.full_name||"Employee"}</option>)}
-          </Select>
-          <Select label="Machine" value={form.equipment_id} onChange={(value) => setForm({ ...form, equipment_id: value })}>
-            <option value="">Select machine</option>
-            {equipment.map((item) => (
-              <option key={item.id} value={item.id}>{item.name}</option>
-            ))}
-          </Select>
-          <Input label="Implement" value={form.implement_name} onChange={(value) => setForm({ ...form, implement_name: value })} />
-          <Input label="Estimated hours" type="number" value={form.estimated_hours} onChange={(value) => setForm({ ...form, estimated_hours: value })} />
-          <Input label="Diesel litres" type="number" value={form.diesel_litres} onChange={(value) => setForm({ ...form, diesel_litres: value })} />
-        </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Input
+              label="Job title"
+              value={form.title}
+              onChange={(value) => setForm({ ...form, title: value })}
+            />
+            <Select
+              label="Field"
+              value={form.field_id}
+              onChange={(value) => setForm({ ...form, field_id: value })}
+            >
+              <option value="">Select field</option>
+              {fields.map((field) => (
+                <option key={field.id} value={field.id}>
+                  {field.field_name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Activity"
+              value={form.activity_type}
+              onChange={(value) => setForm({ ...form, activity_type: value })}
+            >
+              {[
+                "Spraying",
+                "Planting",
+                "Fertilising",
+                "Harvesting",
+                "Scouting",
+                "Cultivation",
+              ].map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </Select>
+            <Input
+              label="Planned date"
+              type="date"
+              value={form.planned_date}
+              onChange={(value) => setForm({ ...form, planned_date: value })}
+            />
+            <Input
+              label="Operator"
+              value={form.operator_name}
+              onChange={(value) => setForm({ ...form, operator_name: value })}
+            />
+            <Select
+              label="Assign employee account"
+              value={form.assigned_user_id}
+              onChange={(value) =>
+                setForm({ ...form, assigned_user_id: value })
+              }
+            >
+              <option value="">No account assigned</option>
+              {employees.map((person) => (
+                <option key={person.user_id} value={person.user_id}>
+                  {person.full_name || "Employee"}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Machine"
+              value={form.equipment_id}
+              onChange={(value) => setForm({ ...form, equipment_id: value })}
+            >
+              <option value="">Select machine</option>
+              {equipment.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </Select>
+            <Input
+              label="Implement"
+              value={form.implement_name}
+              onChange={(value) => setForm({ ...form, implement_name: value })}
+            />
+            <Input
+              label="Estimated hours"
+              type="number"
+              value={form.estimated_hours}
+              onChange={(value) => setForm({ ...form, estimated_hours: value })}
+            />
+            <Input
+              label="Diesel litres"
+              type="number"
+              value={form.diesel_litres}
+              onChange={(value) => setForm({ ...form, diesel_litres: value })}
+            />
+          </div>
 
-        <textarea
-          rows={3}
-          value={form.notes}
-          onChange={(event) => setForm({ ...form, notes: event.target.value })}
-          placeholder="Instructions or notes..."
-          className="mt-4 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3"
-        />
+          <textarea
+            rows={3}
+            value={form.notes}
+            onChange={(event) =>
+              setForm({ ...form, notes: event.target.value })
+            }
+            placeholder="Instructions or notes..."
+            className="mt-4 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3"
+          />
 
-        <button
-          type="button"
-          onClick={saveJob}
-          disabled={saving}
-          className="mt-5 rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save Job Card"}
-        </button>
-      </section>}
+          <button
+            type="button"
+            onClick={saveJob}
+            disabled={saving}
+            className="mt-5 rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save Job Card"}
+          </button>
+        </section>
+      )}
 
       <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {jobs.map((job) => (
-          <article key={job.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <article
+            key={job.id}
+            className="rounded-2xl border border-white/10 bg-white/5 p-5"
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm text-gray-500">{job.activity_type}</p>
-                <h2 className="text-2xl font-bold text-green-400">{job.title}</h2>
+                <h2 className="text-2xl font-bold text-green-400">
+                  {job.title}
+                </h2>
                 <p className="mt-1 text-sm text-gray-400">
-                  {job.field_name || "No field"} · {job.planned_date || "No date"}
+                  {job.field_name || "No field"} ·{" "}
+                  {job.planned_date || "No date"}
                 </p>
-                {job.assigned_user_id&&<p className="mt-1 text-xs text-[#b6cb8d]">Assigned to an employee account</p>}
+                {job.assigned_user_id && (
+                  <p className="mt-1 text-xs text-[#b6cb8d]">
+                    Assigned to an employee account
+                  </p>
+                )}
               </div>
               <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs text-green-400">
                 {job.status}
@@ -343,18 +457,20 @@ export default function JobsPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              {access.canEditModule("jobs")&&<button
-                type="button"
-                onClick={async () => {
-                  setSelectedJob(job);
-                  await loadProducts(job.id);
-                }}
-                className="rounded-xl border border-white/10 px-4 py-2"
-              >
-                Products
-              </button>}
+              {access.canEditModule("jobs") && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSelectedJob(job);
+                    await loadProducts(job.id);
+                  }}
+                  className="rounded-xl border border-white/10 px-4 py-2"
+                >
+                  Products
+                </button>
+              )}
 
-              {access.canEditModule("jobs")&&job.status !== "Completed" && (
+              {access.canEditModule("jobs") && job.status !== "Completed" && (
                 <button
                   type="button"
                   onClick={() => updateStatus(job, "Completed")}
@@ -373,21 +489,32 @@ export default function JobsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-400">Job Products</p>
-              <h2 className="text-2xl font-black text-green-400">{selectedJob.title}</h2>
+              <h2 className="text-2xl font-black text-green-400">
+                {selectedJob.title}
+              </h2>
             </div>
-            <button type="button" onClick={() => setSelectedJob(null)} className="text-2xl">✕</button>
+            <button
+              type="button"
+              onClick={() => setSelectedJob(null)}
+              className="text-2xl"
+            >
+              ✕
+            </button>
           </div>
 
           <div className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
             <Select
               label="Inventory item"
               value={productForm.inventory_item_id}
-              onChange={(value) => setProductForm({ ...productForm, inventory_item_id: value })}
+              onChange={(value) =>
+                setProductForm({ ...productForm, inventory_item_id: value })
+              }
             >
               <option value="">Select product</option>
               {inventory.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.location || "Unassigned shed"} · {item.name} ({item.quantity} {item.unit})
+                  {item.location || "Unassigned shed"} · {item.name} (
+                  {item.quantity} {item.unit})
                 </option>
               ))}
             </Select>
@@ -396,7 +523,9 @@ export default function JobsPage() {
               label="Quantity"
               type="number"
               value={productForm.quantity}
-              onChange={(value) => setProductForm({ ...productForm, quantity: value })}
+              onChange={(value) =>
+                setProductForm({ ...productForm, quantity: value })
+              }
             />
 
             <button
@@ -410,9 +539,16 @@ export default function JobsPage() {
 
           <div className="mt-6 space-y-3">
             {(products[selectedJob.id] || []).map((product) => (
-              <article key={product.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <strong className="text-green-400">{product.product_name}</strong>
-                <p className="mt-1">{product.quantity} {product.unit}</p>
+              <article
+                key={product.id}
+                className="rounded-xl border border-white/10 bg-white/5 p-4"
+              >
+                <strong className="text-green-400">
+                  {product.product_name}
+                </strong>
+                <p className="mt-1">
+                  {product.quantity} {product.unit}
+                </p>
               </article>
             ))}
           </div>

@@ -40,8 +40,9 @@ export default function LabourPage() {
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
   const [employeeForm, setEmployeeForm] = useState(emptyEmployee);
   const [entryForm, setEntryForm] = useState(emptyEntry);
-  const [editingEmployeeId, setEditingEmployeeId] =
-    useState<string | null>(null);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
 
   async function loadAll() {
@@ -53,7 +54,12 @@ export default function LabourPage() {
           .from("labour_entries")
           .select("*")
           .order("work_date", { ascending: false }),
-        supabase.from("fields").select("*").eq("season", currentSeason).order("farm_name").order("field_name"),
+        supabase
+          .from("fields")
+          .select("*")
+          .eq("season", currentSeason)
+          .order("farm_name")
+          .order("field_name"),
         supabase.from("work_orders").select("*").order("title"),
       ]);
 
@@ -98,10 +104,7 @@ export default function LabourPage() {
       };
 
       const query = editingEmployeeId
-        ? supabase
-            .from("employees")
-            .update(payload)
-            .eq("id", editingEmployeeId)
+        ? supabase.from("employees").update(payload).eq("id", editingEmployeeId)
         : supabase.from("employees").insert(payload);
 
       const { error } = await query;
@@ -127,9 +130,7 @@ export default function LabourPage() {
       phone: employee.phone || "",
       email: employee.email || "",
       hourly_rate:
-        employee.hourly_rate !== null
-          ? String(employee.hourly_rate)
-          : "",
+        employee.hourly_rate !== null ? String(employee.hourly_rate) : "",
       employment_type: employee.employment_type,
       status: employee.status,
       notes: employee.notes || "",
@@ -144,9 +145,7 @@ export default function LabourPage() {
     const [startHour, startMinute] = entryForm.start_time
       .split(":")
       .map(Number);
-    const [endHour, endMinute] = entryForm.end_time
-      .split(":")
-      .map(Number);
+    const [endHour, endMinute] = entryForm.end_time.split(":").map(Number);
 
     const start = startHour * 60 + startMinute;
     const end = endHour * 60 + endMinute;
@@ -162,7 +161,7 @@ export default function LabourPage() {
     }
 
     const employee = employees.find(
-      (item) => item.id === entryForm.employee_id
+      (item) => item.id === entryForm.employee_id,
     );
 
     if (!employee) return;
@@ -186,26 +185,23 @@ export default function LabourPage() {
       }
 
       const hourlyRate = employee.hourly_rate;
-      const totalCost =
-        hourlyRate !== null ? hourlyRate * hours : null;
+      const totalCost = hourlyRate !== null ? hourlyRate * hours : null;
 
-      const { error } = await supabase
-        .from("labour_entries")
-        .insert({
-          user_id: data.user.id,
-          employee_id: employee.id,
-          field_id: entryForm.field_id || null,
-          work_order_id: entryForm.work_order_id || null,
-          work_date: entryForm.work_date,
-          start_time: entryForm.start_time || null,
-          end_time: entryForm.end_time || null,
-          hours_worked: hours,
-          activity_type: entryForm.activity_type,
-          description: entryForm.description.trim() || null,
-          hourly_rate: hourlyRate,
-          total_cost: totalCost,
-          notes: entryForm.notes.trim() || null,
-        });
+      const { error } = await supabase.from("labour_entries").insert({
+        user_id: data.user.id,
+        employee_id: employee.id,
+        field_id: entryForm.field_id || null,
+        work_order_id: entryForm.work_order_id || null,
+        work_date: entryForm.work_date,
+        start_time: entryForm.start_time || null,
+        end_time: entryForm.end_time || null,
+        hours_worked: hours,
+        activity_type: entryForm.activity_type,
+        description: entryForm.description.trim() || null,
+        hourly_rate: hourlyRate,
+        total_cost: totalCost,
+        notes: entryForm.notes.trim() || null,
+      });
 
       if (error) {
         alert(error.message);
@@ -222,8 +218,7 @@ export default function LabourPage() {
             transaction_type: "Expense",
             category: "Labour",
             description:
-              entryForm.description.trim() ||
-              `Labour - ${employee.full_name}`,
+              entryForm.description.trim() || `Labour - ${employee.full_name}`,
             quantity: hours,
             unit: "hours",
             unit_price: hourlyRate,
@@ -254,16 +249,16 @@ export default function LabourPage() {
   const totals = useMemo(() => {
     const totalHours = entries.reduce(
       (sum, entry) => sum + entry.hours_worked,
-      0
+      0,
     );
 
     const totalCost = entries.reduce(
       (sum, entry) => sum + (entry.total_cost || 0),
-      0
+      0,
     );
 
     const activeEmployees = employees.filter(
-      (employee) => employee.status === "Active"
+      (employee) => employee.status === "Active",
     ).length;
 
     return {
@@ -280,9 +275,7 @@ export default function LabourPage() {
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
             CropNex
           </p>
-          <h1 className="mt-2 text-4xl font-black">
-            Labour & Operators
-          </h1>
+          <h1 className="mt-2 text-4xl font-black">Labour & Operators</h1>
           <p className="mt-2 text-gray-400">
             Manage employees, hours, field work and labour costs.
           </p>
@@ -301,10 +294,7 @@ export default function LabourPage() {
           label="Active employees"
           value={String(totals.activeEmployees)}
         />
-        <Summary
-          label="Total hours"
-          value={totals.totalHours.toFixed(2)}
-        />
+        <Summary label="Total hours" value={totals.totalHours.toFixed(2)} />
         <Summary
           label="Total labour cost"
           value={`R${totals.totalCost.toFixed(2)}`}
@@ -430,9 +420,7 @@ export default function LabourPage() {
               disabled={saving}
               className="rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50"
             >
-              {editingEmployeeId
-                ? "Update Employee"
-                : "Save Employee"}
+              {editingEmployeeId ? "Update Employee" : "Save Employee"}
             </button>
 
             {editingEmployeeId && (
@@ -541,9 +529,7 @@ export default function LabourPage() {
             <Input
               label="Hours worked"
               type="number"
-              value={
-                entryForm.hours_worked || calculateHours()
-              }
+              value={entryForm.hours_worked || calculateHours()}
               onChange={(value) =>
                 setEntryForm({
                   ...entryForm,
@@ -623,9 +609,7 @@ export default function LabourPage() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">
-                    {employee.role}
-                  </p>
+                  <p className="text-sm text-gray-500">{employee.role}</p>
                   <h3 className="text-2xl font-bold text-green-400">
                     {employee.full_name}
                   </h3>
@@ -637,9 +621,7 @@ export default function LabourPage() {
               </div>
 
               <div className="mt-4 space-y-2 text-sm text-gray-300">
-                <p>
-                  Employment: {employee.employment_type}
-                </p>
+                <p>Employment: {employee.employment_type}</p>
                 <p>
                   Rate:{" "}
                   {employee.hourly_rate !== null
@@ -662,9 +644,7 @@ export default function LabourPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-4 text-2xl font-bold">
-          Recent Labour Entries
-        </h2>
+        <h2 className="mb-4 text-2xl font-bold">Recent Labour Entries</h2>
 
         <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
           <table className="min-w-full text-left text-sm">
@@ -681,20 +661,13 @@ export default function LabourPage() {
             <tbody>
               {entries.slice(0, 30).map((entry) => {
                 const employee = employees.find(
-                  (item) => item.id === entry.employee_id
+                  (item) => item.id === entry.employee_id,
                 );
-                const field = fields.find(
-                  (item) => item.id === entry.field_id
-                );
+                const field = fields.find((item) => item.id === entry.field_id);
 
                 return (
-                  <tr
-                    key={entry.id}
-                    className="border-b border-white/5"
-                  >
-                    <td className="px-4 py-3">
-                      {entry.work_date}
-                    </td>
+                  <tr key={entry.id} className="border-b border-white/5">
+                    <td className="px-4 py-3">{entry.work_date}</td>
                     <td className="px-4 py-3 font-bold text-green-400">
                       {employee?.full_name || "Unknown"}
                     </td>
@@ -723,19 +696,11 @@ export default function LabourPage() {
   );
 }
 
-function Summary({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-2 text-3xl font-black text-green-400">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-black text-green-400">{value}</p>
     </div>
   );
 }
@@ -753,9 +718,7 @@ function Input({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-400">
-        {label}
-      </label>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
       <input
         type={type}
         step="0.01"
@@ -780,9 +743,7 @@ function Select({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-400">
-        {label}
-      </label>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}

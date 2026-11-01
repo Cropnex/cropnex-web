@@ -1,17 +1,11 @@
 import Link from "next/link";
 import type { SmartAlert } from "@/types/alerts";
 
-export default function AlertCard({
-  alert,
-}: {
-  alert: SmartAlert;
-}) {
+export default function AlertCard({ alert }: { alert: SmartAlert }) {
   const styles = {
     info: "border-blue-700/25 bg-blue-50 text-blue-950",
-    warning:
-      "border-amber-700/25 bg-amber-50 text-amber-950",
-    critical:
-      "border-red-700/25 bg-red-50 text-red-950",
+    warning: "border-amber-700/25 bg-amber-50 text-amber-950",
+    critical: "border-red-700/25 bg-red-50 text-red-950",
   }[alert.severity];
 
   return (
@@ -24,9 +18,7 @@ export default function AlertCard({
           <p className="text-xs font-bold uppercase tracking-[0.18em] opacity-75">
             {alert.category}
           </p>
-          <h3 className="mt-2 text-xl font-black">
-            {alert.title}
-          </h3>
+          <h3 className="mt-2 text-xl font-black">{alert.title}</h3>
         </div>
 
         <span className="rounded-full bg-black/10 px-3 py-1 text-xs font-bold uppercase">

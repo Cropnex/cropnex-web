@@ -18,23 +18,57 @@ test("Polygon conversion keeps outer and interior rings", () => {
   const geometry = {
     type: "Polygon",
     coordinates: [
-      [[28, -26], [28.01, -26], [28.01, -26.01], [28, -26.01], [28, -26]],
-      [[28.002, -26.002], [28.008, -26.002], [28.008, -26.008], [28.002, -26.008], [28.002, -26.002]],
+      [
+        [28, -26],
+        [28.01, -26],
+        [28.01, -26.01],
+        [28, -26.01],
+        [28, -26],
+      ],
+      [
+        [28.002, -26.002],
+        [28.008, -26.002],
+        [28.008, -26.008],
+        [28.002, -26.008],
+        [28.002, -26.002],
+      ],
     ],
   };
   const polygons = geometryPolygons(geometry);
   assert.equal(polygons.length, 1);
   assert.equal(polygons[0].length, 2);
   assert.ok(geometryAreaHa(geometry) > 0);
-  assert.ok(geometryAreaHa(geometry) < geometryAreaHa({ type: "Polygon", coordinates: [geometry.coordinates[0]] }));
+  assert.ok(
+    geometryAreaHa(geometry) <
+      geometryAreaHa({
+        type: "Polygon",
+        coordinates: [geometry.coordinates[0]],
+      }),
+  );
 });
 
 test("MultiPolygon conversion retains disconnected polygon groups", () => {
   const geometry = {
     type: "MultiPolygon",
     coordinates: [
-      [[[28, -26], [28.01, -26], [28.01, -26.01], [28, -26.01], [28, -26]]],
-      [[[28.02, -26], [28.03, -26], [28.03, -26.01], [28.02, -26.01], [28.02, -26]]],
+      [
+        [
+          [28, -26],
+          [28.01, -26],
+          [28.01, -26.01],
+          [28, -26.01],
+          [28, -26],
+        ],
+      ],
+      [
+        [
+          [28.02, -26],
+          [28.03, -26],
+          [28.03, -26.01],
+          [28.02, -26.01],
+          [28.02, -26],
+        ],
+      ],
     ],
   };
   assert.equal(geometryPolygons(geometry).length, 2);
@@ -42,8 +76,33 @@ test("MultiPolygon conversion retains disconnected polygon groups", () => {
 });
 
 test("coordinate validation rejects projected or out-of-range coordinates", () => {
-  assert.equal(validCoordinates({ type: "Polygon", coordinates: [[[28, -26], [29, -26], [28, -27], [28, -26]]] }), true);
-  assert.equal(validCoordinates({ type: "Polygon", coordinates: [[[280000, 7100000], [280100, 7100000], [280000, 7100100]]] }), false);
+  assert.equal(
+    validCoordinates({
+      type: "Polygon",
+      coordinates: [
+        [
+          [28, -26],
+          [29, -26],
+          [28, -27],
+          [28, -26],
+        ],
+      ],
+    }),
+    true,
+  );
+  assert.equal(
+    validCoordinates({
+      type: "Polygon",
+      coordinates: [
+        [
+          [280000, 7100000],
+          [280100, 7100000],
+          [280000, 7100100],
+        ],
+      ],
+    }),
+    false,
+  );
 });
 
 test("category colours are stable and distinct for common categories", () => {
@@ -53,8 +112,44 @@ test("category colours are stable and distinct for common categories", () => {
 
 test("whole-map export keeps every feature, multipart geometry, holes and attributes", () => {
   const source = [
-    { geometry: { type: "Polygon", coordinates: [[[28, -26], [28.01, -26], [28, -26.01], [28, -26]]] }, properties: { soil: "Clay" } },
-    { geometry: { type: "MultiPolygon", coordinates: [[[[28.02, -26], [28.03, -26], [28.02, -26.01], [28.02, -26]]], [[[28.04, -26], [28.05, -26], [28.04, -26.01], [28.04, -26]]]] }, properties: { soil: "Loam", zone: 2 } },
+    {
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [28, -26],
+            [28.01, -26],
+            [28, -26.01],
+            [28, -26],
+          ],
+        ],
+      },
+      properties: { soil: "Clay" },
+    },
+    {
+      geometry: {
+        type: "MultiPolygon",
+        coordinates: [
+          [
+            [
+              [28.02, -26],
+              [28.03, -26],
+              [28.02, -26.01],
+              [28.02, -26],
+            ],
+          ],
+          [
+            [
+              [28.04, -26],
+              [28.05, -26],
+              [28.04, -26.01],
+              [28.04, -26],
+            ],
+          ],
+        ],
+      },
+      properties: { soil: "Loam", zone: 2 },
+    },
   ];
   const collection = createFeatureCollection("soil.zip", source);
   assert.equal(collection.type, "FeatureCollection");
@@ -68,8 +163,31 @@ test("imported MultiPolygon boundaries keep every part and interior ring for fie
   const boundary = {
     type: "MultiPolygon",
     coordinates: [
-      [[[28, -26], [28.01, -26], [28.01, -26.01], [28, -26.01], [28, -26]], [[28.002, -26.002], [28.004, -26.002], [28.004, -26.004], [28.002, -26.004], [28.002, -26.002]]],
-      [[[28.02, -26], [28.03, -26], [28.03, -26.01], [28.02, -26.01], [28.02, -26]]],
+      [
+        [
+          [28, -26],
+          [28.01, -26],
+          [28.01, -26.01],
+          [28, -26.01],
+          [28, -26],
+        ],
+        [
+          [28.002, -26.002],
+          [28.004, -26.002],
+          [28.004, -26.004],
+          [28.002, -26.004],
+          [28.002, -26.002],
+        ],
+      ],
+      [
+        [
+          [28.02, -26],
+          [28.03, -26],
+          [28.03, -26.01],
+          [28.02, -26.01],
+          [28.02, -26],
+        ],
+      ],
     ],
   };
   assert.equal(boundaryHasShape(boundary), true);
@@ -80,9 +198,20 @@ test("imported MultiPolygon boundaries keep every part and interior ring for fie
 });
 
 test("legacy drawn point boundaries still convert to closed GeoJSON polygons", () => {
-  const points = [{ lat: -26, lng: 28 }, { lat: -26, lng: 28.01 }, { lat: -26.01, lng: 28 }];
+  const points = [
+    { lat: -26, lng: 28 },
+    { lat: -26, lng: 28.01 },
+    { lat: -26.01, lng: 28 },
+  ];
   assert.deepEqual(boundaryGeoJson(points), {
     type: "Polygon",
-    coordinates: [[[28, -26], [28.01, -26], [28, -26.01], [28, -26]]],
+    coordinates: [
+      [
+        [28, -26],
+        [28.01, -26],
+        [28, -26.01],
+        [28, -26],
+      ],
+    ],
   });
 });

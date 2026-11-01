@@ -53,4 +53,3 @@ export type WeatherResponse = {
     wind_gusts_10m_max: number[];
   };
 };
-

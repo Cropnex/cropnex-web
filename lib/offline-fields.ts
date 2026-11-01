@@ -6,22 +6,17 @@ function cacheKey(userId: string) {
   return `${CACHE_PREFIX}-${userId}`;
 }
 
-export function saveFieldsOffline(
-  userId: string,
-  fields: Field[]
-) {
+export function saveFieldsOffline(userId: string, fields: Field[]) {
   localStorage.setItem(
     cacheKey(userId),
     JSON.stringify({
       saved_at: new Date().toISOString(),
       fields,
-    })
+    }),
   );
 }
 
-export function getOfflineFields(
-  userId: string
-): Field[] {
+export function getOfflineFields(userId: string): Field[] {
   try {
     const stored = localStorage.getItem(cacheKey(userId));
 
@@ -34,9 +29,7 @@ export function getOfflineFields(
       fields: Field[];
     };
 
-    return Array.isArray(parsed.fields)
-      ? parsed.fields
-      : [];
+    return Array.isArray(parsed.fields) ? parsed.fields : [];
   } catch (error) {
     console.error("Could not read cached fields:", error);
     return [];

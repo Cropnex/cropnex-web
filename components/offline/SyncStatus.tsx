@@ -44,21 +44,12 @@ export default function SyncStatus() {
 
     window.addEventListener("online", onlineHandler);
     window.addEventListener("offline", offlineHandler);
-    window.addEventListener(
-      "agcore-sync-updated",
-      refreshHandler
-    );
+    window.addEventListener("agcore-sync-updated", refreshHandler);
 
     return () => {
       window.removeEventListener("online", onlineHandler);
-      window.removeEventListener(
-        "offline",
-        offlineHandler
-      );
-      window.removeEventListener(
-        "agcore-sync-updated",
-        refreshHandler
-      );
+      window.removeEventListener("offline", offlineHandler);
+      window.removeEventListener("agcore-sync-updated", refreshHandler);
     };
   }, []);
 

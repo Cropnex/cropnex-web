@@ -17,4 +17,3 @@ export type HarvestRecord = {
   other_cost: number | null;
   notes: string | null;
 };
-

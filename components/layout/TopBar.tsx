@@ -3,31 +3,34 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navigationItems,organizationModuleForRoute } from "@/components/layout/navigation";
+import {
+  navigationItems,
+  organizationModuleForRoute,
+} from "@/components/layout/navigation";
 import PWAInstallButton from "@/components/pwa/PWAInstallButton";
 import SyncStatus from "@/components/offline/SyncStatus";
 import { useSeason } from "@/components/season/SeasonProvider";
-import {useAccess} from "@/components/auth/AccessProvider";
+import { useAccess } from "@/components/auth/AccessProvider";
 
 type TopBarProps = {
   onOpenMenu: () => void;
 };
 
-export default function TopBar({
-  onOpenMenu,
-}: TopBarProps) {
+export default function TopBar({ onOpenMenu }: TopBarProps) {
   const pathname = usePathname();
-  const access=useAccess();
-  const {currentSeason,seasons,setCurrentSeason,loading:seasonLoading}=useSeason();
+  const access = useAccess();
+  const {
+    currentSeason,
+    seasons,
+    setCurrentSeason,
+    loading: seasonLoading,
+  } = useSeason();
   const [query, setQuery] = useState("");
-  const [notificationsOpen, setNotificationsOpen] =
-    useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const currentModule =
     navigationItems.find(
-      (item) =>
-        pathname === item.href ||
-        pathname.startsWith(`${item.href}/`)
+      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
     )?.label || "CropNex";
 
   const results = useMemo(() => {
@@ -35,12 +38,25 @@ export default function TopBar({
 
     if (!normalized) return [];
 
-    return navigationItems.filter((item) => (item.href==="/help"||access.isAdmin||(access.roles.includes("Farmer")&&!access.organizationRoles.length)||access.modules.includes(organizationModuleForRoute(item.href))||item.href==="/grain-marketing"&&(access.roles.includes("Buyer")||access.roles.includes("Transporter")))&&
-      `${item.label} ${item.description}`
-        .toLowerCase()
-        .includes(normalized)
+    return navigationItems.filter(
+      (item) =>
+        (item.href === "/help" ||
+          access.isAdmin ||
+          (access.roles.includes("Farmer") &&
+            !access.organizationRoles.length) ||
+          access.modules.includes(organizationModuleForRoute(item.href)) ||
+          (item.href === "/grain-marketing" &&
+            (access.roles.includes("Buyer") ||
+              access.roles.includes("Transporter")))) &&
+        `${item.label} ${item.description}`.toLowerCase().includes(normalized),
     );
-  }, [query,access.isAdmin,access.roles,access.modules,access.organizationRoles]);
+  }, [
+    query,
+    access.isAdmin,
+    access.roles,
+    access.modules,
+    access.organizationRoles,
+  ]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-black/20 bg-[#151611]/95 text-white shadow-[0_8px_30px_rgba(0,0,0,.16)] backdrop-blur-xl">
@@ -53,14 +69,12 @@ export default function TopBar({
         >
           ☰
         </button>
-<SyncStatus />
+        <SyncStatus />
         <div className="hidden min-w-[170px] lg:block">
           <p className="text-xs uppercase tracking-[0.18em] text-gray-500">
             Current module
           </p>
-          <h1 className="text-lg font-bold text-white">
-            {currentModule}
-          </h1>
+          <h1 className="text-lg font-bold text-white">{currentModule}</h1>
         </div>
 
         <div className="relative flex-1">
@@ -86,12 +100,8 @@ export default function TopBar({
                   </span>
 
                   <div>
-                    <p className="font-medium text-white">
-                      {item.label}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {item.description}
-                    </p>
+                    <p className="font-medium text-white">{item.label}</p>
+                    <p className="text-xs text-gray-500">{item.description}</p>
                   </div>
                 </Link>
               ))}
@@ -101,14 +111,28 @@ export default function TopBar({
 
         <PWAInstallButton />
 
-        <label className="hidden min-w-[145px] sm:block"><span className="sr-only">Current season</span><select aria-label="Current season" value={currentSeason} disabled={seasonLoading||!seasons.length} onChange={event=>void setCurrentSeason(event.target.value)} className="w-full rounded-xl border border-[#D6A64C]/25 bg-[#22231d] px-3 py-3 text-sm font-bold text-[#e1cda4] outline-none"><option value="">Season</option>{seasons.map(season=><option key={season} value={season}>{season}</option>)}</select></label>
+        <label className="hidden min-w-[145px] sm:block">
+          <span className="sr-only">Current season</span>
+          <select
+            aria-label="Current season"
+            value={currentSeason}
+            disabled={seasonLoading || !seasons.length}
+            onChange={(event) => void setCurrentSeason(event.target.value)}
+            className="w-full rounded-xl border border-[#D6A64C]/25 bg-[#22231d] px-3 py-3 text-sm font-bold text-[#e1cda4] outline-none"
+          >
+            <option value="">Season</option>
+            {seasons.map((season) => (
+              <option key={season} value={season}>
+                {season}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="relative">
           <button
             type="button"
-            onClick={() =>
-              setNotificationsOpen((current) => !current)
-            }
+            onClick={() => setNotificationsOpen((current) => !current)}
             className="relative rounded-xl border border-white/10 px-4 py-3 text-white"
             aria-label="Notifications"
           >
@@ -119,9 +143,7 @@ export default function TopBar({
           {notificationsOpen && (
             <div className="absolute right-0 top-[calc(100%+8px)] w-80 rounded-xl border border-white/10 bg-[#1B3028] p-4 shadow-2xl">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-bold text-white">
-                  Notifications
-                </h2>
+                <h2 className="font-bold text-white">Notifications</h2>
                 <button
                   type="button"
                   onClick={() => setNotificationsOpen(false)}
@@ -170,12 +192,8 @@ function Notification({
       href={href}
       className="mb-2 block rounded-xl bg-white/5 p-3 last:mb-0 hover:bg-white/10"
     >
-      <p className="text-sm font-bold text-green-400">
-        {title}
-      </p>
-      <p className="mt-1 text-xs leading-5 text-gray-500">
-        {description}
-      </p>
+      <p className="text-sm font-bold text-green-400">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
     </Link>
   );
 }

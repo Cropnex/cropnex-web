@@ -6,14 +6,12 @@ export default function OfflinePage() {
           CropNex Offline
         </p>
 
-        <h1 className="mt-4 text-4xl font-black">
-          Connection unavailable
-        </h1>
+        <h1 className="mt-4 text-4xl font-black">Connection unavailable</h1>
 
         <p className="mt-4 leading-7 text-gray-400">
-          The CropNex interface is available, but live Supabase
-          records require an internet connection. Reconnect and
-          refresh to continue working with farm data.
+          The CropNex interface is available, but live Supabase records require
+          an internet connection. Reconnect and refresh to continue working with
+          farm data.
         </p>
 
         <a

@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { Field } from "@/types/field";
-import type {
-  FieldBudget,
-  FinancialTransaction,
-} from "@/types/financial";
+import type { FieldBudget, FinancialTransaction } from "@/types/financial";
 import { useSeason } from "@/components/season/SeasonProvider";
 
 type CropRevenueForecast = {
@@ -20,9 +17,34 @@ type CropRevenueForecast = {
   forecast_income: number;
   weighted_price_per_tonne: number | null;
 };
-type FieldPerformance={field_id:string;field_name:string;crop:string|null;area_ha:number;activity_count:number;total_cost:number;projected_tonnes:number;projected_income:number;projected_margin:number;average_price_per_tonne:number};
-type CommitmentSummary={source:string;category:string;name:string;season:string|null;seasonal_amount:number};
-type BusinessCommitment={id:string;name:string;category:string;amount:number;frequency:string;season:string|null;active:boolean};
+type FieldPerformance = {
+  field_id: string;
+  field_name: string;
+  crop: string | null;
+  area_ha: number;
+  activity_count: number;
+  total_cost: number;
+  projected_tonnes: number;
+  projected_income: number;
+  projected_margin: number;
+  average_price_per_tonne: number;
+};
+type CommitmentSummary = {
+  source: string;
+  category: string;
+  name: string;
+  season: string | null;
+  seasonal_amount: number;
+};
+type BusinessCommitment = {
+  id: string;
+  name: string;
+  category: string;
+  amount: number;
+  frequency: string;
+  season: string | null;
+  active: boolean;
+};
 
 const emptyTransaction = {
   field_id: "",
@@ -47,63 +69,125 @@ const emptyBudget = {
   budgeted_cost_per_ha: "",
   notes: "",
 };
-const emptyCommitment={name:"",category:"Living expenses",amount:"",frequency:"Monthly",season:"",notes:""};
+const emptyCommitment = {
+  name: "",
+  category: "Living expenses",
+  amount: "",
+  frequency: "Monthly",
+  season: "",
+  notes: "",
+};
 
 export default function FinancialsPage() {
-  const{currentSeason}=useSeason();
+  const { currentSeason } = useSeason();
   const [fields, setFields] = useState<Field[]>([]);
-  const [transactions, setTransactions] =
-    useState<FinancialTransaction[]>([]);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [budgets, setBudgets] = useState<FieldBudget[]>([]);
   const [cropForecasts, setCropForecasts] = useState<CropRevenueForecast[]>([]);
-  const [performance,setPerformance]=useState<FieldPerformance[]>([]);
-  const [commitmentSummary,setCommitmentSummary]=useState<CommitmentSummary[]>([]);
-  const [commitments,setCommitments]=useState<BusinessCommitment[]>([]);
-  const [transactionForm, setTransactionForm] =
-    useState(emptyTransaction);
+  const [performance, setPerformance] = useState<FieldPerformance[]>([]);
+  const [commitmentSummary, setCommitmentSummary] = useState<
+    CommitmentSummary[]
+  >([]);
+  const [commitments, setCommitments] = useState<BusinessCommitment[]>([]);
+  const [transactionForm, setTransactionForm] = useState(emptyTransaction);
   const [budgetForm, setBudgetForm] = useState(emptyBudget);
-  const [commitmentForm,setCommitmentForm]=useState(emptyCommitment);
+  const [commitmentForm, setCommitmentForm] = useState(emptyCommitment);
   const [saving, setSaving] = useState(false);
 
   async function loadAll() {
-    if(!currentSeason)return;
-    const [fieldsResult, transactionsResult, budgetsResult, cropForecastResult,performanceResult,commitmentSummaryResult,commitmentsResult] =
-      await Promise.all([
-        supabase.from("fields").select("*").eq("season",currentSeason).order("field_name"),
-        supabase
-          .from("financial_transactions")
-          .select("*")
-          .order("transaction_date", { ascending: false }),
-        supabase
-          .from("field_budgets")
-          .select("*")
-          .eq("season",currentSeason)
-          .order("season", { ascending: false }),
-        supabase
-          .from("crop_revenue_forecast")
-          .select("*")
-          .eq("season",currentSeason)
-          .order("season", { ascending: false }),
-        supabase.from("field_performance_report").select("*").eq("season",currentSeason).order("field_name"),
-        supabase.from("business_commitment_summary").select("*").order("category"),
-        supabase.from("business_commitments").select("*").order("created_at",{ascending:false}),
-      ]);
+    if (!currentSeason) return;
+    const [
+      fieldsResult,
+      transactionsResult,
+      budgetsResult,
+      cropForecastResult,
+      performanceResult,
+      commitmentSummaryResult,
+      commitmentsResult,
+    ] = await Promise.all([
+      supabase
+        .from("fields")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("field_name"),
+      supabase
+        .from("financial_transactions")
+        .select("*")
+        .order("transaction_date", { ascending: false }),
+      supabase
+        .from("field_budgets")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("season", { ascending: false }),
+      supabase
+        .from("crop_revenue_forecast")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("season", { ascending: false }),
+      supabase
+        .from("field_performance_report")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("field_name"),
+      supabase
+        .from("business_commitment_summary")
+        .select("*")
+        .order("category"),
+      supabase
+        .from("business_commitments")
+        .select("*")
+        .order("created_at", { ascending: false }),
+    ]);
 
     if (fieldsResult.error) alert(fieldsResult.error.message);
     if (transactionsResult.error) alert(transactionsResult.error.message);
     if (budgetsResult.error) alert(budgetsResult.error.message);
 
-    const activeFields=(fieldsResult.data || []) as Field[];
+    const activeFields = (fieldsResult.data || []) as Field[];
     setFields(activeFields);
     setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
     setBudgets((budgetsResult.data || []) as FieldBudget[]);
     setCropForecasts((cropForecastResult.data || []) as CropRevenueForecast[]);
-    setPerformance((performanceResult.data||[]) as FieldPerformance[]);
-    setCommitmentSummary((commitmentSummaryResult.data||[]) as CommitmentSummary[]);
-    setCommitments((commitmentsResult.data||[]) as BusinessCommitment[]);
+    setPerformance((performanceResult.data || []) as FieldPerformance[]);
+    setCommitmentSummary(
+      (commitmentSummaryResult.data || []) as CommitmentSummary[],
+    );
+    setCommitments((commitmentsResult.data || []) as BusinessCommitment[]);
   }
 
-  async function saveCommitment(){if(!commitmentForm.name.trim()||Number(commitmentForm.amount)<=0){alert("Enter a name and amount.");return}setSaving(true);try{const{data}=await supabase.auth.getUser();if(!data.user)return alert("You must be logged in.");const{error}=await supabase.from("business_commitments").insert({user_id:data.user.id,name:commitmentForm.name.trim(),category:commitmentForm.category,amount:Number(commitmentForm.amount),frequency:commitmentForm.frequency,season:commitmentForm.season.trim()||null,notes:commitmentForm.notes.trim()||null});if(error)throw error;setCommitmentForm(emptyCommitment);await loadAll()}catch(error){alert(error instanceof Error?error.message:"The commitment could not be saved.")}finally{setSaving(false)}}
+  async function saveCommitment() {
+    if (!commitmentForm.name.trim() || Number(commitmentForm.amount) <= 0) {
+      alert("Enter a name and amount.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return alert("You must be logged in.");
+      const { error } = await supabase
+        .from("business_commitments")
+        .insert({
+          user_id: data.user.id,
+          name: commitmentForm.name.trim(),
+          category: commitmentForm.category,
+          amount: Number(commitmentForm.amount),
+          frequency: commitmentForm.frequency,
+          season: commitmentForm.season.trim() || null,
+          notes: commitmentForm.notes.trim() || null,
+        });
+      if (error) throw error;
+      setCommitmentForm(emptyCommitment);
+      await loadAll();
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "The commitment could not be saved.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function saveTransaction() {
     if (
@@ -130,28 +214,26 @@ export default function FinancialsPage() {
             Number(transactionForm.unit_price)
           : Number(transactionForm.amount);
 
-      const { error } = await supabase
-        .from("financial_transactions")
-        .insert({
-          user_id: data.user.id,
-          field_id: transactionForm.field_id || null,
-          transaction_date: transactionForm.transaction_date,
-          transaction_type: transactionForm.transaction_type,
-          category: transactionForm.category,
-          description: transactionForm.description.trim(),
-          quantity: transactionForm.quantity
-            ? Number(transactionForm.quantity)
-            : null,
-          unit: transactionForm.unit.trim() || null,
-          unit_price: transactionForm.unit_price
-            ? Number(transactionForm.unit_price)
-            : null,
-          amount: calculatedAmount,
-          supplier_or_customer:
-            transactionForm.supplier_or_customer.trim() || null,
-          reference: transactionForm.reference.trim() || null,
-          notes: transactionForm.notes.trim() || null,
-        });
+      const { error } = await supabase.from("financial_transactions").insert({
+        user_id: data.user.id,
+        field_id: transactionForm.field_id || null,
+        transaction_date: transactionForm.transaction_date,
+        transaction_type: transactionForm.transaction_type,
+        category: transactionForm.category,
+        description: transactionForm.description.trim(),
+        quantity: transactionForm.quantity
+          ? Number(transactionForm.quantity)
+          : null,
+        unit: transactionForm.unit.trim() || null,
+        unit_price: transactionForm.unit_price
+          ? Number(transactionForm.unit_price)
+          : null,
+        amount: calculatedAmount,
+        supplier_or_customer:
+          transactionForm.supplier_or_customer.trim() || null,
+        reference: transactionForm.reference.trim() || null,
+        notes: transactionForm.notes.trim() || null,
+      });
 
       if (error) {
         alert(error.message);
@@ -196,11 +278,9 @@ export default function FinancialsPage() {
         notes: budgetForm.notes.trim() || null,
       };
 
-      const { error } = await supabase
-        .from("field_budgets")
-        .upsert(payload, {
-          onConflict: "user_id,field_id,season",
-        });
+      const { error } = await supabase.from("field_budgets").upsert(payload, {
+        onConflict: "user_id,field_id,season",
+      });
 
       if (error) {
         alert(error.message);
@@ -235,9 +315,9 @@ export default function FinancialsPage() {
   }, [transactions]);
 
   const fieldSummaries = fields.map((field) => {
-    const report=performance.find(item=>item.field_id===field.id);
+    const report = performance.find((item) => item.field_id === field.id);
     const fieldTransactions = transactions.filter(
-      (item) => item.field_id === field.id
+      (item) => item.field_id === field.id,
     );
 
     const income = fieldTransactions
@@ -248,29 +328,24 @@ export default function FinancialsPage() {
       .filter((item) => item.transaction_type === "Expense")
       .reduce((sum, item) => sum + item.amount, 0);
 
-    const budget = budgets.find(
-      (item) => item.field_id === field.id
-    );
+    const budget = budgets.find((item) => item.field_id === field.id);
 
     const expectedRevenue =
       budget?.expected_yield && budget?.expected_price
-        ? budget.expected_yield *
-          budget.expected_price *
-          field.area_ha
+        ? budget.expected_yield * budget.expected_price * field.area_ha
         : null;
 
-    const budgetedCost =
-      budget?.budgeted_cost_per_ha
-        ? budget.budgeted_cost_per_ha * field.area_ha
-        : null;
+    const budgetedCost = budget?.budgeted_cost_per_ha
+      ? budget.budgeted_cost_per_ha * field.area_ha
+      : null;
 
     return {
       field,
-      income:Number(report?.projected_income??income),
-      expenses:Number(report?.total_cost??expenses),
-      margin:Number(report?.projected_margin??(income-expenses)),
-      projectedTonnes:Number(report?.projected_tonnes||0),
-      averagePrice:Number(report?.average_price_per_tonne||0),
+      income: Number(report?.projected_income ?? income),
+      expenses: Number(report?.total_cost ?? expenses),
+      margin: Number(report?.projected_margin ?? income - expenses),
+      projectedTonnes: Number(report?.projected_tonnes || 0),
+      averagePrice: Number(report?.average_price_per_tonne || 0),
       expectedRevenue,
       budgetedCost,
       projectedMargin:
@@ -282,11 +357,22 @@ export default function FinancialsPage() {
 
   const forecastIncome = cropForecasts.reduce(
     (sum, row) => sum + Number(row.forecast_income || 0),
-    0
+    0,
   );
-  const projectedFieldCosts=performance.reduce((sum,row)=>sum+Number(row.total_cost||0),0);
-  const businessCommitmentCost=commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason).reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0);
-  const businessProjectedMargin=forecastIncome-projectedFieldCosts-businessCommitmentCost;
+  const projectedFieldCosts = performance.reduce(
+    (sum, row) => sum + Number(row.total_cost || 0),
+    0,
+  );
+  const businessCommitmentCost = commitmentSummary
+    .filter(
+      (row) =>
+        row.source === "Equipment finance" ||
+        !row.season ||
+        row.season === currentSeason,
+    )
+    .reduce((sum, row) => sum + Number(row.seasonal_amount || 0), 0);
+  const businessProjectedMargin =
+    forecastIncome - projectedFieldCosts - businessCommitmentCost;
 
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
@@ -295,9 +381,7 @@ export default function FinancialsPage() {
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
             CropNex
           </p>
-          <h1 className="mt-2 text-4xl font-black">
-            Business & Finance
-          </h1>
+          <h1 className="mt-2 text-4xl font-black">Business & Finance</h1>
           <p className="mt-2 text-gray-400">
             Track income, expenses, budgets and gross margin per field.
           </p>
@@ -332,15 +416,37 @@ export default function FinancialsPage() {
 
       {cropForecasts.length > 0 && (
         <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h2 className="text-2xl font-bold text-green-400">Contract and planning-price forecast</h2>
-          <p className="mt-2 text-sm text-gray-400">Signed contracts price the first tonnes. The editable crop planning price estimates the remaining expected production.</p>
+          <h2 className="text-2xl font-bold text-green-400">
+            Contract and planning-price forecast
+          </h2>
+          <p className="mt-2 text-sm text-gray-400">
+            Signed contracts price the first tonnes. The editable crop planning
+            price estimates the remaining expected production.
+          </p>
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {cropForecasts.map((row) => (
-              <article key={`${row.season}-${row.crop}`} className="rounded-xl bg-black/20 p-4">
-                <div className="flex justify-between gap-3"><b>{row.crop}</b><span className="text-xs text-gray-500">{row.season}</span></div>
-                <p className="mt-3 text-xl font-black text-green-400">R {Number(row.forecast_income).toLocaleString("en-ZA", {maximumFractionDigits: 0})}</p>
-                <p className="mt-2 text-xs text-gray-400">{Number(row.contract_tonnes).toFixed(1)} t contracted · {Number(row.estimated_tonnes).toFixed(1)} t estimated</p>
-                <p className="mt-1 text-xs text-gray-500">Weighted price: R {Number(row.weighted_price_per_tonne || 0).toFixed(2)}/t</p>
+              <article
+                key={`${row.season}-${row.crop}`}
+                className="rounded-xl bg-black/20 p-4"
+              >
+                <div className="flex justify-between gap-3">
+                  <b>{row.crop}</b>
+                  <span className="text-xs text-gray-500">{row.season}</span>
+                </div>
+                <p className="mt-3 text-xl font-black text-green-400">
+                  R{" "}
+                  {Number(row.forecast_income).toLocaleString("en-ZA", {
+                    maximumFractionDigits: 0,
+                  })}
+                </p>
+                <p className="mt-2 text-xs text-gray-400">
+                  {Number(row.contract_tonnes).toFixed(1)} t contracted ·{" "}
+                  {Number(row.estimated_tonnes).toFixed(1)} t estimated
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Weighted price: R{" "}
+                  {Number(row.weighted_price_per_tonne || 0).toFixed(2)}/t
+                </p>
               </article>
             ))}
           </div>
@@ -619,23 +725,122 @@ export default function FinancialsPage() {
       </div>
 
       <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h2 className="text-2xl font-bold text-green-400">Business commitments</h2>
-        <p className="mt-2 text-sm text-gray-400">Add costs not tied to a field, such as living expenses, insurance, rent, salaries and loan repayments. Equipment installments entered on an equipment record are included automatically.</p>
+        <h2 className="text-2xl font-bold text-green-400">
+          Business commitments
+        </h2>
+        <p className="mt-2 text-sm text-gray-400">
+          Add costs not tied to a field, such as living expenses, insurance,
+          rent, salaries and loan repayments. Equipment installments entered on
+          an equipment record are included automatically.
+        </p>
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <Input label="Commitment" value={commitmentForm.name} onChange={value=>setCommitmentForm({...commitmentForm,name:value})}/>
-          <Select label="Category" value={commitmentForm.category} onChange={value=>setCommitmentForm({...commitmentForm,category:value})}>{["Living expenses","Insurance","Rent","Salaries","Loan repayment","Other"].map(value=><option key={value}>{value}</option>)}</Select>
-          <Input label="Amount (R)" type="number" value={commitmentForm.amount} onChange={value=>setCommitmentForm({...commitmentForm,amount:value})}/>
-          <Select label="Frequency" value={commitmentForm.frequency} onChange={value=>setCommitmentForm({...commitmentForm,frequency:value})}>{["Monthly","Quarterly","Annual","Per season","Once-off"].map(value=><option key={value}>{value}</option>)}</Select>
-          <Select label="Applies to" value={commitmentForm.season} onChange={value=>setCommitmentForm({...commitmentForm,season:value})}><option value="">Every season · carries forward</option>{currentSeason&&<option value={currentSeason}>{currentSeason} only</option>}</Select>
+          <Input
+            label="Commitment"
+            value={commitmentForm.name}
+            onChange={(value) =>
+              setCommitmentForm({ ...commitmentForm, name: value })
+            }
+          />
+          <Select
+            label="Category"
+            value={commitmentForm.category}
+            onChange={(value) =>
+              setCommitmentForm({ ...commitmentForm, category: value })
+            }
+          >
+            {[
+              "Living expenses",
+              "Insurance",
+              "Rent",
+              "Salaries",
+              "Loan repayment",
+              "Other",
+            ].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </Select>
+          <Input
+            label="Amount (R)"
+            type="number"
+            value={commitmentForm.amount}
+            onChange={(value) =>
+              setCommitmentForm({ ...commitmentForm, amount: value })
+            }
+          />
+          <Select
+            label="Frequency"
+            value={commitmentForm.frequency}
+            onChange={(value) =>
+              setCommitmentForm({ ...commitmentForm, frequency: value })
+            }
+          >
+            {["Monthly", "Quarterly", "Annual", "Per season", "Once-off"].map(
+              (value) => (
+                <option key={value}>{value}</option>
+              ),
+            )}
+          </Select>
+          <Select
+            label="Applies to"
+            value={commitmentForm.season}
+            onChange={(value) =>
+              setCommitmentForm({ ...commitmentForm, season: value })
+            }
+          >
+            <option value="">Every season · carries forward</option>
+            {currentSeason && (
+              <option value={currentSeason}>{currentSeason} only</option>
+            )}
+          </Select>
         </div>
-        <button type="button" onClick={saveCommitment} disabled={saving} className="mt-5 rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50">Add commitment</button>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{commitmentSummary.filter(item=>item.source==="Equipment finance"||!item.season||item.season===currentSeason).map((item,index)=><article key={`${item.source}-${item.name}-${index}`} className="rounded-xl bg-black/20 p-4"><div className="flex justify-between gap-3"><div><b>{item.name}</b><p className="text-xs text-gray-500">{item.category} · {item.source}{item.season?` · ${item.season}`:" · Every season"}</p></div><strong className="text-green-400">R{Number(item.seasonal_amount).toLocaleString("en-ZA",{maximumFractionDigits:0})}</strong></div></article>)}{!commitmentSummary.length&&<p className="text-sm text-gray-400">No business commitments recorded yet.</p>}</div>
+        <button
+          type="button"
+          onClick={saveCommitment}
+          disabled={saving}
+          className="mt-5 rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50"
+        >
+          Add commitment
+        </button>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {commitmentSummary
+            .filter(
+              (item) =>
+                item.source === "Equipment finance" ||
+                !item.season ||
+                item.season === currentSeason,
+            )
+            .map((item, index) => (
+              <article
+                key={`${item.source}-${item.name}-${index}`}
+                className="rounded-xl bg-black/20 p-4"
+              >
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <b>{item.name}</b>
+                    <p className="text-xs text-gray-500">
+                      {item.category} · {item.source}
+                      {item.season ? ` · ${item.season}` : " · Every season"}
+                    </p>
+                  </div>
+                  <strong className="text-green-400">
+                    R
+                    {Number(item.seasonal_amount).toLocaleString("en-ZA", {
+                      maximumFractionDigits: 0,
+                    })}
+                  </strong>
+                </div>
+              </article>
+            ))}
+          {!commitmentSummary.length && (
+            <p className="text-sm text-gray-400">
+              No business commitments recorded yet.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-4 text-2xl font-bold">
-          Field Profitability
-        </h2>
+        <h2 className="mb-4 text-2xl font-bold">Field Profitability</h2>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {fieldSummaries.map((summary) => (
@@ -647,8 +852,7 @@ export default function FinancialsPage() {
                 {summary.field.field_name}
               </h3>
               <p className="text-sm text-gray-400">
-                {summary.field.crop || "No crop"} ·{" "}
-                {summary.field.area_ha} ha
+                {summary.field.crop || "No crop"} · {summary.field.area_ha} ha
               </p>
 
               <div className="mt-5 space-y-3">
@@ -679,14 +883,12 @@ export default function FinancialsPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-4 text-2xl font-bold">
-          Recent Transactions
-        </h2>
+        <h2 className="mb-4 text-2xl font-bold">Recent Transactions</h2>
 
         <div className="space-y-3">
           {transactions.slice(0, 20).map((transaction) => {
             const field = fields.find(
-              (item) => item.id === transaction.field_id
+              (item) => item.id === transaction.field_id,
             );
 
             return (
@@ -700,8 +902,7 @@ export default function FinancialsPage() {
                   </p>
                   <p className="text-sm text-gray-400">
                     {transaction.transaction_date} ·{" "}
-                    {field?.field_name || "General"} ·{" "}
-                    {transaction.category}
+                    {field?.field_name || "General"} · {transaction.category}
                   </p>
                 </div>
 
@@ -712,10 +913,8 @@ export default function FinancialsPage() {
                       : "font-bold text-red-400"
                   }
                 >
-                  {transaction.transaction_type === "Income"
-                    ? "+"
-                    : "-"}
-                  R{transaction.amount.toFixed(2)}
+                  {transaction.transaction_type === "Income" ? "+" : "-"}R
+                  {transaction.amount.toFixed(2)}
                 </p>
               </article>
             );
@@ -726,30 +925,16 @@ export default function FinancialsPage() {
   );
 }
 
-function Summary({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-2 text-3xl font-black text-green-400">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-black text-green-400">{value}</p>
     </div>
   );
 }
 
-function Row({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm text-gray-400">{label}</span>
@@ -771,9 +956,7 @@ function Input({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-400">
-        {label}
-      </label>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
       <input
         type={type}
         step="0.01"
@@ -798,9 +981,7 @@ function Select({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-400">
-        {label}
-      </label>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}

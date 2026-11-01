@@ -12,7 +12,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(CORE_FILES))
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -24,10 +24,10 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           cacheNames
             .filter((name) => name !== CACHE_NAME)
-            .map((name) => caches.delete(name))
-        )
+            .map((name) => caches.delete(name)),
+        ),
       )
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -68,7 +68,7 @@ self.addEventListener("fetch", (event) => {
           }
 
           return caches.match("/offline");
-        })
+        }),
     );
 
     return;
@@ -76,9 +76,7 @@ self.addEventListener("fetch", (event) => {
 
   // Keep icons available offline. Next.js application code must use the
   // browser/network cache so a deployment can never leave the app on old code.
-  if (
-    url.pathname.startsWith("/icons/")
-  ) {
+  if (url.pathname.startsWith("/icons/")) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
@@ -96,8 +94,7 @@ self.addEventListener("fetch", (event) => {
 
           return response;
         });
-      })
+      }),
     );
   }
 });
-

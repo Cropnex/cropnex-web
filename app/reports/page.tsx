@@ -16,36 +16,107 @@ import type {
   FieldSummary,
   MonthlyTotal,
 } from "@/types/reports";
-type HarvestLive={field_id:string;field_name:string;crop:string|null;cultivar:string|null;harvest_status:string;reconciled_tonnes:number;yield_t_ha:number;market_price_per_tonne:number;projected_income:number;costs:number;margin:number;finished:boolean;contract_tonnes:number;safex_tonnes:number;unpriced_tonnes:number;remaining_planned_cost:number;actualised_cost:number};
-type FieldPerformance={field_id:string;field_name:string;crop:string|null;area_ha:number;activity_count:number;planning_cost:number;remaining_planned_cost:number;actualised_cost:number;additional_expenses:number;total_cost:number;harvested_tonnes:number;average_price_per_tonne:number;contract_tonnes:number;safex_tonnes:number;unpriced_tonnes:number;projected_income:number;projected_margin:number};
-type CommitmentSummary={source:string;category:string;name:string;season:string|null;seasonal_amount:number};
-type RainGauge={id:string;name:string;farm_name:string|null};
-type RainfallReading={id:string;gauge_id:string;reading_date:string;rainfall_mm:number;notes:string|null};
+type HarvestLive = {
+  field_id: string;
+  field_name: string;
+  crop: string | null;
+  cultivar: string | null;
+  harvest_status: string;
+  reconciled_tonnes: number;
+  yield_t_ha: number;
+  market_price_per_tonne: number;
+  projected_income: number;
+  costs: number;
+  margin: number;
+  finished: boolean;
+  contract_tonnes: number;
+  safex_tonnes: number;
+  unpriced_tonnes: number;
+  remaining_planned_cost: number;
+  actualised_cost: number;
+};
+type FieldPerformance = {
+  field_id: string;
+  field_name: string;
+  crop: string | null;
+  area_ha: number;
+  activity_count: number;
+  planning_cost: number;
+  remaining_planned_cost: number;
+  actualised_cost: number;
+  additional_expenses: number;
+  total_cost: number;
+  harvested_tonnes: number;
+  average_price_per_tonne: number;
+  contract_tonnes: number;
+  safex_tonnes: number;
+  unpriced_tonnes: number;
+  projected_income: number;
+  projected_margin: number;
+};
+type CommitmentSummary = {
+  source: string;
+  category: string;
+  name: string;
+  season: string | null;
+  seasonal_amount: number;
+};
+type RainGauge = { id: string; name: string; farm_name: string | null };
+type RainfallReading = {
+  id: string;
+  gauge_id: string;
+  reading_date: string;
+  rainfall_mm: number;
+  notes: string | null;
+};
 
 export default function ReportsPage() {
-  const{currentSeason,loading:seasonLoading}=useSeason();
+  const { currentSeason, loading: seasonLoading } = useSeason();
   const [fields, setFields] = useState<Field[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [transactions, setTransactions] =
-    useState<FinancialTransaction[]>([]);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
   const [harvestLive, setHarvestLive] = useState<HarvestLive[]>([]);
-  const [performance,setPerformance] = useState<FieldPerformance[]>([]);
-  const [commitmentSummary,setCommitmentSummary]=useState<CommitmentSummary[]>([]);
-  const [rainfall,setRainfall]=useState<RainfallReading[]>([]);
-  const [rainGauges,setRainGauges]=useState<RainGauge[]>([]);
+  const [performance, setPerformance] = useState<FieldPerformance[]>([]);
+  const [commitmentSummary, setCommitmentSummary] = useState<
+    CommitmentSummary[]
+  >([]);
+  const [rainfall, setRainfall] = useState<RainfallReading[]>([]);
+  const [rainGauges, setRainGauges] = useState<RainGauge[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadReports() {
-    if(!currentSeason){setLoading(false);return;}
+    if (!currentSeason) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
-    const fieldsResult = await supabase.from("fields").select("*").eq("season",currentSeason).order("field_name");
-    const loadedFields=(fieldsResult.data||[]) as Field[];
-    const priceGroups=new Map(loadedFields.filter(field=>field.user_id&&field.season&&field.crop).map(field=>[`${field.user_id}|${field.season}|${field.crop}`,field]));
-    await Promise.all([...priceGroups.values()].map(field=>supabase.rpc("reprice_grain_harvest",{p_user_id:field.user_id,p_season:field.season,p_crop:field.crop})));
+    const fieldsResult = await supabase
+      .from("fields")
+      .select("*")
+      .eq("season", currentSeason)
+      .order("field_name");
+    const loadedFields = (fieldsResult.data || []) as Field[];
+    const priceGroups = new Map(
+      loadedFields
+        .filter((field) => field.user_id && field.season && field.crop)
+        .map((field) => [
+          `${field.user_id}|${field.season}|${field.crop}`,
+          field,
+        ]),
+    );
+    await Promise.all(
+      [...priceGroups.values()].map((field) =>
+        supabase.rpc("reprice_grain_harvest", {
+          p_user_id: field.user_id,
+          p_season: field.season,
+          p_crop: field.crop,
+        }),
+      ),
+    );
     const [
       activitiesResult,
       transactionsResult,
@@ -58,23 +129,46 @@ export default function ReportsPage() {
       rainfallResult,
       gaugesResult,
     ] = await Promise.all([
-      supabase.from("activities").select("*").eq("season",currentSeason).order("date", {
-        ascending: false,
-      }),
+      supabase
+        .from("activities")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("date", {
+          ascending: false,
+        }),
       supabase
         .from("financial_transactions")
         .select("*")
         .order("transaction_date", { ascending: false }),
-      supabase.from("inventory_items").select("*").eq("season",currentSeason).order("name"),
+      supabase
+        .from("inventory_items")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("name"),
       supabase.from("equipment").select("*").order("name"),
       supabase
         .from("work_orders")
         .select("*")
         .order("planned_date", { ascending: false }),
-      supabase.from("field_harvest_live_summary").select("*").eq("season",currentSeason).order("finished").order("field_name"),
-      supabase.from("field_performance_report").select("*").eq("season",currentSeason).order("field_name"),
-      supabase.from("business_commitment_summary").select("*").order("category"),
-      supabase.from("rainfall_readings").select("id,gauge_id,reading_date,rainfall_mm,notes").order("reading_date", { ascending: false }),
+      supabase
+        .from("field_harvest_live_summary")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("finished")
+        .order("field_name"),
+      supabase
+        .from("field_performance_report")
+        .select("*")
+        .eq("season", currentSeason)
+        .order("field_name"),
+      supabase
+        .from("business_commitment_summary")
+        .select("*")
+        .order("category"),
+      supabase
+        .from("rainfall_readings")
+        .select("id,gauge_id,reading_date,rainfall_mm,notes")
+        .order("reading_date", { ascending: false }),
       supabase.from("rain_gauges").select("id,name,farm_name"),
     ]);
 
@@ -104,18 +198,18 @@ export default function ReportsPage() {
     setEquipment((equipmentResult.data || []) as Equipment[]);
     setJobs((jobsResult.data || []) as WorkOrder[]);
     setHarvestLive((harvestResult.data || []) as HarvestLive[]);
-    setPerformance((performanceResult.data||[]) as FieldPerformance[]);
-    setCommitmentSummary((commitmentsResult.data||[]) as CommitmentSummary[]);
-    setRainfall((rainfallResult.data||[]) as RainfallReading[]);
-    setRainGauges((gaugesResult.data||[]) as RainGauge[]);
+    setPerformance((performanceResult.data || []) as FieldPerformance[]);
+    setCommitmentSummary((commitmentsResult.data || []) as CommitmentSummary[]);
+    setRainfall((rainfallResult.data || []) as RainfallReading[]);
+    setRainGauges((gaugesResult.data || []) as RainGauge[]);
     setLoading(false);
   }
 
   useEffect(() => {
-    if(seasonLoading)return;
+    if (seasonLoading) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReports();
-  }, [currentSeason,seasonLoading]);
+  }, [currentSeason, seasonLoading]);
 
   const financialTotals = useMemo(() => {
     const income = transactions
@@ -135,15 +229,16 @@ export default function ReportsPage() {
 
   const fieldSummaries: FieldSummary[] = useMemo(() => {
     return fields.map((field) => {
-      const report=performance.find(item=>item.field_id===field.id);
-      const income=Number(report?.projected_income||0),expenses=Number(report?.total_cost||0);
+      const report = performance.find((item) => item.field_id === field.id);
+      const income = Number(report?.projected_income || 0),
+        expenses = Number(report?.total_cost || 0);
 
       return {
         fieldId: field.id,
         fieldName: field.field_name,
         crop: field.crop || "Not specified",
         areaHa: field.area_ha,
-        activityCount: Number(report?.activity_count||0),
+        activityCount: Number(report?.activity_count || 0),
         expenseTotal: expenses,
         incomeTotal: income,
         grossMargin: income - expenses,
@@ -152,9 +247,31 @@ export default function ReportsPage() {
     });
   }, [fields, performance]);
 
-  const projectedTotals=useMemo(()=>fieldSummaries.reduce((totals,row)=>({income:totals.income+row.incomeTotal,expenses:totals.expenses+row.expenseTotal,margin:totals.margin+row.grossMargin}),{income:0,expenses:0,margin:0}),[fieldSummaries]);
-  const commitmentTotal=useMemo(()=>commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason).reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0),[commitmentSummary,currentSeason]);
-  const businessProjectedMargin=projectedTotals.margin-commitmentTotal;
+  const projectedTotals = useMemo(
+    () =>
+      fieldSummaries.reduce(
+        (totals, row) => ({
+          income: totals.income + row.incomeTotal,
+          expenses: totals.expenses + row.expenseTotal,
+          margin: totals.margin + row.grossMargin,
+        }),
+        { income: 0, expenses: 0, margin: 0 },
+      ),
+    [fieldSummaries],
+  );
+  const commitmentTotal = useMemo(
+    () =>
+      commitmentSummary
+        .filter(
+          (row) =>
+            row.source === "Equipment finance" ||
+            !row.season ||
+            row.season === currentSeason,
+        )
+        .reduce((sum, row) => sum + Number(row.seasonal_amount || 0), 0),
+    [commitmentSummary, currentSeason],
+  );
+  const businessProjectedMargin = projectedTotals.margin - commitmentTotal;
 
   const categoryTotals: CategoryTotal[] = useMemo(() => {
     const totals = new Map<string, number>();
@@ -164,7 +281,7 @@ export default function ReportsPage() {
       .forEach((item) => {
         totals.set(
           item.category,
-          (totals.get(item.category) || 0) + item.amount
+          (totals.get(item.category) || 0) + item.amount,
         );
       });
 
@@ -194,52 +311,63 @@ export default function ReportsPage() {
     });
 
     return Array.from(totals.values()).sort((a, b) =>
-      a.month.localeCompare(b.month)
+      a.month.localeCompare(b.month),
     );
   }, [transactions]);
 
   const stockValue = useMemo(() => {
     return inventory.reduce(
       (sum, item) => sum + item.quantity * (item.unit_cost || 0),
-      0
+      0,
     );
   }, [inventory]);
 
   const lowStockCount = inventory.filter(
     (item) =>
-      item.minimum_quantity !== null &&
-      item.quantity <= item.minimum_quantity
+      item.minimum_quantity !== null && item.quantity <= item.minimum_quantity,
   ).length;
 
   const serviceDueCount = equipment.filter((item) => {
-    if (
-      item.service_interval === null ||
-      item.last_service_hours === null
-    ) {
+    if (item.service_interval === null || item.last_service_hours === null) {
       return item.status === "Service Due";
     }
 
     return (
-      item.engine_hours - item.last_service_hours >=
-        item.service_interval ||
+      item.engine_hours - item.last_service_hours >= item.service_interval ||
       item.status === "Service Due"
     );
   }).length;
 
-  const openJobs = jobs.filter(
-    (job) => job.status !== "Completed"
-  ).length;
+  const openJobs = jobs.filter((job) => job.status !== "Completed").length;
 
-  const completedJobs = jobs.filter(
-    (job) => job.status === "Completed"
-  ).length;
+  const completedJobs = jobs.filter((job) => job.status === "Completed").length;
 
-  const totalArea = fields.reduce(
-    (sum, field) => sum + field.area_ha,
-    0
-  );
+  const totalArea = fields.reduce((sum, field) => sum + field.area_ha, 0);
 
-  if(!seasonLoading&&!currentSeason)return <main className="min-h-screen bg-[#14261F] p-8 text-white"><section className="mx-auto mt-12 max-w-2xl rounded-2xl border border-white/10 bg-[#0b1812] p-8"><p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">CropNex reports</p><h1 className="mt-2 text-3xl font-black">Create a farm season to begin</h1><p className="mt-3 text-sm leading-6 text-gray-400">Reports will fill in as you add fields, activities, stock and transport records. First create a season and add your farm boundaries.</p><Link href="/farm-map" className="mt-5 inline-flex rounded-xl bg-[#789B58] px-4 py-3 font-bold text-[#17382E]">Open Farm Map</Link></section></main>;
+  if (!seasonLoading && !currentSeason)
+    return (
+      <main className="min-h-screen bg-[#14261F] p-8 text-white">
+        <section className="mx-auto mt-12 max-w-2xl rounded-2xl border border-white/10 bg-[#0b1812] p-8">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
+            CropNex reports
+          </p>
+          <h1 className="mt-2 text-3xl font-black">
+            Create a farm season to begin
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-gray-400">
+            Reports will fill in as you add fields, activities, stock and
+            transport records. First create a season and add your farm
+            boundaries.
+          </p>
+          <Link
+            href="/farm-map"
+            className="mt-5 inline-flex rounded-xl bg-[#789B58] px-4 py-3 font-bold text-[#17382E]"
+          >
+            Open Farm Map
+          </Link>
+        </section>
+      </main>
+    );
 
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
@@ -248,9 +376,7 @@ export default function ReportsPage() {
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
             CropNex
           </p>
-          <h1 className="mt-2 text-4xl font-black">
-            Reports
-          </h1>
+          <h1 className="mt-2 text-4xl font-black">Reports</h1>
           <p className="mt-2 text-gray-400">
             A consolidated view of farm performance, costs, stock and
             operations.
@@ -260,7 +386,24 @@ export default function ReportsPage() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall, gauges: rainGauges, performance, commitments: commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason) })}
+            onClick={() =>
+              downloadManagementWorkbook({
+                fields,
+                activities,
+                transactions,
+                inventory,
+                equipment,
+                rainfall,
+                gauges: rainGauges,
+                performance,
+                commitments: commitmentSummary.filter(
+                  (row) =>
+                    row.source === "Equipment finance" ||
+                    !row.season ||
+                    row.season === currentSeason,
+                ),
+              })
+            }
             disabled={loading}
             className="rounded-xl bg-[#789B58] px-5 py-3 font-bold text-[#17382E] disabled:opacity-50"
           >
@@ -364,9 +507,9 @@ export default function ReportsPage() {
                 label="Average cost per field"
                 value={
                   fields.length > 0
-                    ? `R${(
-                        projectedTotals.expenses / fields.length
-                      ).toFixed(2)}`
+                    ? `R${(projectedTotals.expenses / fields.length).toFixed(
+                        2,
+                      )}`
                     : "R0.00"
                 }
               />
@@ -374,14 +517,85 @@ export default function ReportsPage() {
           </section>
 
           <section className="mt-8">
-            <h2 className="mb-4 text-2xl font-bold">Live Harvest Performance</h2>
-            <div className="grid gap-4 lg:grid-cols-2">{harvestLive.map(item=><article key={item.field_id} className={`rounded-2xl border p-5 ${item.finished?"border-green-400/50 bg-green-400/10":"border-amber-300/20 bg-amber-300/[.05]"}`}><div className="flex items-start justify-between"><div><h3 className="text-lg font-bold">{item.field_name}</h3><p className="text-sm text-gray-400">{item.crop||"Crop not set"}{item.cultivar?` · ${item.cultivar}`:""}</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${item.finished?"bg-green-400 text-black":"bg-amber-300 text-black"}`}>{item.finished?"FINISHED":"IN PROGRESS"}</span></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3"><HarvestMetric label="Tonnes" value={`${Number(item.reconciled_tonnes).toFixed(2)} t`}/><HarvestMetric label="Yield" value={`${Number(item.yield_t_ha).toFixed(2)} t/ha`}/><HarvestMetric label="Blended price" value={`R${Number(item.market_price_per_tonne).toLocaleString("en-ZA",{maximumFractionDigits:0})}/t`}/><HarvestMetric label="Projected income" value={`R${Number(item.projected_income).toLocaleString("en-ZA",{maximumFractionDigits:0})}`}/><HarvestMetric label="Plan/actual costs" value={`R${Number(item.costs).toLocaleString("en-ZA",{maximumFractionDigits:0})}`}/><HarvestMetric label="Projected margin" value={`R${Number(item.margin).toLocaleString("en-ZA",{maximumFractionDigits:0})}`}/></div><p className="mt-3 text-xs text-gray-500">Income: {Number(item.contract_tonnes||0).toFixed(1)} t contracts · {Number(item.safex_tonnes||0).toFixed(1)} t SAFEX{Number(item.unpriced_tonnes||0)>0?` · ${Number(item.unpriced_tonnes).toFixed(1)} t unpriced`:""}. Costs: R{Number(item.actualised_cost||0).toLocaleString("en-ZA",{maximumFractionDigits:0})} actualised + R{Number(item.remaining_planned_cost||0).toLocaleString("en-ZA",{maximumFractionDigits:0})} still planned.</p></article>)}{!harvestLive.length&&<p className="text-sm text-gray-400">Reconciled Transport Log loads will appear here automatically.</p>}</div>
+            <h2 className="mb-4 text-2xl font-bold">
+              Live Harvest Performance
+            </h2>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {harvestLive.map((item) => (
+                <article
+                  key={item.field_id}
+                  className={`rounded-2xl border p-5 ${item.finished ? "border-green-400/50 bg-green-400/10" : "border-amber-300/20 bg-amber-300/[.05]"}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold">{item.field_name}</h3>
+                      <p className="text-sm text-gray-400">
+                        {item.crop || "Crop not set"}
+                        {item.cultivar ? ` · ${item.cultivar}` : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-black ${item.finished ? "bg-green-400 text-black" : "bg-amber-300 text-black"}`}
+                    >
+                      {item.finished ? "FINISHED" : "IN PROGRESS"}
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <HarvestMetric
+                      label="Tonnes"
+                      value={`${Number(item.reconciled_tonnes).toFixed(2)} t`}
+                    />
+                    <HarvestMetric
+                      label="Yield"
+                      value={`${Number(item.yield_t_ha).toFixed(2)} t/ha`}
+                    />
+                    <HarvestMetric
+                      label="Blended price"
+                      value={`R${Number(item.market_price_per_tonne).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}/t`}
+                    />
+                    <HarvestMetric
+                      label="Projected income"
+                      value={`R${Number(item.projected_income).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`}
+                    />
+                    <HarvestMetric
+                      label="Plan/actual costs"
+                      value={`R${Number(item.costs).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`}
+                    />
+                    <HarvestMetric
+                      label="Projected margin"
+                      value={`R${Number(item.margin).toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`}
+                    />
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500">
+                    Income: {Number(item.contract_tonnes || 0).toFixed(1)} t
+                    contracts · {Number(item.safex_tonnes || 0).toFixed(1)} t
+                    SAFEX
+                    {Number(item.unpriced_tonnes || 0) > 0
+                      ? ` · ${Number(item.unpriced_tonnes).toFixed(1)} t unpriced`
+                      : ""}
+                    . Costs: R
+                    {Number(item.actualised_cost || 0).toLocaleString("en-ZA", {
+                      maximumFractionDigits: 0,
+                    })}{" "}
+                    actualised + R
+                    {Number(item.remaining_planned_cost || 0).toLocaleString(
+                      "en-ZA",
+                      { maximumFractionDigits: 0 },
+                    )}{" "}
+                    still planned.
+                  </p>
+                </article>
+              ))}
+              {!harvestLive.length && (
+                <p className="text-sm text-gray-400">
+                  Reconciled Transport Log loads will appear here automatically.
+                </p>
+              )}
+            </div>
           </section>
 
           <section className="mt-8">
-            <h2 className="mb-4 text-2xl font-bold">
-              Field Performance
-            </h2>
+            <h2 className="mb-4 text-2xl font-bold">Field Performance</h2>
 
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
               <table className="min-w-full text-left text-sm">
@@ -398,43 +612,62 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {fieldSummaries.map((summary) => { const source=performance.find(item=>item.field_id===summary.fieldId); return (
-                    <tr
-                      key={summary.fieldId}
-                      className="border-b border-white/5"
-                    >
-                      <td className="px-4 py-3 font-bold text-green-400">
-                        {summary.fieldName}
-                      </td>
-                      <td className="px-4 py-3">{summary.crop}</td>
-                      <td className="px-4 py-3">
-                        {summary.areaHa.toFixed(2)} ha
-                      </td>
-                      <td className="px-4 py-3">
-                        {summary.activityCount}
-                      </td>
-                      <td className="px-4 py-3">
-                        R{summary.incomeTotal.toFixed(2)}
-                        {source&&Number(source.harvested_tonnes)>0&&<p className="mt-1 text-[10px] text-gray-500">{Number(source.contract_tonnes).toFixed(1)} t contract · {Number(source.safex_tonnes).toFixed(1)} t SAFEX{Number(source.unpriced_tonnes)>0?` · ${Number(source.unpriced_tonnes).toFixed(1)} t unpriced`:""}</p>}
-                      </td>
-                      <td className="px-4 py-3">
-                        R{summary.expenseTotal.toFixed(2)}
-                        {source&&<p className="mt-1 text-[10px] text-gray-500">R{Number(source.actualised_cost).toFixed(0)} actual · R{Number(source.remaining_planned_cost).toFixed(0)} planned</p>}
-                      </td>
-                      <td className="px-4 py-3">
-                        R{summary.costPerHa.toFixed(2)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 font-bold ${
-                          summary.grossMargin >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
+                  {fieldSummaries.map((summary) => {
+                    const source = performance.find(
+                      (item) => item.field_id === summary.fieldId,
+                    );
+                    return (
+                      <tr
+                        key={summary.fieldId}
+                        className="border-b border-white/5"
                       >
-                        R{summary.grossMargin.toFixed(2)}
-                      </td>
-                    </tr>
-                  )})}
+                        <td className="px-4 py-3 font-bold text-green-400">
+                          {summary.fieldName}
+                        </td>
+                        <td className="px-4 py-3">{summary.crop}</td>
+                        <td className="px-4 py-3">
+                          {summary.areaHa.toFixed(2)} ha
+                        </td>
+                        <td className="px-4 py-3">{summary.activityCount}</td>
+                        <td className="px-4 py-3">
+                          R{summary.incomeTotal.toFixed(2)}
+                          {source && Number(source.harvested_tonnes) > 0 && (
+                            <p className="mt-1 text-[10px] text-gray-500">
+                              {Number(source.contract_tonnes).toFixed(1)} t
+                              contract ·{" "}
+                              {Number(source.safex_tonnes).toFixed(1)} t SAFEX
+                              {Number(source.unpriced_tonnes) > 0
+                                ? ` · ${Number(source.unpriced_tonnes).toFixed(1)} t unpriced`
+                                : ""}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          R{summary.expenseTotal.toFixed(2)}
+                          {source && (
+                            <p className="mt-1 text-[10px] text-gray-500">
+                              R{Number(source.actualised_cost).toFixed(0)}{" "}
+                              actual · R
+                              {Number(source.remaining_planned_cost).toFixed(0)}{" "}
+                              planned
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          R{summary.costPerHa.toFixed(2)}
+                        </td>
+                        <td
+                          className={`px-4 py-3 font-bold ${
+                            summary.grossMargin >= 0
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          R{summary.grossMargin.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -443,35 +676,26 @@ export default function ReportsPage() {
           <section className="mt-8 grid gap-6 xl:grid-cols-2">
             <Panel title="Expenses by Category">
               {categoryTotals.length === 0 ? (
-                <p className="text-gray-400">
-                  No expense data recorded.
-                </p>
+                <p className="text-gray-400">No expense data recorded.</p>
               ) : (
                 <div className="space-y-3">
                   {categoryTotals.map((item) => {
                     const percentage =
                       financialTotals.expenses > 0
-                        ? (item.amount /
-                            financialTotals.expenses) *
-                          100
+                        ? (item.amount / financialTotals.expenses) * 100
                         : 0;
 
                     return (
                       <div key={item.category}>
                         <div className="mb-1 flex justify-between gap-4 text-sm">
                           <span>{item.category}</span>
-                          <span>
-                            R{item.amount.toFixed(2)}
-                          </span>
+                          <span>R{item.amount.toFixed(2)}</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-black/40">
                           <div
                             className="h-full rounded-full bg-green-500"
                             style={{
-                              width: `${Math.min(
-                                percentage,
-                                100
-                              )}%`,
+                              width: `${Math.min(percentage, 100)}%`,
                             }}
                           />
                         </div>
@@ -484,9 +708,7 @@ export default function ReportsPage() {
 
             <Panel title="Monthly Cash Flow">
               {monthlyTotals.length === 0 ? (
-                <p className="text-gray-400">
-                  No monthly data recorded.
-                </p>
+                <p className="text-gray-400">No monthly data recorded.</p>
               ) : (
                 <div className="space-y-3">
                   {monthlyTotals.map((item) => (
@@ -494,9 +716,7 @@ export default function ReportsPage() {
                       key={item.month}
                       className="rounded-xl bg-black/20 p-4"
                     >
-                      <p className="font-bold text-green-400">
-                        {item.month}
-                      </p>
+                      <p className="font-bold text-green-400">{item.month}</p>
                       <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
                         <MetricSmall
                           label="Income"
@@ -508,9 +728,7 @@ export default function ReportsPage() {
                         />
                         <MetricSmall
                           label="Net"
-                          value={`R${(
-                            item.income - item.expenses
-                          ).toFixed(2)}`}
+                          value={`R${(item.income - item.expenses).toFixed(2)}`}
                         />
                       </div>
                     </div>
@@ -525,7 +743,14 @@ export default function ReportsPage() {
   );
 }
 
-function HarvestMetric({label,value}:{label:string;value:string}){return <div className="rounded-xl bg-black/20 p-3"><p className="text-xs text-gray-400">{label}</p><b className="mt-1 block">{value}</b></div>}
+function HarvestMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-black/20 p-3">
+      <p className="text-xs text-gray-400">{label}</p>
+      <b className="mt-1 block">{value}</b>
+    </div>
+  );
+}
 
 function Summary({
   label,
@@ -539,9 +764,7 @@ function Summary({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-2 text-3xl font-black text-green-400">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-black text-green-400">{value}</p>
       <p className="mt-2 text-sm text-gray-400">{note}</p>
     </div>
   );
@@ -556,21 +779,13 @@ function Panel({
 }) {
   return (
     <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 className="mb-5 text-2xl font-bold text-green-400">
-        {title}
-      </h2>
+      <h2 className="mb-5 text-2xl font-bold text-green-400">{title}</h2>
       {children}
     </section>
   );
 }
 
-function MetricRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function MetricRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="mb-3 flex justify-between gap-4 rounded-xl bg-black/20 p-4">
       <span className="text-gray-400">{label}</span>
@@ -602,13 +817,7 @@ function AlertRow({
   );
 }
 
-function MetricSmall({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function MetricSmall({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-gray-500">{label}</p>

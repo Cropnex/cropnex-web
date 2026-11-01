@@ -21,15 +21,28 @@ export type InventoryItem = {
 };
 
 export type InventoryLocation = {
-  id: string; name: string; location_type: string; farm_name: string | null;
-  town: string | null; province: string | null; owner_type: string;
-  owner_name: string | null; active: boolean; notes: string | null;
+  id: string;
+  name: string;
+  location_type: string;
+  farm_name: string | null;
+  town: string | null;
+  province: string | null;
+  owner_type: string;
+  owner_name: string | null;
+  active: boolean;
+  notes: string | null;
 };
 
 export type InventoryTransfer = {
-  id: string; from_location_id: string; to_location_id: string; status: string;
-  requested_date: string; dispatched_at: string | null; received_at: string | null;
-  reference: string | null; notes: string | null;
+  id: string;
+  from_location_id: string;
+  to_location_id: string;
+  status: string;
+  requested_date: string;
+  dispatched_at: string | null;
+  received_at: string | null;
+  reference: string | null;
+  notes: string | null;
   season?: string | null;
 };
 

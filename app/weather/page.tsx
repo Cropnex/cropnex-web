@@ -27,7 +27,7 @@ function boundaryCentre(boundary: Field["boundary"]) {
       latitude: accumulator.latitude + point.lat,
       longitude: accumulator.longitude + point.lng,
     }),
-    { latitude: 0, longitude: 0 }
+    { latitude: 0, longitude: 0 },
   );
 
   return {
@@ -44,9 +44,7 @@ export default function WeatherPage() {
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState("");
 
-  const selectedField = fields.find(
-    (field) => field.id === selectedFieldId
-  );
+  const selectedField = fields.find((field) => field.id === selectedFieldId);
 
   const selectedLocation = useMemo(() => {
     const centre = boundaryCentre(selectedField?.boundary || null);
@@ -122,7 +120,7 @@ export default function WeatherPage() {
       });
 
       const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?${parameters.toString()}`
+        `https://api.open-meteo.com/v1/forecast?${parameters.toString()}`,
       );
 
       if (!response.ok) {
@@ -169,7 +167,7 @@ export default function WeatherPage() {
     if (!weather) return [];
 
     const currentIndex = weather.hourly.time.findIndex(
-      (time) => new Date(time).getTime() >= Date.now()
+      (time) => new Date(time).getTime() >= Date.now(),
     );
     const startIndex = currentIndex >= 0 ? currentIndex : 0;
 
@@ -243,11 +241,10 @@ export default function WeatherPage() {
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
             CropNex
           </p>
-          <h1 className="mt-2 text-4xl font-black">
-            Weather & Spray Guidance
-          </h1>
+          <h1 className="mt-2 text-4xl font-black">Weather & Spray Guidance</h1>
           <p className="mt-2 text-gray-400">
-            Modelled weather and decision-support guidance for the selected field.
+            Modelled weather and decision-support guidance for the selected
+            field.
           </p>
         </div>
 
@@ -267,9 +264,7 @@ export default function WeatherPage() {
             </label>
             <select
               value={selectedFieldId}
-              onChange={(event) =>
-                setSelectedFieldId(event.target.value)
-              }
+              onChange={(event) => setSelectedFieldId(event.target.value)}
               className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3"
             >
               {fields.length === 0 && (
@@ -323,9 +318,7 @@ export default function WeatherPage() {
               note={`${weather.current.precipitation.toFixed(1)} mm current precipitation`}
             />
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <p className="text-sm text-gray-400">
-                Modelled spray guidance
-              </p>
+              <p className="text-sm text-gray-400">Modelled spray guidance</p>
               <p
                 className={`mt-2 text-2xl font-black ${sprayAssessment.className}`}
               >
@@ -337,13 +330,15 @@ export default function WeatherPage() {
             </div>
           </div>
           <p className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[.06] p-4 text-xs leading-5 text-amber-100">
-            Decision-support recommendation only. Weather models and field conditions can differ. CropNex does not authorise an application. The operator remains responsible for checking current on-site conditions, the registered product label, applicable law and any required professional advice.
+            Decision-support recommendation only. Weather models and field
+            conditions can differ. CropNex does not authorise an application.
+            The operator remains responsible for checking current on-site
+            conditions, the registered product label, applicable law and any
+            required professional advice.
           </p>
 
           <section className="mt-8">
-            <h2 className="mb-4 text-2xl font-bold">
-              Seven-Day Forecast
-            </h2>
+            <h2 className="mb-4 text-2xl font-bold">Seven-Day Forecast</h2>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {dailyForecast.map((day) => (
@@ -358,7 +353,7 @@ export default function WeatherPage() {
                         weekday: "long",
                         day: "numeric",
                         month: "short",
-                      }
+                      },
                     )}
                   </p>
 
@@ -394,9 +389,7 @@ export default function WeatherPage() {
           </section>
 
           <section className="mt-8">
-            <h2 className="mb-4 text-2xl font-bold">
-              Next 12 Hours
-            </h2>
+            <h2 className="mb-4 text-2xl font-bold">Next 12 Hours</h2>
 
             <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
               <table className="min-w-full text-left text-sm">
@@ -413,18 +406,12 @@ export default function WeatherPage() {
                 </thead>
                 <tbody>
                   {nextTwelveHours.map((hour) => (
-                    <tr
-                      key={hour.time}
-                      className="border-b border-white/5"
-                    >
+                    <tr key={hour.time} className="border-b border-white/5">
                       <td className="px-4 py-3 font-medium">
-                        {new Date(hour.time).toLocaleTimeString(
-                          "en-ZA",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
+                        {new Date(hour.time).toLocaleTimeString("en-ZA", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </td>
                       <td className="px-4 py-3">
                         {hour.temperature.toFixed(1)}°C
@@ -441,9 +428,7 @@ export default function WeatherPage() {
                       <td className="px-4 py-3">
                         {hour.windGusts.toFixed(1)} km/h
                       </td>
-                      <td className="px-4 py-3">
-                        {hour.humidity}%
-                      </td>
+                      <td className="px-4 py-3">{hour.humidity}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -454,9 +439,8 @@ export default function WeatherPage() {
       )}
 
       <p className="mt-8 text-xs text-gray-500">
-        Weather data: Open-Meteo. Forecasts are modelled estimates and
-        should be checked against local conditions before operational
-        decisions.
+        Weather data: Open-Meteo. Forecasts are modelled estimates and should be
+        checked against local conditions before operational decisions.
       </p>
     </main>
   );
@@ -474,21 +458,13 @@ function Summary({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-2 text-3xl font-black text-green-400">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-black text-green-400">{value}</p>
       <p className="mt-2 text-sm text-gray-400">{note}</p>
     </div>
   );
 }
 
-function Row({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-gray-400">{label}</span>

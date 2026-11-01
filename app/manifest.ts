@@ -12,12 +12,13 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#111516",
     orientation: "portrait-primary",
     categories: ["business", "productivity", "utilities"],
-    icons: [{
-      src: "/icons/cropnex.svg",
-      sizes: "any",
-      type: "image/svg+xml",
-      purpose: "any",
-    }],
+    icons: [
+      {
+        src: "/icons/cropnex.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "any",
+      },
+    ],
   };
 }
-

@@ -21,9 +21,7 @@ export default function FieldForm({
 }: FieldFormProps) {
   return (
     <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 className="mb-5 text-2xl font-bold text-green-400">
-        Field Details
-      </h2>
+      <h2 className="mb-5 text-2xl font-bold text-green-400">Field Details</h2>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Input

@@ -20,4 +20,3 @@ export type MonthlyTotal = {
   income: number;
   expenses: number;
 };
-

@@ -76,8 +76,10 @@ export async function putCachedResponse(value: CachedRestResponse) {
 
 export async function getCachedResponse(key: string) {
   if (!available()) return undefined;
-  return transact<CachedRestResponse | undefined>(CACHE_STORE, "readonly", (store) =>
-    store.get(key),
+  return transact<CachedRestResponse | undefined>(
+    CACHE_STORE,
+    "readonly",
+    (store) => store.get(key),
   );
 }
 
@@ -115,7 +117,9 @@ function safeHeaders(headers: Headers) {
   );
 }
 
-export function createOfflineFetch(baseFetch: typeof fetch = fetch): typeof fetch {
+export function createOfflineFetch(
+  baseFetch: typeof fetch = fetch,
+): typeof fetch {
   return async (input, init) => {
     const request = new Request(input, init);
     const isRestRequest =

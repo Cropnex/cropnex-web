@@ -19,9 +19,7 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveOfflineItem(
-  item: OfflineQueueItem
-): Promise<void> {
+export async function saveOfflineItem(item: OfflineQueueItem): Promise<void> {
   const db = await openDb();
 
   await new Promise<void>((resolve, reject) => {
@@ -34,31 +32,23 @@ export async function saveOfflineItem(
   db.close();
 }
 
-export async function getOfflineItems(): Promise<
-  OfflineQueueItem[]
-> {
+export async function getOfflineItems(): Promise<OfflineQueueItem[]> {
   const db = await openDb();
 
-  const items = await new Promise<OfflineQueueItem[]>(
-    (resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const request = tx.objectStore(STORE_NAME).getAll();
+  const items = await new Promise<OfflineQueueItem[]>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const request = tx.objectStore(STORE_NAME).getAll();
 
-      request.onsuccess = () =>
-        resolve((request.result || []) as OfflineQueueItem[]);
-      request.onerror = () => reject(request.error);
-    }
-  );
+    request.onsuccess = () =>
+      resolve((request.result || []) as OfflineQueueItem[]);
+    request.onerror = () => reject(request.error);
+  });
 
   db.close();
-  return items.sort((a, b) =>
-    a.created_at.localeCompare(b.created_at)
-  );
+  return items.sort((a, b) => a.created_at.localeCompare(b.created_at));
 }
 
-export async function deleteOfflineItem(
-  id: string
-): Promise<void> {
+export async function deleteOfflineItem(id: string): Promise<void> {
   const db = await openDb();
 
   await new Promise<void>((resolve, reject) => {

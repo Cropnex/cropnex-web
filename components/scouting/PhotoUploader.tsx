@@ -10,11 +10,7 @@ type Props = {
 
 const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
 
-export default function PhotoUploader({
-  file,
-  previewUrl,
-  onChange,
-}: Props) {
+export default function PhotoUploader({ file, previewUrl, onChange }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,10 +95,7 @@ export default function PhotoUploader({
 
           <div className="flex items-center justify-between gap-4 p-3">
             <p className="text-sm text-gray-400">
-              {file?.name} ·{" "}
-              {file
-                ? (file.size / 1024 / 1024).toFixed(2)
-                : "0"}{" "}
+              {file?.name} · {file ? (file.size / 1024 / 1024).toFixed(2) : "0"}{" "}
               MB
             </p>
 

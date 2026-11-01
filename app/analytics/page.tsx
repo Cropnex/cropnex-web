@@ -29,9 +29,7 @@ type FieldProfit = {
 export default function AnalyticsPage() {
   const { currentSeason } = useSeason();
   const [fields, setFields] = useState<Field[]>([]);
-  const [transactions, setTransactions] = useState<
-    FinancialTransaction[]
-  >([]);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
@@ -58,9 +56,7 @@ export default function AnalyticsPage() {
     ]);
 
     setFields((fieldsResult.data || []) as Field[]);
-    setTransactions(
-      (transactionsResult.data || []) as FinancialTransaction[]
-    );
+    setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
     setInventory((inventoryResult.data || []) as InventoryItem[]);
     setEquipment((equipmentResult.data || []) as Equipment[]);
     setJobs((jobsResult.data || []) as WorkOrder[]);
@@ -83,18 +79,15 @@ export default function AnalyticsPage() {
 
     const inventoryValue = inventory.reduce(
       (sum, item) => sum + item.quantity * (item.unit_cost || 0),
-      0
+      0,
     );
 
     const harvestedTonnes = harvests.reduce(
       (sum, item) => sum + item.tonnes_harvested,
-      0
+      0,
     );
 
-    const harvestedArea = harvests.reduce(
-      (sum, item) => sum + item.area_ha,
-      0
-    );
+    const harvestedArea = harvests.reduce((sum, item) => sum + item.area_ha, 0);
 
     return {
       income,
@@ -102,8 +95,7 @@ export default function AnalyticsPage() {
       grossMargin: income - expenses,
       inventoryValue,
       harvestedTonnes,
-      averageYield:
-        harvestedArea > 0 ? harvestedTonnes / harvestedArea : 0,
+      averageYield: harvestedArea > 0 ? harvestedTonnes / harvestedArea : 0,
     };
   }, [transactions, inventory, harvests]);
 
@@ -149,7 +141,7 @@ export default function AnalyticsPage() {
     return fields
       .map((field) => {
         const fieldTransactions = transactions.filter(
-          (item) => item.field_id === field.id
+          (item) => item.field_id === field.id,
         );
 
         const income = fieldTransactions
@@ -169,51 +161,39 @@ export default function AnalyticsPage() {
       .slice(0, 8);
   }, [fields, transactions]);
 
-  const completedJobs = jobs.filter(
-    (job) => job.status === "Completed"
-  ).length;
+  const completedJobs = jobs.filter((job) => job.status === "Completed").length;
 
-  const openJobs = jobs.filter(
-    (job) => job.status !== "Completed"
-  ).length;
+  const openJobs = jobs.filter((job) => job.status !== "Completed").length;
 
   const jobCompletion =
     jobs.length > 0 ? (completedJobs / jobs.length) * 100 : 0;
 
   const lowStockItems = inventory.filter(
     (item) =>
-      item.minimum_quantity !== null &&
-      item.quantity <= item.minimum_quantity
+      item.minimum_quantity !== null && item.quantity <= item.minimum_quantity,
   );
 
   const serviceDue = equipment.filter((item) => {
-    if (
-      item.service_interval === null ||
-      item.last_service_hours === null
-    ) {
+    if (item.service_interval === null || item.last_service_hours === null) {
       return item.status === "Service Due";
     }
 
     return (
-      item.engine_hours - item.last_service_hours >=
-        item.service_interval ||
+      item.engine_hours - item.last_service_hours >= item.service_interval ||
       item.status === "Service Due"
     );
   });
 
   const maxMonthly = Math.max(
     1,
-    ...monthlyData.flatMap((item) => [item.income, item.expenses])
+    ...monthlyData.flatMap((item) => [item.income, item.expenses]),
   );
 
-  const maxCropArea = Math.max(
-    1,
-    ...cropAreas.map((item) => item.area)
-  );
+  const maxCropArea = Math.max(1, ...cropAreas.map((item) => item.area));
 
   const maxMargin = Math.max(
     1,
-    ...fieldProfitability.map((item) => Math.abs(item.margin))
+    ...fieldProfitability.map((item) => Math.abs(item.margin)),
   );
 
   return (
@@ -223,9 +203,7 @@ export default function AnalyticsPage() {
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
             CropNex
           </p>
-          <h1 className="mt-2 text-4xl font-black">
-            Executive Analytics
-          </h1>
+          <h1 className="mt-2 text-4xl font-black">Executive Analytics</h1>
           <p className="mt-2 text-gray-400">
             Visual performance indicators across your farm.
           </p>
@@ -341,9 +319,7 @@ export default function AnalyticsPage() {
                         <span>{item.name}</span>
                         <span
                           className={
-                            item.margin >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
+                            item.margin >= 0 ? "text-green-400" : "text-red-400"
                           }
                         >
                           R{item.margin.toFixed(2)}
@@ -353,9 +329,7 @@ export default function AnalyticsPage() {
                       <div className="h-3 overflow-hidden rounded-full bg-black/40">
                         <div
                           className={`h-full rounded-full ${
-                            item.margin >= 0
-                              ? "bg-green-500"
-                              : "bg-red-500"
+                            item.margin >= 0 ? "bg-green-500" : "bg-red-500"
                           }`}
                           style={{
                             width: `${(Math.abs(item.margin) / maxMargin) * 100}%`,
@@ -379,11 +353,7 @@ export default function AnalyticsPage() {
                 value={serviceDue.length}
                 href="/equipment"
               />
-              <RiskRow
-                label="Open job cards"
-                value={openJobs}
-                href="/jobs"
-              />
+              <RiskRow label="Open job cards" value={openJobs} href="/jobs" />
               <RiskRow
                 label="Unprofitable fields"
                 value={
@@ -400,18 +370,12 @@ export default function AnalyticsPage() {
             </h2>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Snapshot
-                label="Income"
-                value={`R${totals.income.toFixed(2)}`}
-              />
+              <Snapshot label="Income" value={`R${totals.income.toFixed(2)}`} />
               <Snapshot
                 label="Expenses"
                 value={`R${totals.expenses.toFixed(2)}`}
               />
-              <Snapshot
-                label="Completed jobs"
-                value={String(completedJobs)}
-              />
+              <Snapshot label="Completed jobs" value={String(completedJobs)} />
               <Snapshot
                 label="Service alerts"
                 value={String(serviceDue.length)}
@@ -436,9 +400,7 @@ function Kpi({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-2 text-3xl font-black text-green-400">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-black text-green-400">{value}</p>
       <p className="mt-2 text-sm text-gray-500">{note}</p>
     </div>
   );
@@ -453,9 +415,7 @@ function ChartPanel({
 }) {
   return (
     <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 className="mb-5 text-2xl font-bold text-green-400">
-        {title}
-      </h2>
+      <h2 className="mb-5 text-2xl font-bold text-green-400">{title}</h2>
       {children}
     </section>
   );
@@ -502,9 +462,7 @@ function RiskRow({
       <span className="text-gray-300">{label}</span>
       <span
         className={
-          value > 0
-            ? "font-bold text-amber-400"
-            : "font-bold text-green-400"
+          value > 0 ? "font-bold text-amber-400" : "font-bold text-green-400"
         }
       >
         {value}
@@ -513,13 +471,7 @@ function RiskRow({
   );
 }
 
-function Snapshot({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Snapshot({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-sm text-gray-400">{label}</p>

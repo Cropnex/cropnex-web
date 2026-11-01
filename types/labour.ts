@@ -28,4 +28,3 @@ export type LabourEntry = {
   total_cost: number | null;
   notes: string | null;
 };
-

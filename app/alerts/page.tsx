@@ -7,16 +7,10 @@ import { supabase } from "@/lib/supabase";
 import type { Equipment } from "@/types/equipment";
 import type { Field } from "@/types/field";
 import type { FinancialTransaction } from "@/types/financial";
-import type {
-  GrainPosition,
-  ProductionForecast,
-} from "@/types/grain";
+import type { GrainPosition, ProductionForecast } from "@/types/grain";
 import type { InventoryItem } from "@/types/inventory";
 import type { WorkOrder } from "@/types/work-order";
-import type {
-  AlertPreferences,
-  SmartAlert,
-} from "@/types/alerts";
+import type { AlertPreferences, SmartAlert } from "@/types/alerts";
 import { useSeason } from "@/components/season/SeasonProvider";
 
 const defaultPreferences: AlertPreferences = {
@@ -34,10 +28,8 @@ export default function AlertsPage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [jobs, setJobs] = useState<WorkOrder[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
-  const [transactions, setTransactions] =
-    useState<FinancialTransaction[]>([]);
-  const [forecasts, setForecasts] =
-    useState<ProductionForecast[]>([]);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
+  const [forecasts, setForecasts] = useState<ProductionForecast[]>([]);
   const [positions, setPositions] = useState<GrainPosition[]>([]);
   const [preferences, setPreferences] =
     useState<AlertPreferences>(defaultPreferences);
@@ -62,30 +54,24 @@ export default function AlertsPage() {
       supabase.from("work_orders").select("*"),
       supabase.from("fields").select("*").eq("season", currentSeason),
       supabase.from("financial_transactions").select("*"),
-      supabase.from("production_forecasts").select("*").eq("season", currentSeason),
-      supabase.from("grain_positions").select("*").eq("season", currentSeason),
       supabase
-        .from("alert_preferences")
+        .from("production_forecasts")
         .select("*")
-        .maybeSingle(),
+        .eq("season", currentSeason),
+      supabase.from("grain_positions").select("*").eq("season", currentSeason),
+      supabase.from("alert_preferences").select("*").maybeSingle(),
     ]);
 
     setInventory((inventoryResult.data || []) as InventoryItem[]);
     setEquipment((equipmentResult.data || []) as Equipment[]);
     setJobs((jobsResult.data || []) as WorkOrder[]);
     setFields((fieldsResult.data || []) as Field[]);
-    setTransactions(
-      (transactionsResult.data || []) as FinancialTransaction[]
-    );
-    setForecasts(
-      (forecastsResult.data || []) as ProductionForecast[]
-    );
+    setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
+    setForecasts((forecastsResult.data || []) as ProductionForecast[]);
     setPositions((positionsResult.data || []) as GrainPosition[]);
 
     if (preferencesResult.data) {
-      setPreferences(
-        preferencesResult.data as AlertPreferences
-      );
+      setPreferences(preferencesResult.data as AlertPreferences);
     }
 
     setLoading(false);
@@ -106,17 +92,15 @@ export default function AlertsPage() {
         return;
       }
 
-      const { error } = await supabase
-        .from("alert_preferences")
-        .upsert(
-          {
-            user_id: data.user.id,
-            ...preferences,
-          },
-          {
-            onConflict: "user_id",
-          }
-        );
+      const { error } = await supabase.from("alert_preferences").upsert(
+        {
+          user_id: data.user.id,
+          ...preferences,
+        },
+        {
+          onConflict: "user_id",
+        },
+      );
 
       if (error) {
         alert(error.message);
@@ -134,31 +118,33 @@ export default function AlertsPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    inventory.filter(item => Number(item.quantity) < 0).forEach(item => {
-      result.push({
-        id: `negative-stock-${item.id}`,
-        title: `${item.name} is below zero`,
-        description: `${Math.abs(Number(item.quantity)).toLocaleString()} ${item.unit} below zero at ${item.location || "its shed"}. Confirm the stock record and post a receipt or correction.`,
-        severity: "critical",
-        href: "/inventory",
-        category: "Inventory",
+    inventory
+      .filter((item) => Number(item.quantity) < 0)
+      .forEach((item) => {
+        result.push({
+          id: `negative-stock-${item.id}`,
+          title: `${item.name} is below zero`,
+          description: `${Math.abs(Number(item.quantity)).toLocaleString()} ${item.unit} below zero at ${item.location || "its shed"}. Confirm the stock record and post a receipt or correction.`,
+          severity: "critical",
+          href: "/inventory",
+          category: "Inventory",
+        });
       });
-    });
 
     if (preferences.low_stock_enabled) {
       inventory
         .filter(
           (item) =>
-            Number(item.quantity) >= 0 && item.minimum_quantity !== null &&
-            item.quantity <= item.minimum_quantity
+            Number(item.quantity) >= 0 &&
+            item.minimum_quantity !== null &&
+            item.quantity <= item.minimum_quantity,
         )
         .forEach((item) => {
           result.push({
             id: `stock-${item.id}`,
             title: `${item.name} is low`,
             description: `Current stock is ${item.quantity} ${item.unit}; minimum level is ${item.minimum_quantity} ${item.unit}.`,
-            severity:
-              item.quantity <= 0 ? "critical" : "warning",
+            severity: item.quantity <= 0 ? "critical" : "warning",
             href: "/inventory",
             category: "Inventory",
           });
@@ -170,8 +156,7 @@ export default function AlertsPage() {
         const overdue =
           item.service_interval !== null &&
           item.last_service_hours !== null &&
-          item.engine_hours - item.last_service_hours >=
-            item.service_interval;
+          item.engine_hours - item.last_service_hours >= item.service_interval;
 
         if (overdue || item.status === "Service Due") {
           result.push({
@@ -179,10 +164,9 @@ export default function AlertsPage() {
             title: `${item.name} needs service`,
             description:
               item.last_service_hours !== null
-                ? `${(
-                    item.engine_hours -
-                    item.last_service_hours
-                  ).toFixed(1)} hours have passed since the last service.`
+                ? `${(item.engine_hours - item.last_service_hours).toFixed(
+                    1,
+                  )} hours have passed since the last service.`
                 : "The machine is marked as service due.",
             severity: "warning",
             href: "/equipment",
@@ -195,16 +179,11 @@ export default function AlertsPage() {
     if (preferences.overdue_jobs_enabled) {
       jobs
         .filter((job) => {
-          if (
-            job.status === "Completed" ||
-            !job.planned_date
-          ) {
+          if (job.status === "Completed" || !job.planned_date) {
             return false;
           }
 
-          return (
-            new Date(`${job.planned_date}T00:00:00`) < today
-          );
+          return new Date(`${job.planned_date}T00:00:00`) < today;
         })
         .forEach((job) => {
           result.push({
@@ -222,22 +201,16 @@ export default function AlertsPage() {
 
     const upcomingLimit = new Date(today);
     upcomingLimit.setDate(
-      upcomingLimit.getDate() +
-        preferences.upcoming_jobs_days
+      upcomingLimit.getDate() + preferences.upcoming_jobs_days,
     );
 
     jobs
       .filter((job) => {
-        if (
-          job.status === "Completed" ||
-          !job.planned_date
-        ) {
+        if (job.status === "Completed" || !job.planned_date) {
           return false;
         }
 
-        const date = new Date(
-          `${job.planned_date}T00:00:00`
-        );
+        const date = new Date(`${job.planned_date}T00:00:00`);
 
         return date >= today && date <= upcomingLimit;
       })
@@ -257,19 +230,15 @@ export default function AlertsPage() {
     if (preferences.negative_margin_enabled) {
       fields.forEach((field) => {
         const fieldTransactions = transactions.filter(
-          (item) => item.field_id === field.id
+          (item) => item.field_id === field.id,
         );
 
         const income = fieldTransactions
-          .filter(
-            (item) => item.transaction_type === "Income"
-          )
+          .filter((item) => item.transaction_type === "Income")
           .reduce((sum, item) => sum + item.amount, 0);
 
         const expenses = fieldTransactions
-          .filter(
-            (item) => item.transaction_type === "Expense"
-          )
+          .filter((item) => item.transaction_type === "Expense")
           .reduce((sum, item) => sum + item.amount, 0);
 
         const margin = income - expenses;
@@ -279,7 +248,7 @@ export default function AlertsPage() {
             id: `margin-${field.id}`,
             title: `${field.field_name} has a negative margin`,
             description: `Recorded margin is R${margin.toFixed(
-              2
+              2,
             )} with expenses of R${expenses.toFixed(2)}.`,
             severity: "warning",
             href: "/financials",
@@ -296,17 +265,11 @@ export default function AlertsPage() {
             (position) =>
               position.season === forecast.season &&
               position.commodity === forecast.commodity &&
-              position.status !== "Cancelled"
+              position.status !== "Cancelled",
           )
-          .reduce(
-            (sum, position) => sum + position.tonnes,
-            0
-          );
+          .reduce((sum, position) => sum + position.tonnes, 0);
 
-        const unpriced = Math.max(
-          forecast.expected_tonnes - hedgedTonnes,
-          0
-        );
+        const unpriced = Math.max(forecast.expected_tonnes - hedgedTonnes, 0);
 
         if (unpriced > 0) {
           const unpricedPercentage =
@@ -318,14 +281,11 @@ export default function AlertsPage() {
             id: `grain-${forecast.id}`,
             title: `${forecast.commodity} remains unpriced`,
             description: `${unpriced.toFixed(
-              2
+              2,
             )} t (${unpricedPercentage.toFixed(
-              1
+              1,
             )}%) of expected ${forecast.season} production is not yet hedged or contracted.`,
-            severity:
-              unpricedPercentage >= 75
-                ? "warning"
-                : "info",
+            severity: unpricedPercentage >= 75 ? "warning" : "info",
             href: "/grain-marketing",
             category: "Grain Marketing",
           });
@@ -339,9 +299,7 @@ export default function AlertsPage() {
       info: 2,
     };
 
-    return result.sort(
-      (a, b) => rank[a.severity] - rank[b.severity]
-    );
+    return result.sort((a, b) => rank[a.severity] - rank[b.severity]);
   }, [
     inventory,
     equipment,
@@ -354,16 +312,14 @@ export default function AlertsPage() {
   ]);
 
   const criticalCount = alerts.filter(
-    (alert) => alert.severity === "critical"
+    (alert) => alert.severity === "critical",
   ).length;
 
   const warningCount = alerts.filter(
-    (alert) => alert.severity === "warning"
+    (alert) => alert.severity === "warning",
   ).length;
 
-  const infoCount = alerts.filter(
-    (alert) => alert.severity === "info"
-  ).length;
+  const infoCount = alerts.filter((alert) => alert.severity === "info").length;
 
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
@@ -378,8 +334,7 @@ export default function AlertsPage() {
           </h1>
 
           <p className="mt-2 text-gray-400">
-            Operational risks and priorities generated from
-            your live farm data.
+            Operational risks and priorities generated from your live farm data.
           </p>
         </div>
 
@@ -418,9 +373,7 @@ export default function AlertsPage() {
         <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
           <section>
             <div className="mb-4">
-              <h2 className="text-2xl font-bold">
-                Daily Briefing
-              </h2>
+              <h2 className="text-2xl font-bold">Daily Briefing</h2>
 
               <p className="mt-1 text-sm text-gray-400">
                 {alerts.length} active alert
@@ -435,18 +388,14 @@ export default function AlertsPage() {
                 </h3>
 
                 <p className="mt-2 text-gray-300">
-                  No current low-stock, service, overdue job,
-                  negative margin or grain exposure alerts were
-                  found.
+                  No current low-stock, service, overdue job, negative margin or
+                  grain exposure alerts were found.
                 </p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {alerts.map((alert) => (
-                  <AlertCard
-                    key={alert.id}
-                    alert={alert}
-                  />
+                  <AlertCard key={alert.id} alert={alert} />
                 ))}
               </div>
             )}
@@ -481,11 +430,7 @@ function Summary({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
       <p className="text-sm text-gray-400">{label}</p>
-      <p
-        className={`mt-2 text-3xl font-black ${className}`}
-      >
-        {value}
-      </p>
+      <p className={`mt-2 text-3xl font-black ${className}`}>{value}</p>
     </div>
   );
 }

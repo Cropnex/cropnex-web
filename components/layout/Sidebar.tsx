@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { homeItem, navigationGroups as allNavigationGroups, organizationModuleForRoute } from "@/components/layout/navigation";
+import {
+  homeItem,
+  navigationGroups as allNavigationGroups,
+  organizationModuleForRoute,
+} from "@/components/layout/navigation";
 import { useAccess } from "@/components/auth/AccessProvider";
 import { APP_STAGE, APP_VERSION } from "@/lib/app-meta";
 import CropNexLogo from "@/components/brand/CropNexLogo";
@@ -13,18 +17,77 @@ type SidebarProps = {
   onClose: () => void;
 };
 
-export default function Sidebar({
-  open,
-  onClose,
-}: SidebarProps) {
+export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const access=useAccess();
-  const fullFarmAccess=access.isAdmin||(access.roles.includes("Farmer")&&!access.organizationRoles.length);
-  const roleGroups=fullFarmAccess?allNavigationGroups:allNavigationGroups.map(group=>({...group,items:group.items.filter(item=>item.href==="/help"||access.modules.includes(organizationModuleForRoute(item.href))||item.href==="/grain-marketing"&&(access.roles.includes("Buyer")||access.roles.includes("Transporter")))})).filter(group=>group.items.length);
-  const navigationGroups=access.isAdmin?[...roleGroups,{label:"Administration",icon:"ADM",items:[{href:"/admin",label:"Verification Centre",description:"Applications and access",icon:"✓"},{href:"/admin/organizations",label:"Organisations",description:"Users, roles and farmer assignments",icon:"ORG"}]}]:access.isOrganizationAdmin?[...roleGroups,{label:"Organisation",icon:"ORG",items:[{href:"/admin/organizations",label:"Team & dashboards",description:"Manage people and dashboard access",icon:"ORG"}]}]:roleGroups;
-  const activeGroup=navigationGroups.find(group=>group.items.some(item=>pathname===item.href||pathname.startsWith(`${item.href}/`)))?.label||"";
-  const[openGroup,setOpenGroup]=useState(activeGroup);
-  useEffect(()=>{if(activeGroup)setOpenGroup(activeGroup)},[activeGroup]);
+  const access = useAccess();
+  const fullFarmAccess =
+    access.isAdmin ||
+    (access.roles.includes("Farmer") && !access.organizationRoles.length);
+  const roleGroups = fullFarmAccess
+    ? allNavigationGroups
+    : allNavigationGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter(
+            (item) =>
+              item.href === "/help" ||
+              access.modules.includes(organizationModuleForRoute(item.href)) ||
+              (item.href === "/grain-marketing" &&
+                (access.roles.includes("Buyer") ||
+                  access.roles.includes("Transporter"))),
+          ),
+        }))
+        .filter((group) => group.items.length);
+  const navigationGroups = access.isAdmin
+    ? [
+        ...roleGroups,
+        {
+          label: "Administration",
+          icon: "ADM",
+          items: [
+            {
+              href: "/admin",
+              label: "Verification Centre",
+              description: "Applications and access",
+              icon: "✓",
+            },
+            {
+              href: "/admin/organizations",
+              label: "Organisations",
+              description: "Users, roles and farmer assignments",
+              icon: "ORG",
+            },
+          ],
+        },
+      ]
+    : access.isOrganizationAdmin
+      ? [
+          ...roleGroups,
+          {
+            label: "Organisation",
+            icon: "ORG",
+            items: [
+              {
+                href: "/admin/organizations",
+                label: "Team & dashboards",
+                description: "Manage people and dashboard access",
+                icon: "ORG",
+              },
+            ],
+          },
+        ]
+      : roleGroups;
+  const activeGroup =
+    navigationGroups.find((group) =>
+      group.items.some(
+        (item) =>
+          pathname === item.href || pathname.startsWith(`${item.href}/`),
+      ),
+    )?.label || "";
+  const [openGroup, setOpenGroup] = useState(activeGroup);
+  useEffect(() => {
+    if (activeGroup) setOpenGroup(activeGroup);
+  }, [activeGroup]);
 
   return (
     <>
@@ -60,10 +123,12 @@ export default function Sidebar({
 
         <nav className="relative z-10 flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-2">
-            {((fullFarmAccess||access.modules.includes("dashboard"))?[homeItem]:[]).map((item) => {
+            {(fullFarmAccess || access.modules.includes("dashboard")
+              ? [homeItem]
+              : []
+            ).map((item) => {
               const active =
-                pathname === item.href ||
-                pathname.startsWith(`${item.href}/`);
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
 
               return (
                 <Link
@@ -76,20 +141,71 @@ export default function Sidebar({
                       : "text-[#c5cdd0] hover:bg-white/[0.07] hover:text-white"
                   }`}
                 >
-                  <span className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${active ? "bg-black/10" : "bg-black/25 group-hover:bg-black/35"}`}>
+                  <span
+                    className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${active ? "bg-black/10" : "bg-black/25 group-hover:bg-black/35"}`}
+                  >
                     {item.icon}
                   </span>
 
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">{item.label}</p>
-                    <p className={`truncate text-[10px] ${active ? "text-[#554a37]" : "text-[#8d897d]"}`}>
+                    <p
+                      className={`truncate text-[10px] ${active ? "text-[#554a37]" : "text-[#8d897d]"}`}
+                    >
                       {item.description}
                     </p>
                   </div>
                 </Link>
               );
             })}
-            {navigationGroups.map(group=>{const expanded=openGroup===group.label;return <div key={group.label}><button type="button" onClick={()=>setOpenGroup(expanded?"":group.label)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-bold ${activeGroup===group.label?"text-[#b7db92]":"text-[#c1c9cc] hover:bg-white/[0.06] hover:text-white"}`}><span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-black/30 text-sm">{group.icon}</span>{group.label}</span><span className="text-xs opacity-50">{expanded?"−":"+"}</span></button>{expanded&&<div className="ml-4 mt-1 space-y-1 border-l border-white/[.09] pl-2">{group.items.map(item=>{const active=pathname===item.href||pathname.startsWith(`${item.href}/`);return <Link key={item.href} href={item.href} onClick={onClose} className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition ${active?"bg-[#86CF34] text-[#111516]":"text-[#c1c9cc] hover:bg-white/[.06] hover:text-white"}`}><span className={`flex h-7 w-7 items-center justify-center rounded text-sm font-bold ${active?"bg-black/10":"bg-black/30"}`}>{item.icon}</span><span className="text-sm font-semibold">{item.label}</span></Link>})}</div>}</div>})}
+            {navigationGroups.map((group) => {
+              const expanded = openGroup === group.label;
+              return (
+                <div key={group.label}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenGroup(expanded ? "" : group.label)}
+                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-bold ${activeGroup === group.label ? "text-[#b7db92]" : "text-[#c1c9cc] hover:bg-white/[0.06] hover:text-white"}`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-black/30 text-sm">
+                        {group.icon}
+                      </span>
+                      {group.label}
+                    </span>
+                    <span className="text-xs opacity-50">
+                      {expanded ? "−" : "+"}
+                    </span>
+                  </button>
+                  {expanded && (
+                    <div className="ml-4 mt-1 space-y-1 border-l border-white/[.09] pl-2">
+                      {group.items.map((item) => {
+                        const active =
+                          pathname === item.href ||
+                          pathname.startsWith(`${item.href}/`);
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={onClose}
+                            className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition ${active ? "bg-[#86CF34] text-[#111516]" : "text-[#c1c9cc] hover:bg-white/[.06] hover:text-white"}`}
+                          >
+                            <span
+                              className={`flex h-7 w-7 items-center justify-center rounded text-sm font-bold ${active ? "bg-black/10" : "bg-black/30"}`}
+                            >
+                              {item.icon}
+                            </span>
+                            <span className="text-sm font-semibold">
+                              {item.label}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </nav>
 

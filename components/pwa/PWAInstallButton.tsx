@@ -20,9 +20,11 @@ export default function PWAInstallButton() {
       window.matchMedia("(display-mode: standalone)").matches ||
       ("standalone" in window.navigator &&
         Boolean(
-          (window.navigator as Navigator & {
-            standalone?: boolean;
-          }).standalone
+          (
+            window.navigator as Navigator & {
+              standalone?: boolean;
+            }
+          ).standalone,
         ));
 
     setInstalled(standalone);
@@ -37,21 +39,12 @@ export default function PWAInstallButton() {
       setInstallPrompt(null);
     };
 
-    window.addEventListener(
-      "beforeinstallprompt",
-      handlePrompt
-    );
+    window.addEventListener("beforeinstallprompt", handlePrompt);
     window.addEventListener("appinstalled", handleInstalled);
 
     return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handlePrompt
-      );
-      window.removeEventListener(
-        "appinstalled",
-        handleInstalled
-      );
+      window.removeEventListener("beforeinstallprompt", handlePrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
     };
   }, []);
 

@@ -2,11 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 import { createOfflineFetch } from "@/lib/offline-platform";
 
 export const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  "https://your-project.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co";
 export const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  "your-publishable-anon-key";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-publishable-anon-key";
 
 const client = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: createOfflineFetch() },

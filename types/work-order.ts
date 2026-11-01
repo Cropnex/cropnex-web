@@ -27,4 +27,3 @@ export type WorkOrderProduct = {
   unit: string;
   unit_cost: number | null;
 };
-

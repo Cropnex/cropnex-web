@@ -19,4 +19,3 @@ export type AlertPreferences = {
   unpriced_grain_enabled: boolean;
   upcoming_jobs_days: number;
 };
-

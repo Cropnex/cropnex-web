@@ -15,8 +15,10 @@ const PHOTO_BUCKET = "scouting-photos";
 
 function photoPath(userId: string, filename: string) {
   const extension =
-    filename.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") ||
-    "jpg";
+    filename
+      .split(".")
+      .pop()
+      ?.replace(/[^a-zA-Z0-9]/g, "") || "jpg";
 
   return `${userId}/${crypto.randomUUID()}.${extension}`;
 }
@@ -46,29 +48,23 @@ export async function syncOfflineItems() {
           : null;
 
       if (storedPhoto && item.photo_name) {
-        uploadedPath = photoPath(
-          data.user.id,
-          item.photo_name
-        );
+        uploadedPath = photoPath(data.user.id, item.photo_name);
 
         const { error: uploadError } = await supabase.storage
           .from(PHOTO_BUCKET)
           .upload(uploadedPath, storedPhoto, {
-            contentType:
-              item.photo_type || "application/octet-stream",
+            contentType: item.photo_type || "application/octet-stream",
             upsert: false,
           });
 
         if (uploadError) throw uploadError;
       }
 
-      const { error } = await supabase
-        .from("scouting_observations")
-        .insert({
-          user_id: data.user.id,
-          ...item.payload,
-          photo_path: uploadedPath,
-        });
+      const { error } = await supabase.from("scouting_observations").insert({
+        user_id: data.user.id,
+        ...item.payload,
+        photo_path: uploadedPath,
+      });
 
       if (error) throw error;
 
@@ -92,9 +88,7 @@ export async function syncOfflineItems() {
       synced += 1;
     } catch (error) {
       if (uploadedPath) {
-        await supabase.storage
-          .from(PHOTO_BUCKET)
-          .remove([uploadedPath]);
+        await supabase.storage.from(PHOTO_BUCKET).remove([uploadedPath]);
       }
 
       await saveOfflineItem({
@@ -102,9 +96,7 @@ export async function syncOfflineItems() {
         status: "failed",
         attempts: item.attempts + 1,
         last_error:
-          error instanceof Error
-            ? error.message
-            : "Unknown sync error",
+          error instanceof Error ? error.message : "Unknown sync error",
       });
 
       failed += 1;
@@ -132,20 +124,16 @@ export async function syncOfflineItems() {
       await updateQueuedRestMutation({
         ...item,
         attempts: item.attempts + 1,
-        lastError: error instanceof Error ? error.message : "Unknown sync error",
+        lastError:
+          error instanceof Error ? error.message : "Unknown sync error",
       });
       failed += 1;
     }
   }
 
-  localStorage.setItem(
-    "agcore-last-sync",
-    new Date().toISOString()
-  );
+  localStorage.setItem("agcore-last-sync", new Date().toISOString());
 
-  window.dispatchEvent(
-    new CustomEvent("agcore-sync-updated")
-  );
+  window.dispatchEvent(new CustomEvent("agcore-sync-updated"));
 
   return { synced, failed };
 }

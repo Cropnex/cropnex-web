@@ -26,4 +26,3 @@ export type ProductionForecast = {
   expected_tonnes: number;
   notes: string | null;
 };
-

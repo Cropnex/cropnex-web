@@ -5,10 +5,7 @@ export { default } from "@/components/grain/GrainMarketWorkspace";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import type {
-  GrainPosition,
-  ProductionForecast,
-} from "@/types/grain";
+import type { GrainPosition, ProductionForecast } from "@/types/grain";
 
 const emptyForecast = {
   season: "2026/2027",
@@ -56,9 +53,7 @@ function LegacyGrainMarketingPage() {
     if (forecastResult.error) alert(forecastResult.error.message);
     if (positionResult.error) alert(positionResult.error.message);
 
-    setForecasts(
-      (forecastResult.data || []) as ProductionForecast[]
-    );
+    setForecasts((forecastResult.data || []) as ProductionForecast[]);
     setPositions((positionResult.data || []) as GrainPosition[]);
   }
 
@@ -78,22 +73,18 @@ function LegacyGrainMarketingPage() {
         return;
       }
 
-      const { error } = await supabase
-        .from("production_forecasts")
-        .upsert(
-          {
-            user_id: data.user.id,
-            season: forecastForm.season,
-            commodity: forecastForm.commodity,
-            expected_tonnes: Number(
-              forecastForm.expected_tonnes
-            ),
-            notes: forecastForm.notes.trim() || null,
-          },
-          {
-            onConflict: "user_id,season,commodity",
-          }
-        );
+      const { error } = await supabase.from("production_forecasts").upsert(
+        {
+          user_id: data.user.id,
+          season: forecastForm.season,
+          commodity: forecastForm.commodity,
+          expected_tonnes: Number(forecastForm.expected_tonnes),
+          notes: forecastForm.notes.trim() || null,
+        },
+        {
+          onConflict: "user_id,season,commodity",
+        },
+      );
 
       if (error) {
         alert(error.message);
@@ -123,32 +114,28 @@ function LegacyGrainMarketingPage() {
         return;
       }
 
-      const { error } = await supabase
-        .from("grain_positions")
-        .insert({
-          user_id: data.user.id,
-          season: positionForm.season,
-          commodity: positionForm.commodity,
-          position_type: positionForm.position_type,
-          contract_date: positionForm.contract_date || null,
-          delivery_month:
-            positionForm.delivery_month.trim() || null,
-          tonnes: Number(positionForm.tonnes),
-          price_per_tonne: positionForm.price_per_tonne
-            ? Number(positionForm.price_per_tonne)
-            : null,
-          strike_price: positionForm.strike_price
-            ? Number(positionForm.strike_price)
-            : null,
-          premium_per_tonne: positionForm.premium_per_tonne
-            ? Number(positionForm.premium_per_tonne)
-            : null,
-          buyer_or_broker:
-            positionForm.buyer_or_broker.trim() || null,
-          reference: positionForm.reference.trim() || null,
-          status: positionForm.status,
-          notes: positionForm.notes.trim() || null,
-        });
+      const { error } = await supabase.from("grain_positions").insert({
+        user_id: data.user.id,
+        season: positionForm.season,
+        commodity: positionForm.commodity,
+        position_type: positionForm.position_type,
+        contract_date: positionForm.contract_date || null,
+        delivery_month: positionForm.delivery_month.trim() || null,
+        tonnes: Number(positionForm.tonnes),
+        price_per_tonne: positionForm.price_per_tonne
+          ? Number(positionForm.price_per_tonne)
+          : null,
+        strike_price: positionForm.strike_price
+          ? Number(positionForm.strike_price)
+          : null,
+        premium_per_tonne: positionForm.premium_per_tonne
+          ? Number(positionForm.premium_per_tonne)
+          : null,
+        buyer_or_broker: positionForm.buyer_or_broker.trim() || null,
+        reference: positionForm.reference.trim() || null,
+        status: positionForm.status,
+        notes: positionForm.notes.trim() || null,
+      });
 
       if (error) {
         alert(error.message);
@@ -172,41 +159,35 @@ function LegacyGrainMarketingPage() {
         (position) =>
           position.season === forecast.season &&
           position.commodity === forecast.commodity &&
-          position.status !== "Cancelled"
+          position.status !== "Cancelled",
       );
 
       const hedgedTonnes = matchingPositions.reduce(
         (sum, position) => sum + position.tonnes,
-        0
+        0,
       );
 
       const fixedPricePositions = matchingPositions.filter(
-        (position) => position.price_per_tonne !== null
+        (position) => position.price_per_tonne !== null,
       );
 
       const weightedValue = fixedPricePositions.reduce(
         (sum, position) =>
-          sum +
-          position.tonnes *
-            (position.price_per_tonne || 0),
-        0
+          sum + position.tonnes * (position.price_per_tonne || 0),
+        0,
       );
 
       const fixedTonnes = fixedPricePositions.reduce(
         (sum, position) => sum + position.tonnes,
-        0
+        0,
       );
 
-      const averagePrice =
-        fixedTonnes > 0 ? weightedValue / fixedTonnes : null;
+      const averagePrice = fixedTonnes > 0 ? weightedValue / fixedTonnes : null;
 
       return {
         forecast,
         hedgedTonnes,
-        unpricedTonnes: Math.max(
-          forecast.expected_tonnes - hedgedTonnes,
-          0
-        ),
+        unpricedTonnes: Math.max(forecast.expected_tonnes - hedgedTonnes, 0),
         hedgePercentage:
           forecast.expected_tonnes > 0
             ? (hedgedTonnes / forecast.expected_tonnes) * 100
@@ -224,13 +205,11 @@ function LegacyGrainMarketingPage() {
             CropNex
           </p>
 
-          <h1 className="mt-2 text-4xl font-black">
-            Grain Marketing & SAFEX
-          </h1>
+          <h1 className="mt-2 text-4xl font-black">Grain Marketing & SAFEX</h1>
 
           <p className="mt-2 text-gray-400">
-            Track production forecasts, physical contracts,
-            futures, options and unpriced tonnes.
+            Track production forecasts, physical contracts, futures, options and
+            unpriced tonnes.
           </p>
         </div>
 
@@ -486,9 +465,7 @@ function LegacyGrainMarketingPage() {
       </div>
 
       <section className="mt-8">
-        <h2 className="mb-4 text-2xl font-bold">
-          Marketing Exposure
-        </h2>
+        <h2 className="mb-4 text-2xl font-bold">Marketing Exposure</h2>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {summaries.map((summary) => (
@@ -496,9 +473,7 @@ function LegacyGrainMarketingPage() {
               key={summary.forecast.id}
               className="rounded-2xl border border-white/10 bg-white/5 p-5"
             >
-              <p className="text-sm text-gray-500">
-                {summary.forecast.season}
-              </p>
+              <p className="text-sm text-gray-500">{summary.forecast.season}</p>
 
               <h3 className="text-2xl font-bold text-green-400">
                 {summary.forecast.commodity}
@@ -507,9 +482,7 @@ function LegacyGrainMarketingPage() {
               <div className="mt-5 space-y-3">
                 <Row
                   label="Expected production"
-                  value={`${summary.forecast.expected_tonnes.toFixed(
-                    2
-                  )} t`}
+                  value={`${summary.forecast.expected_tonnes.toFixed(2)} t`}
                 />
 
                 <Row
@@ -541,10 +514,7 @@ function LegacyGrainMarketingPage() {
                 <div
                   className="h-full rounded-full bg-green-500"
                   style={{
-                    width: `${Math.min(
-                      summary.hedgePercentage,
-                      100
-                    )}%`,
+                    width: `${Math.min(summary.hedgePercentage, 100)}%`,
                   }}
                 />
               </div>
@@ -554,9 +524,7 @@ function LegacyGrainMarketingPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-4 text-2xl font-bold">
-          Position Register
-        </h2>
+        <h2 className="mb-4 text-2xl font-bold">Position Register</h2>
 
         <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
           <table className="min-w-full text-left text-sm">
@@ -576,25 +544,16 @@ function LegacyGrainMarketingPage() {
 
             <tbody>
               {positions.map((position) => (
-                <tr
-                  key={position.id}
-                  className="border-b border-white/5"
-                >
-                  <td className="px-4 py-3">
-                    {position.season}
-                  </td>
+                <tr key={position.id} className="border-b border-white/5">
+                  <td className="px-4 py-3">{position.season}</td>
 
                   <td className="px-4 py-3 font-bold text-green-400">
                     {position.commodity}
                   </td>
 
-                  <td className="px-4 py-3">
-                    {position.position_type}
-                  </td>
+                  <td className="px-4 py-3">{position.position_type}</td>
 
-                  <td className="px-4 py-3">
-                    {position.tonnes.toFixed(2)} t
-                  </td>
+                  <td className="px-4 py-3">{position.tonnes.toFixed(2)} t</td>
 
                   <td className="px-4 py-3">
                     {position.price_per_tonne !== null
@@ -618,9 +577,7 @@ function LegacyGrainMarketingPage() {
                     {position.buyer_or_broker || "—"}
                   </td>
 
-                  <td className="px-4 py-3">
-                    {position.status}
-                  </td>
+                  <td className="px-4 py-3">{position.status}</td>
                 </tr>
               ))}
             </tbody>
@@ -629,8 +586,8 @@ function LegacyGrainMarketingPage() {
       </section>
 
       <p className="mt-8 text-xs text-gray-500">
-        This module records your own positions and forecasts. It does
-        not yet fetch live SAFEX prices or provide financial advice.
+        This module records your own positions and forecasts. It does not yet
+        fetch live SAFEX prices or provide financial advice.
       </p>
     </main>
   );
@@ -644,11 +601,7 @@ function CommoditySelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <Select
-      label="Commodity"
-      value={value}
-      onChange={onChange}
-    >
+    <Select label="Commodity" value={value} onChange={onChange}>
       <option>White Maize</option>
       <option>Yellow Maize</option>
       <option>Sunflower</option>
@@ -660,13 +613,7 @@ function CommoditySelect({
   );
 }
 
-function Row({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-sm text-gray-400">{label}</span>
@@ -688,9 +635,7 @@ function Input({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-400">
-        {label}
-      </label>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
 
       <input
         type={type}
@@ -716,9 +661,7 @@ function Select({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-400">
-        {label}
-      </label>
+      <label className="mb-2 block text-sm text-gray-400">{label}</label>
 
       <select
         value={value}

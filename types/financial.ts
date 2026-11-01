@@ -25,4 +25,3 @@ export type FinancialTransaction = {
   reference: string | null;
   notes: string | null;
 };
-
