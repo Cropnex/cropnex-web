@@ -30,16 +30,32 @@ export async function POST(request: NextRequest) {
         { error: "Sign in to search satellite imagery." },
         { status: 401 },
       );
-    const body = (await request.json()) as {
+    let body: {
       boundary?: FieldBoundary;
       from?: string;
       to?: string;
       maxCloud?: number;
     };
+    try {
+      const payload: unknown = await request.json();
+      if (!payload || typeof payload !== "object" || Array.isArray(payload))
+        return NextResponse.json(
+          { error: "A valid field boundary and date range are required." },
+          { status: 400 },
+        );
+      body = payload;
+    } catch {
+      return NextResponse.json(
+        { error: "A valid JSON request is required." },
+        { status: 400 },
+      );
+    }
     if (
       !body.boundary ||
       !boundaryHasShape(body.boundary) ||
+      typeof body.from !== "string" ||
       !body.from ||
+      typeof body.to !== "string" ||
       !body.to
     )
       return NextResponse.json(
@@ -57,8 +73,10 @@ export async function POST(request: NextRequest) {
           intersects: boundaryGeoJson(body.boundary),
           query: {
             "eo:cloud_cover": {
-              lte: Math.min(100, Math.max(0, body.maxCloud ?? 30)),
-            },
+                lte: Number.isFinite(body.maxCloud)
+                  ? Math.min(100, Math.max(0, body.maxCloud!))
+                  : 30,
+              },
           },
           sortby: [{ field: "properties.eo:cloud_cover", direction: "asc" }],
           limit: 12,

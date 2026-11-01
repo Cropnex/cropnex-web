@@ -87,11 +87,22 @@ export async function POST(request: Request) {
         { error: "OPENAI_API_KEY is not configured in Vercel." },
         { status: 503 },
       );
-    const body = (await request.json()) as {
-      image?: string;
-      documentType?: string;
-    };
-    if (!body.image?.startsWith("data:image/"))
+    let body: { image?: string; documentType?: string };
+    try {
+      const payload: unknown = await request.json();
+      if (!payload || typeof payload !== "object" || Array.isArray(payload))
+        return Response.json(
+          { error: "Upload a JPG or PNG image." },
+          { status: 400 },
+        );
+      body = payload;
+    } catch {
+      return Response.json(
+        { error: "Upload a valid JSON request." },
+        { status: 400 },
+      );
+    }
+    if (typeof body.image !== "string" || !body.image.startsWith("data:image/"))
       return Response.json(
         { error: "Upload a JPG or PNG image." },
         { status: 400 },
@@ -100,7 +111,7 @@ export async function POST(request: Request) {
       method: "POST",
       signal: controller.signal,
       headers: {
-        Authorization: `Bearer ${key}`,
+        Authorization: "Bearer " + key,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

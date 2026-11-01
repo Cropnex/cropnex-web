@@ -78,12 +78,27 @@ export async function POST(request: NextRequest) {
         { error: "Sign in to generate satellite imagery." },
         { status: 401 },
       );
-    const body = (await request.json()) as {
-      boundary?: FieldBoundary;
-      date?: string;
-      sceneId?: string;
-    };
-    if (!body.boundary || !boundaryHasShape(body.boundary) || !body.date)
+    let body: { boundary?: FieldBoundary; date?: string; sceneId?: string };
+    try {
+      const payload: unknown = await request.json();
+      if (!payload || typeof payload !== "object" || Array.isArray(payload))
+        return NextResponse.json(
+          { error: "A valid field boundary and scene date are required." },
+          { status: 400 },
+        );
+      body = payload;
+    } catch {
+      return NextResponse.json(
+        { error: "A valid JSON request is required." },
+        { status: 400 },
+      );
+    }
+    if (
+      !body.boundary ||
+      !boundaryHasShape(body.boundary) ||
+      typeof body.date !== "string" ||
+      !body.date
+    )
       return NextResponse.json(
         { error: "A valid field boundary and scene date are required." },
         { status: 400 },

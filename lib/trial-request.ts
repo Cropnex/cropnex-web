@@ -7,24 +7,27 @@ export function trialRequest<T>(
   return new Promise<T>((resolve, reject) => {
     const controller = new AbortController();
     let finished = false;
-    const finish = (error?: unknown, value?: T) => {
+    const finish = (
+      result: { ok: true; value: T } | { ok: false; error: unknown },
+    ) => {
       if (finished) return;
       finished = true;
       clearTimeout(timer);
       signal?.removeEventListener("abort", cancel);
-      if (error) reject(error);
-      else resolve(value as T);
+      if (result.ok) resolve(result.value);
+      else reject(result.error);
     };
     const cancel = () => {
       controller.abort();
-      finish(new Error("Request cancelled"));
+      finish({ ok: false, error: new Error("Request cancelled") });
     };
     const timer = setTimeout(() => {
-      finish(
-        new Error(
+      finish({
+        ok: false,
+        error: new Error(
           "CropNex did not respond within 15 seconds. Please try again.",
         ),
-      );
+      });
       controller.abort();
     }, timeoutMs);
     if (signal?.aborted) {
@@ -34,11 +37,11 @@ export function trialRequest<T>(
     signal?.addEventListener("abort", cancel, { once: true });
     try {
       Promise.resolve(run(controller.signal)).then(
-        (value) => finish(undefined, value),
-        (error) => finish(error),
+        (value) => finish({ ok: true, value }),
+        (error) => finish({ ok: false, error }),
       );
     } catch (error) {
-      finish(error);
+      finish({ ok: false, error });
     }
   });
 }

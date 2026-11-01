@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   try {
     const identity = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
+      headers: { apikey: anonKey, Authorization: "Bearer " + token },
       cache: "no-store",
     });
     if (!identity.ok)
@@ -49,12 +49,27 @@ export async function POST(request: Request) {
         { status: 401 },
       );
 
-    const body = (await request.json()) as {
+    let body: {
       question?: string;
       season?: string | null;
       context?: AssistantContext;
     };
-    const question = body.question?.trim();
+    try {
+      const payload: unknown = await request.json();
+      if (!payload || typeof payload !== "object" || Array.isArray(payload))
+        return Response.json(
+          { error: "Enter a question first." },
+          { status: 400 },
+        );
+      body = payload;
+    } catch {
+      return Response.json(
+        { error: "Enter a valid JSON question." },
+        { status: 400 },
+      );
+    }
+    const question =
+      typeof body.question === "string" ? body.question.trim() : "";
     if (!question)
       return Response.json(
         { error: "Enter a question first." },
@@ -73,7 +88,7 @@ export async function POST(request: Request) {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${openAiKey}`,
+        Authorization: "Bearer " + openAiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

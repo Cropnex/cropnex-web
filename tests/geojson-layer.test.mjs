@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
   categoryColor,
@@ -6,13 +6,13 @@ import {
   geometryAreaHa,
   geometryPolygons,
   validCoordinates,
-} from "../.test-build/geojson-layer.js";
+} from "../lib/geojson-layer.ts";
 import {
   boundaryGeoJson,
   boundaryHasShape,
   boundaryPoints,
   boundaryPolygonPaths,
-} from "../.test-build/lib/field-boundary.js";
+} from "../lib/field-boundary.ts";
 
 test("Polygon conversion keeps outer and interior rings", () => {
   const geometry = {

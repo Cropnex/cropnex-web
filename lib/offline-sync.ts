@@ -110,8 +110,10 @@ export async function syncOfflineItems() {
   for (const item of genericItems) {
     try {
       const headers = new Headers(item.headers);
+      headers.delete("authorization");
+      headers.delete("apikey");
       headers.set("apikey", supabaseAnonKey);
-      if (accessToken) headers.set("authorization", `Bearer ${accessToken}`);
+      if (accessToken) headers.set("authorization", "Bearer " + accessToken);
       const response = await fetch(item.url, {
         method: item.method,
         headers,

@@ -565,7 +565,7 @@ export async function readPlanningWorkbook(
     ]),
     sheets = workbook.worksheets.filter((s) => !ignored.has(s.name));
   if (!sheets.length)
-    throw new Error("This is not an CropNex Farm Plan workbook.");
+    throw new Error("This is not a CropNex Farm Plan workbook.");
   const rows: PlanningImportRow[] = [];
   for (const sheet of sheets)
     for (let r = 6; r <= sheet.rowCount; r++) {

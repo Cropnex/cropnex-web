@@ -48,7 +48,7 @@ function isoDate(value: unknown) {
   }
   if (typeof value === "number") {
     const date = new Date(Math.round((value - 25569) * 86400 * 1000));
-    return date.toISOString().slice(0, 10);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toISOString().slice(0, 10);
   }
   const text = String(value || "").trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
@@ -394,7 +394,7 @@ export async function readTransportWorkbook(
     wb = new ExcelJS.Workbook();
   await wb.xlsx.load(await file.arrayBuffer());
   const s = wb.getWorksheet("Transport Log");
-  if (!s) throw new Error("This is not an CropNex Transport Logsheet.");
+  if (!s) throw new Error("This is not a CropNex Transport Logsheet.");
   const rows: TransportWorkbookRow[] = [];
   for (let r = 6; r <= s.rowCount; r++) {
     const action = (txt(s, r, 1) || "Add") as TransportWorkbookRow["action"],
@@ -403,6 +403,8 @@ export async function readTransportWorkbook(
     if (!loadNumber && !fieldLabel) continue;
     const status = (txt(s, r, 22) || "Planned") as TransportLoad["status"],
       errors: string[] = [],
+      crop = txt(s, r, 8),
+      grade = txt(s, r, 21),
       loadDate = dateAt(s, r, 6);
     if (!["Keep", "Add", "Update", "Delete"].includes(action))
       errors.push("Invalid action");
@@ -419,6 +421,8 @@ export async function readTransportWorkbook(
       errors.push("Nett Weight must be greater than zero");
     if (action !== "Delete" && num(s, r, 17) <= 0)
       errors.push("Allocated tonnes must be greater than zero");
+    if (action !== "Delete" && !validGrade(crop, grade))
+      errors.push("Grade is not valid for the selected crop");
     if (
       ![
         "Planned",
@@ -446,7 +450,7 @@ export async function readTransportWorkbook(
       loadDate,
       fieldId: txt(s, r, 4),
       fieldLabel,
-      crop: txt(s, r, 8),
+      crop,
       cultivar: txt(s, r, 9),
       destination: txt(s, r, 10),
       truck: txt(s, r, 11),
@@ -461,7 +465,7 @@ export async function readTransportWorkbook(
       accepted: num(s, r, 18),
       rejected: num(s, r, 19),
       moisture: txt(s, r, 20) ? num(s, r, 20) : null,
-      grade: txt(s, r, 21),
+      grade,
       status,
       harvestComplete: complete,
       completionDate,

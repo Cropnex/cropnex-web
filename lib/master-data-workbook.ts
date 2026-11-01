@@ -233,6 +233,8 @@ export async function readMasterDataWorkbook(file: File) {
       code = value(row, 2);
     if (!id && !code) continue;
     const pack = value(row, 8);
+    if (pack && !Number.isFinite(Number(pack)))
+      throw new Error(`Row ${row}: Pack Size must be a number.`);
     products.push({
       id,
       catalogue_code: code,
@@ -256,6 +258,9 @@ export async function readMasterDataWorkbook(file: File) {
       const id = v(row, 1),
         code = v(row, 2);
       if (!id && !code) continue;
+      const unitCost = v(row, 7);
+      if (unitCost && !Number.isFinite(Number(unitCost)))
+        throw new Error(`Operations row ${row}: Unit Cost must be a number.`);
       operations.push({
         id,
         catalogue_code: code,
@@ -263,7 +268,7 @@ export async function readMasterDataWorkbook(file: File) {
         unit: v(row, 4) || "ha",
         category: v(row, 5) || "Other",
         description: v(row, 6) || null,
-        unit_cost: Number(v(row, 7) || 0),
+        unit_cost: Number(unitCost || 0),
         supplier: v(row, 8) || null,
         active: v(row, 9).toLowerCase() !== "no",
       });
