@@ -142,7 +142,7 @@ export default function OnePagePlanner(){
   if(loading)return <main className="min-h-screen bg-[#14261F] p-8 text-white">Opening Farm Planning…</main>;
   return <main className="min-h-screen bg-[#14261F] p-3 text-white md:p-5">
     <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div><p className="ag-kicker">Planning</p><h1 className="mt-1 text-2xl font-extrabold md:text-3xl">Farm Planning</h1><p className="mt-1 text-sm text-[#8d9d94]">Select fields, build an activity and save it—all on one page.</p></div>
+      <div><p className="ag-kicker">Planning</p><h1 className="mt-1 text-2xl font-extrabold md:text-3xl">Farm Planning</h1><Link href="/standards" className="mt-2 inline-block text-xs font-bold text-[#47623a] underline">Optional reference lists: recipes, cultivars and operation defaults</Link><p className="mt-1 text-sm text-[#8d9d94]">Select fields, build an activity and save it—all on one page.</p></div>
       <div className="flex flex-wrap gap-2"><Link href="/activities/advanced" className="planner-secondary">Crop templates & advanced tools</Link><button type="button" onClick={exportCsv} className="planner-secondary">Export report</button><button type="button" disabled={!selectedFields.length} onClick={()=>setShowCreate(true)} className="planner-primary">+ Add activity</button></div>
     </header>
 

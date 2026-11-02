@@ -9,6 +9,7 @@ type FieldFormProps = {
   onChange: (name: keyof FieldFormValues, value: string) => void;
   onSave: () => void;
   onCancel?: () => void;
+  onCreateFarm?: () => void;
   submitLabel?: string;
 };
 
@@ -19,10 +20,11 @@ export default function FieldForm({
   onChange,
   onSave,
   onCancel,
+  onCreateFarm,
   submitLabel = "Save Field",
 }: FieldFormProps) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+    <section className="ag-field-details ag-panel rounded-2xl p-6">
       <h2 className="mb-5 text-2xl font-bold text-green-400">
         Field Details
       </h2>
@@ -35,7 +37,7 @@ export default function FieldForm({
           placeholder="Field 4"
         />
 
-        <label className="block text-sm text-gray-400">Farm<select required className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" value={values.farm_id||''} onChange={event=>{const farm=farmOptions.find(item=>item.id===event.target.value);onChange('farm_id',event.target.value);onChange('farm_name',farm?.name||'')}}><option value="">Choose a saved farm</option>{farmOptions.map(farm=><option key={farm.id} value={farm.id}>{farm.name}</option>)}</select><span className="mt-2 block text-xs">Create additional farms in Farm Setup.</span></label>
+        <div><label className="block text-sm text-gray-400">Farm<select required className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" value={values.farm_id||''} onChange={event=>{const farm=farmOptions.find(item=>item.id===event.target.value);onChange('farm_id',event.target.value);onChange('farm_name',farm?.name||'')}}><option value="">Choose a saved farm</option>{farmOptions.map(farm=><option key={farm.id} value={farm.id}>{farm.name}</option>)}</select></label>{onCreateFarm&&<button type="button" disabled={saving} onClick={onCreateFarm} className="mt-2 text-sm font-bold text-[#47623a] underline">＋ Add a farm here</button>}</div>
 
         <Input
           label="Crop"

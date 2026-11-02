@@ -1,0 +1,97 @@
+CropNex v6.40.0 — Farming businesses, farms and grouped fields
+
+PURPOSE OF EACH PAGE
+Fields & Farms: create farming businesses and their named farms, assign fields
+to a saved farm, and edit field names, crop, cultivar, hectares and notes.
+Activities & Planning: plan field work and record actual activities and costs.
+Reference Lists (formerly Farm Setup): optional reusable cultivar lists,
+activity recipes and standard operation rates. Ordinary farm/field management
+no longer requires visiting that page. The duplicate farm-creation forms have
+been removed from Reference Lists; existing records are retained.
+Farm Map: draw/import boundaries, view field labels/layers and open field work.
+
+THE HIERARCHY
+Farming business (for example Woranga Agri)
+  Farm (for example Preston)
+    Fields (for example WO1 and WO2)
+  Farm (for example Kalkpan)
+    Other fields
+
+These are examples, not automatic changes to your existing farm assignments.
+Each saved farm belongs to a farming business. A business can have several
+farms, and each farm can have several fields. Fields are displayed inside
+their farm's section in the Fields tab, with the business name above the farm
+name, field count and total hectares. Empty farms remain visible. Unmatched
+older fields are retained in a separate farm-assignment section.
+
+HOW TO USE IT
+1. Open Fields & Farms. Your existing Woranga Agri business should be listed.
+   Do not create it again. Add farming business is available for a new operation
+   that has not been set up yet; no season is needed to create businesses/farms.
+2. Click Add farm, select the business, enter the actual farm name and save.
+3. Under the appropriate farm, click Edit Field. Select the correct saved farm
+   and save the field. It appears under the chosen farm.
+4. If the correct farm is missing, use Add a farm here inside the field editor.
+   The new farm is immediately selected, while unsaved field details remain.
+   Save field details to complete the assignment.
+5. Use business and farm filters to focus the register. Choose Fields needing
+   farm assignment to find records that cannot be matched to a saved farm.
+6. Create NEW field boundaries through Draw / import boundaries. This update
+   retains the requirement for mapped boundaries and does not reintroduce
+   manual boundaryless field creation.
+
+SAFETY AND ACCESS
+- Field assignment updates the existing field record and retains its boundary,
+  ID and linked history. No trial, plan or actual record is copied or deleted.
+- The field farm dropdown is scoped to the same account and parent business.
+  Ambiguous legacy farm names are not automatically assigned to another farm.
+- View-only employees see farm groups but not farm creation or field editing.
+- The new migration lets organisation members with Fields access read the farm
+  hierarchy, and members with Fields editing access create farms for permitted
+  clients. A farm's parent business must belong to that same client account.
+- Existing Farm Map access continues to work. Master Data remains admin-only.
+- Existing plans retain their recorded historical farm-name text; moving a
+  field does not rewrite completed operational records. New field data uses
+  the selected saved farm.
+
+MIGRATIONS
+If v6.39.0's two migrations already succeeded, run ONLY this new migration:
+supabase/migrations/202611020003_fields_farm_management_access.sql
+
+The standalone CropNex-v6.40.0-Migration.sql is an identical copy.
+If you have not applied v6.39.0 yet, first run these in order:
+supabase/migrations/202611020001_farm_map_crop_colours.sql
+supabase/migrations/202611020002_required_field_farm.sql
+Then run 202611020003_fields_farm_management_access.sql.
+Do not rerun migrations that have already succeeded. Earlier advisory and
+organisation migrations must already be present. No new environment variables.
+
+FULL PROJECT DEPLOYMENT
+The ZIP contains the complete project and every previous release file/folder.
+Keep .git and private environment files when replacing source files.
+After applying the required migrations, run in Codespaces:
+
+cd /workspaces/cropnex-web
+npm install &&
+npm run build &&
+git add -A &&
+git commit -m "CropNex v6.40.0 farms and grouped fields management" &&
+git push origin main
+
+Confirm the Vercel deployment is Ready on this commit. Refresh CropNex and
+check that version 6.40.0 appears before reviewing the new Fields & Farms page.
+
+VALIDATION
+Full-project TypeScript and all 63 local automated tests passed. Tests cover
+farm hierarchy grouping, assignment isolation, duplicate-name validation,
+inline farm creation controls, read-only controls, migration permission
+contracts, and the existing map/Trials/advisory workflows.
+Live database execution and browser interaction with this new version have
+not been verified here. This workspace has not deployed the website or run
+SQL against your live Supabase database. Build in Codespaces before pushing.
+
+FIRST LIVE CHECK
+Select the existing Woranga Agri business, create a real named farm, assign two
+existing fields to it, and verify both appear under that farm after refreshing.
+Add a farm from inside a field editor and confirm the field stays unchanged
+until Save field details is clicked. Verify a view-only employee cannot edit.
