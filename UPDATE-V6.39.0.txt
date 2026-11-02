@@ -1,0 +1,86 @@
+CropNex v6.39.0 — Field labels, farm selection and custom crop colours
+
+FARM MAP
+- All mapped fields show their field name, farm name and selected crop by default.
+  Cultivar no longer replaces the crop name in the label.
+- Click the label or boundary to open the field drawer.
+- Field labels are positioned inside the largest polygon part and avoid holes.
+- Named farm pins group fields by farming account and saved farm. These are
+  automatically placed group labels, not surveyed farmhouse locations. The
+  existing manually positioned main-farm location pin remains available.
+- Field labels and Farm pins checkboxes can hide these overlays when inspecting
+  NDVI or a crowded map. Crop fills remain transparent while data layers are on.
+- Search now matches farm names as well as field names and crops.
+
+CROP COLOURS
+- Open Farm Map > Crop colours, choose any colour with the picker or enter a
+  six-digit hex colour, then Save colour. Reset default restores the original.
+- Saved colours apply to boundaries, crop swatches, field labels and the legend.
+- Preferences belong to the farming account, persist across seasons/devices and
+  are visible to authorised team members. Different accounts can use different
+  colours for the same crop. Choose the farming account in the panel when the
+  organisation contains more than one.
+- View-only users can see saved colours but cannot edit them. The database
+  checks Farm Map editing permissions for every save/reset.
+- Missing preferences fall back to standard crop colours. If the new migration
+  has not been applied, the map remains usable and shows a retry/setup message.
+- These preferences do not recolour NDVI or soil-classification layers.
+
+FIELD AND FARM NAMES
+- Every newly created field needs a nonblank field name and a saved named farm.
+- Farm Map creation uses a farm dropdown. Select an existing farm or create a
+  named farm using the new-farm option before the field is saved. That farm is
+  then available for subsequent fields. Farms can also be created in Farm Setup.
+- Fields-page editing and the map drawer now use saved-farm dropdowns.
+- Boundary imports require a saved farm for every active row. A farm can be
+  selected for the entire import and overridden on individual rows.
+- Farm IDs, names and farmer associations are checked in the database. The
+  selected farm must belong to the field's farming account. Names are taken
+  from that saved farm, rather than an arbitrary field-specific spelling.
+- Existing incomplete records are not deleted or silently renamed. When editing
+  their identity, choose/create the correct saved farm. Older season-copying
+  workflows can resolve a legacy farm name only if it matches one active saved
+  farm unambiguously. Otherwise create/select the farm first.
+
+TWO NEW MIGRATIONS (run in this order, after earlier migrations succeeded)
+1. supabase/migrations/202611020001_farm_map_crop_colours.sql
+2. supabase/migrations/202611020002_required_field_farm.sql
+
+The standalone CropNex-v6.39.0-Migrations.sql contains both in order for Supabase
+SQL Editor. Run either that combined file OR the two individual files, not both.
+Do not rerun previous migrations that already succeeded.
+The new colour table explicitly enables Row Level Security. The field identity
+trigger checks new/changed identities without dropping existing operational data.
+No new environment variable is needed.
+
+FULL PROJECT DEPLOYMENT
+Keep the existing .git folder and private environment files when copying the
+full ZIP contents into Codespaces. Dependencies and build output are excluded.
+After applying the migrations, run:
+
+cd /workspaces/cropnex-web
+npm install &&
+npm run build &&
+git add -A &&
+git commit -m "CropNex v6.39.0 field labels farm selection and crop colours" &&
+git push origin main
+
+Confirm Vercel reports Ready on this commit and CropNex shows version 6.39.0.
+Refresh the browser after deployment.
+
+VALIDATION
+Full-project TypeScript and the local automated suite pass. Tests cover palette
+isolation, interior label placement on concave/multipart fields and holes,
+saved-farm dropdowns, database permission contracts and existing workflows.
+The new map helpers, palette editor and legend pass targeted lint checks.
+Live Google Maps rendering and execution of the SQL against your Supabase
+database have not been verified here. The live website/database are unchanged.
+Run the production build in Codespaces before pushing.
+
+FIRST LIVE CHECK
+Confirm all labels appear without selecting a field, crop and farm names are
+correct, and clicking a label opens that field. Change a crop colour, refresh,
+and check another authorised team account. Confirm a view-only employee cannot
+save colours. Turn NDVI on and check that field fills stay transparent. Create
+a farm and two fields under it, select that farm for an import and confirm a
+blank field name or missing farm is rejected.

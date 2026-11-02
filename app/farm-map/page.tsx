@@ -6,6 +6,10 @@ import type { Libraries } from "@react-google-maps/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import FieldDrawer from "@/components/map/FieldDrawer";
 import MapLegend from "@/components/map/MapLegend";
+import CropColourSettings from "@/components/map/CropColourSettings";
+import {useAccess} from "@/components/auth/AccessProvider";
+import {trialRequest} from "@/lib/trial-request";
+import {cropColour,cropKey,fieldLabelPosition,validCropColour,type CropColour} from "@/lib/map-presentation";
 import { supabase } from "@/lib/supabase";
 import type { Activity } from "@/types/activity";
 import type { Field, Point } from "@/types/field";
@@ -19,8 +23,8 @@ type PlanOperation={id:string;plan_id:string;operation_name:string;unit:string;p
 type InventoryLocation={id:string;name:string};
 type ProductOption={id:string;name:string;category:string;pack_unit:string|null};
 type StandardOperationOption={id:string;name:string;unit:string;unit_cost:number};
-type Farmer={id:string;name:string};
-type Farm={id:string;name:string;farmer_id:string};
+type Farmer={id:string;name:string;user_id?:string};
+type Farm={id:string;name:string;farmer_id:string;user_id?:string};
 type NdviLayer={id:string;field_id:string|null;field_name:string|null;captured_date:string|null;storage_path:string;file_format:string|null;metadata:{average_ndvi?:number|null;cloud_cover_percent?:number|null}|null};
 type ThematicLayer={id:string;file_name:string;layer_type:string;storage_path:string;metadata:{display_attribute?:string;feature_count?:number;category_counts?:Record<string,number>}|null;geojson?:{features:Array<{geometry:{type:string;coordinates:unknown};properties?:Record<string,unknown>}>}};
 type RainGauge={id:string;name:string;farm_name:string|null;latitude:number|null;longitude:number|null};
@@ -29,20 +33,24 @@ type GeoJsonReadResponse={ok:true;geojson:NonNullable<ThematicLayer["geojson"]>}
 const libraries: Libraries = ["geometry"];
 const fallbackCenter = { lat: -26.905, lng: 27.457 };
 
-function cropColor(crop: string | null) {
-  const value = crop?.toLowerCase() || "";
-  if (value.includes("white maize")) return "#e8eee8";
-  if (value.includes("yellow maize") || value.includes("corn")) return "#f3cf3f";
-  if (value.includes("maize")) return "#789B58";
-  if (value.includes("sunflower")) return "#f28c28";
-  if (value.includes("wheat")) return "#d9a441";
-  if (value.includes("teff")) return "#b2cf52";
-  if (value.includes("soy")) return "#42b99a";
-  return "#67a7d8";
-}
-
-
 export default function FarmMapPage() {
+  const access=useAccess();
+  const [cropColours,setCropColours]=useState<CropColour[]>([]);
+  const [paletteError,setPaletteError]=useState('');
+  const [showColourSettings,setShowColourSettings]=useState(false);
+  const [showFieldLabels,setShowFieldLabels]=useState(true);
+  const [showFarmNames,setShowFarmNames]=useState(true);
+  const cropColor=(crop:string|null,owner?:string)=>cropColour(crop,owner||access.userId,cropColours);
+  async function loadCropColours(){try{const result=await trialRequest(signal=>supabase.from('farm_crop_colours').select('user_id,crop_key,colour').abortSignal(signal));if(result.error)throw result.error;setCropColours((result.data||[]) as CropColour[]);setPaletteError('')}catch(e){setPaletteError(e instanceof Error?e.message:typeof e==='object'&&e&&'message' in e?String(e.message):'Could not load crop colours.')}}
+  async function saveCropColour(owner:string,crop:string|null,colour:string|null){
+    if(!access.canEditModule('farm-map'))throw new Error('Farm Map editing access is required.');
+    if(colour!==null&&!validCropColour(colour))throw new Error('Use a six-digit hex colour.');
+    const key=cropKey(crop);
+    const result=await trialRequest(signal=>colour===null?supabase.from('farm_crop_colours').delete().eq('user_id',owner).eq('crop_key',key).select().abortSignal(signal):supabase.from('farm_crop_colours').upsert({user_id:owner,crop_key:key,colour},{onConflict:'user_id,crop_key'}).select().abortSignal(signal));
+    if(result.error)throw new Error(result.error.message);
+    if((colour!==null||cropColours.some(row=>row.user_id===owner&&row.crop_key===key))&&!result.data?.length)throw new Error('No colour was saved. Check your access to this farming account.');
+    setCropColours(rows=>[...rows.filter(row=>row.user_id!==owner||row.crop_key!==key),...(colour===null?[]:[{user_id:owner,crop_key:key,colour}])]);setPaletteError('');
+  }
   const {currentSeason,seasons:availableSeasons,refresh:refreshSeasons}=useSeason();
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [drawing, setDrawing] = useState(false);
@@ -103,8 +111,8 @@ export default function FarmMapPage() {
       supabase.from("inventory_locations").select("id,name").eq("active",true).order("name"),
       supabase.from("master_products").select("id,name,category,pack_unit").eq("status","Approved").order("name"),
       supabase.from("standard_operations").select("id,name,unit,unit_cost").eq("active",true).order("name"),
-      supabase.from("farmers").select("id,name").eq("active",true).order("name"),
-      supabase.from("farms").select("id,name,farmer_id").eq("active",true).order("name"),
+      supabase.from("farmers").select("id,name,user_id").eq("active",true).order("name"),
+      supabase.from("farms").select("id,name,farmer_id,user_id").eq("active",true).order("name"),
       supabase.from("map_layers").select("id,field_id,field_name,captured_date,storage_path,file_format,metadata").eq("layer_type","NDVI").eq("season",currentSeason).in("file_format",["PNG","JPG","JPEG"]).order("captured_date",{ascending:false}),
       supabase.from("map_layers").select("id,file_name,layer_type,storage_path,metadata").eq("season",currentSeason).order("created_at",{ascending:false}),
     ]);
@@ -119,7 +127,7 @@ export default function FarmMapPage() {
     setStandardOperations((standardOperationResult.data||[]) as StandardOperationOption[]);
     const loadedFarmers=(farmerResult.data||[]) as Farmer[];
     const standardFarms=(farmResult.data||[]) as Farm[];
-    const legacyFarms=((data||[]) as Field[]).reduce<Farm[]>((rows,field)=>{const name=field.farm_name?.trim();const farmer_id=field.farmer_id||loadedFarmers[0]?.id;if(!name||!farmer_id||standardFarms.some(item=>item.name.toLowerCase()===name.toLowerCase()&&item.farmer_id===farmer_id)||rows.some(item=>item.name.toLowerCase()===name.toLowerCase()&&item.farmer_id===farmer_id))return rows;rows.push({id:`legacy:${farmer_id}:${name}`,name,farmer_id});return rows},[]);
+    const legacyFarms=((data||[]) as Field[]).reduce<Farm[]>((rows,field)=>{const name=field.farm_name?.trim();const ownerFarmers=loadedFarmers.filter(item=>item.user_id===field.user_id);const farmer_id=field.farmer_id||(ownerFarmers.length===1?ownerFarmers[0].id:undefined);if(!name||!farmer_id||standardFarms.some(item=>item.name.toLowerCase()===name.toLowerCase()&&item.farmer_id===farmer_id)||rows.some(item=>item.name.toLowerCase()===name.toLowerCase()&&item.farmer_id===farmer_id))return rows;rows.push({id:`legacy:${farmer_id}:${name}`,name,farmer_id});return rows},[]);
     const loadedFarms=[...standardFarms,...legacyFarms];
     setFarmers(loadedFarmers); setFarms(loadedFarms);
     if(!ndviResult.error){const layers=(ndviResult.data||[]) as NdviLayer[];setNdviLayers(layers);const pairs=await Promise.all(layers.map(async layer=>{const{data:url}=await supabase.storage.from("cropnex-layers").createSignedUrl(layer.storage_path,3600);return[layer.id,url?.signedUrl||""] as const;}));setNdviUrls(Object.fromEntries(pairs));}
@@ -216,11 +224,13 @@ export default function FarmMapPage() {
     setShowNewField(false); setSplitting(false); setSplitPoints([]); setPlacingFarmPin(false); setPoints([]); setCalculatedAreaHa(null); setDrawing(true);
   }
 
-  async function saveSelectedFieldDetails(fieldName: string, areaHa: number) {
+  async function saveSelectedFieldDetails(fieldName: string, areaHa: number, farmId: string) {
     if (!selectedField) return;
     const name = fieldName.trim();
+    const farm=farms.find(item=>item.id===farmId&&!item.id.startsWith("legacy:")&&(!item.user_id||item.user_id===(selectedField.user_id||access.userId)));
+    if(!farm)throw new Error("Select a saved farm. Create it in Farm Setup first if needed.");
     if (!name || !Number.isFinite(areaHa) || areaHa <= 0) throw new Error("Enter a field name and a positive hectare value.");
-    const { data, error } = await supabase.from("fields").update({ field_name: name, area_ha: Number(areaHa.toFixed(2)) }).eq("id", selectedField.id).select("*").single();
+    const { data, error } = await supabase.from("fields").update({ field_name: name, farm_id:farm.id, farm_name:farm.name, farmer_id:farm.farmer_id, area_ha: Number(areaHa.toFixed(2)) }).eq("id", selectedField.id).select("*").single();
     if (error) throw error;
     const updated = data as Field;
     setSelectedField(updated);
@@ -283,15 +293,16 @@ export default function FarmMapPage() {
     try{
       const {data}=await supabase.auth.getSession(); const userId=data.session?.user.id;
       if(!userId)return alert("You must be logged in.");
+      const ownerId=farmer.user_id||userId;
       const calculatedArea=calculateAreaHa(points);
       const area=newField.area_mode==="manual"?Number(newField.manual_area):calculatedArea;
       if(newField.farm_id==="__new__"||newField.farm_id.startsWith("legacy:")){
         const {data:existing}=await supabase.from("farms").select("id,name,farmer_id").eq("farmer_id",farmer.id).ilike("name",requestedFarmName).maybeSingle();
-        if(existing)farm=existing as Farm;else{const{data:createdFarm,error:farmError}=await supabase.from("farms").insert({user_id:userId,farmer_id:farmer.id,name:requestedFarmName,active:true}).select("id,name,farmer_id").single();if(farmError)return alert(farmError.message);farm=createdFarm as Farm}
+        if(existing)farm=existing as Farm;else{const{data:createdFarm,error:farmError}=await supabase.from("farms").insert({user_id:ownerId,farmer_id:farmer.id,name:requestedFarmName,active:true}).select("id,name,farmer_id").single();if(farmError)return alert(farmError.message);farm=createdFarm as Farm}
       }
-      if(!farm)return alert("The farm could not be created.");
+      if(!farm||farm.farmer_id!==farmer.id)return alert("Select a saved farm belonging to this farmer.");
       const {data:created,error}=await supabase.from("fields").insert({
-        user_id:userId,farmer_id:farmer.id,farm_id:farm.id,field_name:newField.field_name.trim(),farm_name:farm.name,
+        user_id:ownerId,farmer_id:farmer.id,farm_id:farm.id,field_name:newField.field_name.trim(),farm_name:farm.name,
         area_ha:Number(area.toFixed(2)),boundary:points,status:"Unplanned",season:currentSeason,crop:null,cultivar:null,cultivar_id:null,
       }).select("*").single();
       if(error)return alert(error.message);
@@ -326,7 +337,7 @@ export default function FarmMapPage() {
 
   // These loaders update state only after their Supabase requests resolve.
   // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => {if(!currentSeason)return;void loadFields(); void loadFarmPin(); void loadRainGauges();}, [currentSeason]);
+  useEffect(() => {if(!currentSeason)return;void loadFields(); void loadFarmPin(); void loadRainGauges(); void loadCropColours();}, [currentSeason]);
   useEffect(() => {
     if (!map) return;
     map.setMapTypeId(google.maps.MapTypeId.SATELLITE);
@@ -337,7 +348,7 @@ export default function FarmMapPage() {
   const farmFilters = useMemo(() => ["All farms", ...Array.from(new Set(fields.map((field) => field.farm_name).filter(Boolean) as string[]))], [fields]);
   const seasons = useMemo(() => availableSeasons, [availableSeasons]);
   const filteredFields = useMemo(() => fields.filter((field) => {
-    const matchesQuery = `${field.field_name} ${field.crop || ""}`.toLowerCase().includes(query.toLowerCase());
+    const matchesQuery = `${field.field_name} ${field.farm_name||""} ${field.crop || ""}`.toLowerCase().includes(query.toLowerCase());
     return matchesQuery && (farmFilter === "All farms" || field.farm_name === farmFilter) && field.season === (seasonFilter||currentSeason);
   }), [fields, query, farmFilter, seasonFilter,currentSeason]);
   const filteredArea = filteredFields.reduce((sum, field) => sum + Number(field.area_ha || 0), 0);
@@ -383,6 +394,13 @@ export default function FarmMapPage() {
     await refreshSeasons();const result=data as {fields_copied?:number};alert(`Season ${name.trim()} created. ${result?.fields_copied||0} field boundaries copied. Crop and activity templates remain available, but no plans, prices, stock or harvest data were copied.`);
   }
 
+  const farmNamePins=[...filteredFields.reduce((groups,field)=>{
+    if(!field.farm_name||!boundaryHasShape(field.boundary))return groups;
+    const key=(field.user_id||access.userId)+':'+(field.farm_id||field.farm_name.trim().toLowerCase()),previous=groups.get(key);
+    if(!previous||Number(field.area_ha)>Number(previous.area_ha))groups.set(key,field);return groups;
+  },new Map<string,Field>()).entries()].flatMap(([key,field])=>{const position=fieldLabelPosition(field.boundary);return position?[{key,name:field.farm_name!,position}]:[]});
+  const legendItems=[...new Map(filteredFields.map(field=>{const colour=cropColor(field.crop,field.user_id),key=cropKey(field.crop)+':'+colour;return [key,{label:field.crop||'Crop unassigned',colour,farm:field.farm_name||'Farm'}]})).values()].map(item=>({label:item.label+(new Set(filteredFields.filter(field=>cropKey(field.crop)===cropKey(item.label)).map(field=>cropColor(field.crop,field.user_id))).size>1?` · ${item.farm}`:''),colour:item.colour}));
+
   if (loadError) return <main className="p-8 text-white">Google Maps could not load. Check the browser API key and its allowed domains.</main>;
   if (!isLoaded) return <main className="p-8 text-white">Opening your farm workspace…</main>;
 
@@ -401,12 +419,11 @@ export default function FarmMapPage() {
         {visibleThematicLayers.length>0&&<ThematicGeoJsonOverlay map={map} layers={visibleThematicLayers}/>}
         {farmPin && <Marker position={farmPin} title="Main farm" label={{ text: "F", color: "#17382E", fontWeight: "800" }} />}
         {rainGauges.filter(g=>g.latitude!==null&&g.longitude!==null).map(g=><Marker key={`rain-${g.id}`} position={{lat:Number(g.latitude),lng:Number(g.longitude)}} title={`Rain gauge · ${g.name}`} label={{text:"R",color:"#17382E",fontWeight:"900"}} icon={{path:google.maps.SymbolPath.CIRCLE,fillColor:"#52b9e9",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2,scale:13}}/>)}
-        {filteredFields.flatMap((field) => boundaryPolygonPaths(field.boundary).map((polygon, partIndex) => <Polygon key={`${field.id}-${partIndex}`} paths={polygon} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop), fillOpacity: layerOverlayVisible ? 0 : selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: layerOverlayVisible ? "#ffffff" : selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: !drawing && !splitting, zIndex: selectedFieldId === field.id ? 3 : 1 }} />))}
-        {!drawing&&!splitting&&filteredFields.filter((field) => field.id === selectedFieldId).map((field) => {
-          const points = boundaryPoints(field.boundary);
-          if (!points.length) return null;
-          const position = points.reduce((value, point) => ({ lat: value.lat + point.lat / points.length, lng: value.lng + point.lng / points.length }), { lat: 0, lng: 0 });
-          return <OverlayViewF key={`label-${field.id}`} position={position} mapPaneName="overlayMouseTarget"><button type="button" onClick={() => selectField(field)} className="ag-crop-marker"><span className="text-left"><span className="block text-[10px] font-black text-white">{field.field_name}</span><span className="block text-[9px] text-[#E6C784]">{field.cultivar || field.crop || "Unplanned"}</span></span></button></OverlayViewF>;
+        {filteredFields.flatMap((field) => boundaryPolygonPaths(field.boundary).map((polygon, partIndex) => <Polygon key={`${field.id}-${partIndex}`} paths={polygon} onClick={() => selectField(field)} options={{ fillColor: cropColor(field.crop,field.user_id), fillOpacity: layerOverlayVisible ? 0 : selectedFieldId === field.id ? 0.58 : 0.34, strokeColor: layerOverlayVisible ? "#ffffff" : selectedFieldId === field.id ? "#ffffff" : cropColor(field.crop,field.user_id), strokeWeight: selectedFieldId === field.id ? 4 : 2, clickable: !drawing && !splitting, zIndex: selectedFieldId === field.id ? 3 : 1 }} />))}
+        {!drawing&&!splitting&&showFarmNames&&farmNamePins.map(pin=><OverlayViewF key={pin.key} position={pin.position} mapPaneName="floatPane"><div className="ag-farm-name-pin"><span aria-hidden="true">📍</span> {pin.name}</div></OverlayViewF>)}
+        {!drawing&&!splitting&&showFieldLabels&&filteredFields.map(field=>{
+          const position=fieldLabelPosition(field.boundary);if(!position)return null;
+          return <OverlayViewF key={`label-${field.id}`} position={position} mapPaneName="overlayMouseTarget"><button type="button" onClick={()=>selectField(field)} aria-label={`Open ${field.field_name}, ${field.farm_name||'Farm unnamed'}, ${field.crop||'Crop unassigned'}`} className={`ag-crop-marker ${selectedFieldId===field.id?'ag-crop-marker-selected':''}`} style={{borderColor:cropColor(field.crop,field.user_id)}}><span className="ag-field-label-name">{field.field_name}</span><span className="ag-field-label-farm">{field.farm_name||'Farm unnamed'}</span><span className="ag-field-label-crop"><i aria-hidden="true" style={{background:cropColor(field.crop,field.user_id)}}/>{field.crop||'Crop unassigned'}</span></button></OverlayViewF>;
         })}
         {points.map((point, index) => <Marker key={`${point.lat}-${point.lng}-${index}`} position={point} label={(index + 1).toString()} />)}
         {points.length >= 3 && <Polygon paths={points} options={{ fillColor: "#B6CB8D", fillOpacity: 0.32, strokeColor: "#ffffff", strokeWeight: 3, clickable: false }} />}
@@ -419,6 +436,9 @@ export default function FarmMapPage() {
         <div className="flex flex-1 flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-[#17382E]/92 p-2 shadow-2xl backdrop-blur-xl">
           <div className="hidden px-2 sm:block"><p className="ag-kicker">Map workspace</p><p className="font-display text-sm font-bold">{filteredFields.length} fields · {filteredArea.toFixed(1)} ha</p></div>
           <div className="hidden h-8 w-px bg-white/10 sm:block" />
+          <button type="button" onClick={()=>setShowColourSettings(true)} className="rounded-lg border border-white/20 px-3 py-2 text-xs font-bold">Crop colours</button>
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={showFieldLabels} onChange={e=>setShowFieldLabels(e.target.checked)}/>Field labels</label>
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={showFarmNames} onChange={e=>setShowFarmNames(e.target.checked)}/>Farm pins</label>
           <button type="button" onClick={fitAll} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Fit all</button>
           <button type="button" onClick={() => setPlacingFarmPin((value) => !value)} className={`rounded-lg px-3 py-2 text-xs font-bold ${placingFarmPin ? "bg-amber-400 text-black" : "bg-white/[0.06]"}`}>{placingFarmPin ? "Tap farm location" : farmPin ? "Move farm pin" : "Set farm pin"}</button>
           <button type="button" onClick={beginNewField} className="rounded-lg bg-[#789B58] px-3 py-2 text-xs font-bold text-[#17382E]">+ Create new field</button>
@@ -432,10 +452,12 @@ export default function FarmMapPage() {
       <aside className={`${listOpen ? "translate-x-0" : "-translate-x-[110%]"} absolute bottom-3 left-3 top-3 z-20 flex w-[calc(100%-1.5rem)] max-w-[320px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#17382E]/95 shadow-2xl backdrop-blur-xl transition-transform lg:translate-x-0`}>
         <div className="border-b border-white/[0.07] p-4"><div className="flex items-center justify-between"><div><p className="ag-kicker">Farm map</p><h1 className="mt-1 text-xl font-extrabold">Fields</h1></div><button type="button" onClick={() => setListOpen(false)} className="rounded-lg p-2 text-gray-400 lg:hidden">✕</button></div><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search fields or crops…" className="mt-4 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm outline-none focus:border-[#789B58]/50" /><div className="mt-2 grid grid-cols-2 gap-2"><select value={farmFilter} onChange={(event) => setFarmFilter(event.target.value)} className="min-w-0 rounded-lg border border-white/[0.08] bg-[#203A31] px-2 py-2 text-xs">{farmFilters.map((farm) => <option key={farm}>{farm}</option>)}</select><select value={seasonFilter} onChange={(event) => setSeasonFilter(event.target.value)} className="min-w-0 rounded-lg border border-white/[0.08] bg-[#203A31] px-2 py-2 text-xs">{seasons.map((season) => <option key={season}>{season}</option>)}</select></div></div>
         {thematicLayers.length>0&&<section className="mx-2 mt-2 rounded-xl border border-white/10 bg-white/[.035] p-3"><p className="ag-kicker mb-2">Map layers</p>{thematicLayers.map(layer=><div key={layer.id}><label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-2 text-xs hover:bg-white/[.04]"><input type="checkbox" checked={visibleThematicIds.includes(layer.id)} disabled={loadingThematicIds.includes(layer.id)} onChange={event=>void toggleThematicLayer(layer.id,event.target.checked)} className="mt-0.5 accent-[#B6CB8D]"/><span><span className="block font-bold">{loadingThematicIds.includes(layer.id)?"Loading map…":layer.layer_type}</span><span className="mt-0.5 block text-white/55">{layer.file_name} · {layer.metadata?.feature_count||layer.geojson?.features.length||0} polygons</span></span></label>{visibleThematicIds.includes(layer.id)&&Object.entries(layer.metadata?.category_counts||{}).slice(0,6).map(([name,count])=><div key={name} className="ml-8 flex items-center gap-2 py-0.5 text-[10px] text-white/60"><i className="h-2.5 w-2.5 rounded-sm" style={{background:categoryColor(name)}}/>{name} <span className="ml-auto">{count}</span></div>)}</div>)}</section>}
-        <div className="flex-1 space-y-1 overflow-y-auto p-2">{filteredFields.map((field) => <button key={field.id} type="button" onClick={() => selectField(field)} className={`w-full rounded-xl border p-3 text-left transition ${selectedFieldId === field.id ? "border-[#789B58]/45 bg-[#789B58]/10" : "border-transparent hover:bg-white/[0.045]"}`}><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3"><span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cropColor(field.crop) }} /><div className="min-w-0"><p className="truncate text-sm font-bold">{field.field_name}</p><p className="mt-1 truncate text-xs text-[#77887e]">{field.crop || "Crop unassigned"} · {field.season || "No season"}</p></div></div><span className="shrink-0 text-xs font-bold text-[#B6CB8D]">{Number(field.area_ha).toFixed(1)} ha</span></div></button>)}{filteredFields.length === 0 && <p className="p-6 text-center text-sm text-[#77887e]">No fields match these filters.</p>}</div>
-        <MapLegend />
+        <div className="flex-1 space-y-1 overflow-y-auto p-2">{filteredFields.map((field) => <button key={field.id} type="button" onClick={() => selectField(field)} className={`w-full rounded-xl border p-3 text-left transition ${selectedFieldId === field.id ? "border-[#789B58]/45 bg-[#789B58]/10" : "border-transparent hover:bg-white/[0.045]"}`}><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3"><span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cropColor(field.crop,field.user_id) }} /><div className="min-w-0"><p className="truncate text-sm font-bold">{field.field_name}</p><p className="mt-1 truncate text-xs text-[#77887e]">{field.crop || "Crop unassigned"} · {field.season || "No season"}</p></div></div><span className="shrink-0 text-xs font-bold text-[#B6CB8D]">{Number(field.area_ha).toFixed(1)} ha</span></div></button>)}{filteredFields.length === 0 && <p className="p-6 text-center text-sm text-[#77887e]">No fields match these filters.</p>}</div>
+        <MapLegend items={legendItems} />
       </aside>
 
+      {paletteError&&<div role="alert" className="absolute bottom-3 left-3 right-3 z-20 rounded-xl bg-[#4c2924] p-3 text-sm text-[#ffe4dd] lg:left-[336px]">Saved crop colours could not load; default colours are shown. Apply the v6.39.0 migration if needed. <button onClick={()=>void loadCropColours()} className="font-bold underline">Retry</button></div>}
+      {showColourSettings&&<CropColourSettings fields={fields} colours={cropColours} userId={access.userId} canEdit={access.canEditModule('farm-map')} onSave={saveCropColour} onClose={()=>setShowColourSettings(false)}/>}
       {calculatedAreaHa !== null && <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 rounded-xl border border-[#789B58]/30 bg-[#17382E]/95 px-5 py-3 text-center shadow-xl"><p className="text-[10px] uppercase tracking-widest text-[#77887e]">Measured area</p><p className="font-display text-xl font-black text-[#B6CB8D]">{calculatedAreaHa.toFixed(2)} ha</p></div>}
 
       {showNewField&&<section className="absolute right-3 top-20 z-30 max-h-[calc(100%-6rem)] w-[calc(100%-1.5rem)] max-w-sm overflow-y-auto rounded-2xl border border-white/10 bg-[#17382E]/95 p-5 shadow-2xl backdrop-blur-xl">
@@ -452,7 +474,7 @@ export default function FarmMapPage() {
         <p className="mt-3 text-xs leading-5 text-[#77887e]">Tap around the field boundary. Keep the measured hectares or enter the official registered area.</p><button type="button" disabled={savingField||points.length<3} onClick={saveNewField} className="mt-4 w-full rounded-xl bg-[#789B58] py-3.5 font-extrabold text-[#17382E] disabled:opacity-40">{savingField?"Creating…":"Create field"}</button>
       </section>}
 
-      {selectedField&&!splitting && <FieldDrawer field={selectedField} activities={fieldActivities} loadingActivities={loadingActivities} showActivityForm={showActivityForm} activityMode={activityMode} activityType={activityType} activityDate={activityDate} activityNotes={activityNotes} savingActivity={savingActivity} plans={plans} planProducts={planProducts} planOperations={planOperations} catalogueProducts={catalogueProducts} standardOperations={standardOperations} actualisingPlanId={actualisingPlanId} inventory={inventory} inventoryLocations={inventoryLocations} ndviLayers={ndviLayers} ndviUrls={ndviUrls} selectedNdviId={selectedNdviId} ndviOpacity={ndviOpacity} onSelectNdvi={chooseNdvi} onNdviOpacityChange={setNdviOpacity} onClose={() => { setSelectedField(null); setShowActivityForm(false); }} onShowActivityForm={(mode) => { setActivityMode(mode); setShowActivityForm(true); }} onCancelActivityForm={() => setShowActivityForm(false)} onActivityModeChange={setActivityMode} onActivityTypeChange={setActivityType} onActivityDateChange={setActivityDate} onActivityNotesChange={setActivityNotes} onSaveActivity={saveFieldActivity} onActualisePlan={actualisePlan} onSaveFieldDetails={saveSelectedFieldDetails} onStartBoundaryEdit={beginBoundaryEdit} onStartSplit={beginSplit} />}
+      {selectedField&&!splitting && <FieldDrawer key={`${selectedField.id}:${selectedField.field_name}:${selectedField.area_ha}:${selectedField.farm_id||""}`} farmOptions={farms.filter(farm=>!farm.id.startsWith("legacy:")&&(!farm.user_id||farm.user_id===(selectedField.user_id||access.userId)))} field={selectedField} activities={fieldActivities} loadingActivities={loadingActivities} showActivityForm={showActivityForm} activityMode={activityMode} activityType={activityType} activityDate={activityDate} activityNotes={activityNotes} savingActivity={savingActivity} plans={plans} planProducts={planProducts} planOperations={planOperations} catalogueProducts={catalogueProducts} standardOperations={standardOperations} actualisingPlanId={actualisingPlanId} inventory={inventory} inventoryLocations={inventoryLocations} ndviLayers={ndviLayers} ndviUrls={ndviUrls} selectedNdviId={selectedNdviId} ndviOpacity={ndviOpacity} onSelectNdvi={chooseNdvi} onNdviOpacityChange={setNdviOpacity} onClose={() => { setSelectedField(null); setShowActivityForm(false); }} onShowActivityForm={(mode) => { setActivityMode(mode); setShowActivityForm(true); }} onCancelActivityForm={() => setShowActivityForm(false)} onActivityModeChange={setActivityMode} onActivityTypeChange={setActivityType} onActivityDateChange={setActivityDate} onActivityNotesChange={setActivityNotes} onSaveActivity={saveFieldActivity} onActualisePlan={actualisePlan} onSaveFieldDetails={saveSelectedFieldDetails} onStartBoundaryEdit={beginBoundaryEdit} onStartSplit={beginSplit} />}
       {splitting&&selectedField&&<section className="absolute right-3 top-20 z-30 w-[calc(100%-1.5rem)] max-w-sm rounded-2xl border border-white/10 bg-[#15191B]/95 p-5 text-white shadow-2xl backdrop-blur-xl"><p className="ag-kicker">Split boundary</p><h2 className="mt-1 text-lg font-extrabold">Name both field sections</h2><p className="mt-2 text-sm leading-5 text-white/70">Tap two points across the selected field. CropNex will extend the line to the boundary. {splitPoints.length}/2 points placed.</p><label className="field-label">First field name<input className="field-input" value={splitNames.first} onChange={event=>setSplitNames({...splitNames,first:event.target.value})}/></label><label className="field-label">Second field name<input className="field-input" value={splitNames.second} onChange={event=>setSplitNames({...splitNames,second:event.target.value})}/></label><p className="mt-2 text-xs leading-5 text-white/55">Existing plans stay with {splitNames.first || "the first field"}. The new field starts without copied plans or history. Works with a single outline without interior holes.</p><button type="button" disabled={savingField||splitPoints.length!==2||!splitNames.first.trim()||!splitNames.second.trim()||splitNames.first.trim()===splitNames.second.trim()} onClick={confirmSplit} className="mt-3 w-full rounded-xl bg-[#86CF34] py-2.5 text-sm font-extrabold text-[#111516] disabled:opacity-40">{savingField?"Splitting…":"Create both field boundaries"}</button><button type="button" onClick={cancelSplit} className="mt-2 w-full rounded-xl border border-white/10 py-2 text-sm">Cancel split</button></section>}
     </main>
   );

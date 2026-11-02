@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import FieldCard from "@/components/fields/FieldCard";
 import FieldForm from "@/components/fields/FieldForm";
@@ -16,6 +16,7 @@ const blankValues: FieldFormValues = {
 
 export default function FieldsPage() {
   const { currentSeason } = useSeason();
+  const [farms,setFarms]=useState<{id:string;name:string;farmer_id:string;user_id:string}[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [values, setValues] = useState<FieldFormValues>(blankValues);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
@@ -23,12 +24,12 @@ export default function FieldsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  async function loadFields() {
+  const loadFields=useCallback(async()=>{
     if (!currentSeason) { setFields([]); setLoading(false); return; }
     setLoading(true);
     setLoadError("");
     const { data, error } = await supabase.from("fields")
-      .select("id, user_id, created_at, field_name, farm_name, crop, season, planting_date, cultivar, soil_type, expected_yield, status, area_ha, notes, boundary")
+      .select("id, user_id, created_at, field_name, farm_name, farm_id, farmer_id, crop, season, planting_date, cultivar, soil_type, expected_yield, status, area_ha, notes, boundary")
       .eq("season", currentSeason).order("farm_name").order("field_name");
     if (error) {
       console.error("Could not load fields:", error);
@@ -36,12 +37,15 @@ export default function FieldsPage() {
     } else {
       setFields(((data || []) as Field[]).filter((field) => boundaryHasShape(field.boundary)));
     }
+    const farmResult=await supabase.from("farms").select("id,name,farmer_id,user_id").eq("active",true).order("name");
+    if(farmResult.error)setLoadError(farmResult.error.message);else setFarms(farmResult.data||[]);
     setLoading(false);
-  }
+  },[currentSeason]);
 
   function startEdit(field: Field) {
     setEditingFieldId(field.id);
     setValues({
+      farm_id:field.farm_id||farms.find(farm=>farm.user_id===field.user_id&&farm.name===field.farm_name)?.id||"",
       field_name: field.field_name, farm_name: field.farm_name || "", crop: field.crop || "",
       season: field.season || currentSeason, planting_date: field.planting_date || "", cultivar: field.cultivar || "",
       soil_type: field.soil_type || "", expected_yield: field.expected_yield === null ? "" : String(field.expected_yield),
@@ -56,10 +60,13 @@ export default function FieldsPage() {
     if (!editingFieldId) return;
     if (!values.field_name.trim()) return alert("Enter a field name.");
     if (!values.area_ha || Number(values.area_ha) <= 0) return alert("Enter a valid field area.");
+    const owner=fields.find(field=>field.id===editingFieldId)?.user_id;
+    const farm=farms.find(item=>item.id===values.farm_id&&item.user_id===owner);
+    if(!farm)return alert("Choose a saved farm. Create it in Farm Setup first if needed.");
     setSaving(true);
     try {
       const { error } = await supabase.from("fields").update({
-        field_name: values.field_name.trim(), farm_name: values.farm_name.trim() || null,
+        field_name: values.field_name.trim(), farm_name:farm.name, farm_id:farm.id, farmer_id:farm.farmer_id,
         crop: values.crop.trim() || null, planting_date: values.planting_date || null,
         cultivar: values.cultivar.trim() || null, soil_type: values.soil_type.trim() || null,
         expected_yield: values.expected_yield ? Number(values.expected_yield) : null,
@@ -71,7 +78,7 @@ export default function FieldsPage() {
     } finally { setSaving(false); }
   }
 
-  useEffect(() => { void loadFields(); }, [currentSeason]);
+  useEffect(() => {let active=true;void Promise.resolve().then(()=>{if(active)return loadFields()});return()=>{active=false}},[loadFields]);
 
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
@@ -82,7 +89,7 @@ export default function FieldsPage() {
 
       {editingFieldId && <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-5">
         <div className="mb-4"><p className="ag-kicker">Edit existing field</p><h2 className="mt-1 text-xl font-bold">Field details</h2><p className="mt-1 text-sm text-white/60">The boundary stays attached. To reshape it, select the field on the Farm Map.</p></div>
-        <FieldForm values={values} saving={saving} onChange={(name, value) => setValues((current) => ({ ...current, [name]: value }))} onSave={saveField} onCancel={cancelEdit} submitLabel="Save field details" />
+        <FieldForm farmOptions={farms.filter(farm=>farm.user_id===fields.find(field=>field.id===editingFieldId)?.user_id)} values={values} saving={saving} onChange={(name, value) => setValues((current) => ({ ...current, [name]: value }))} onSave={saveField} onCancel={cancelEdit} submitLabel="Save field details" />
       </section>}
 
       <section>

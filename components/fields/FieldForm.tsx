@@ -3,6 +3,7 @@
 import type { FieldFormValues } from "@/types/field";
 
 type FieldFormProps = {
+  farmOptions:{id:string;name:string}[];
   values: FieldFormValues;
   saving: boolean;
   onChange: (name: keyof FieldFormValues, value: string) => void;
@@ -13,6 +14,7 @@ type FieldFormProps = {
 
 export default function FieldForm({
   values,
+  farmOptions,
   saving,
   onChange,
   onSave,
@@ -33,12 +35,7 @@ export default function FieldForm({
           placeholder="Field 4"
         />
 
-        <Input
-          label="Farm"
-          value={values.farm_name}
-          onChange={(value) => onChange("farm_name", value)}
-          placeholder="Main Farm"
-        />
+        <label className="block text-sm text-gray-400">Farm<select required className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" value={values.farm_id||''} onChange={event=>{const farm=farmOptions.find(item=>item.id===event.target.value);onChange('farm_id',event.target.value);onChange('farm_name',farm?.name||'')}}><option value="">Choose a saved farm</option>{farmOptions.map(farm=><option key={farm.id} value={farm.id}>{farm.name}</option>)}</select><span className="mt-2 block text-xs">Create additional farms in Farm Setup.</span></label>
 
         <Input
           label="Crop"

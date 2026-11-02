@@ -33,6 +33,7 @@ export type Field = {
 };
 
 export type FieldFormValues = {
+  farm_id?: string;
   field_name: string;
   farm_name: string;
   crop: string;

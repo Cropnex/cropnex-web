@@ -20,6 +20,7 @@ type PreviewFeature = {
   valid: boolean;
   name: string;
   farm_name: string;
+  farm_id?: string;
   action: ImportAction;
   targetId: string;
   warning: string | null;
@@ -45,6 +46,8 @@ export default function BoundaryImportPage() {
   const [nameAttribute, setNameAttribute] = useState("");
   const [mode, setMode] = useState<ImportMode>("map-layer");
   const [layerType, setLayerType] = useState("Soil classification");
+  const [savedFarms,setSavedFarms]=useState<{id:string;name:string;farmer_id:string;user_id:string}[]>([]);
+  const [selectedFarmId,setSelectedFarmId]=useState("");
   const [farmName, setFarmName] = useState("");
   const [season, setSeason] = useState("");
   const [crop, setCrop] = useState("");
@@ -63,9 +66,11 @@ export default function BoundaryImportPage() {
   async function loadFields() {
     if (!currentSeason) return;
     // The import review only needs names and IDs; boundary GeoJSON can be large.
-    const { data, error: loadError } = await supabase.from("fields").select("id,field_name,farm_name,season").eq("season", currentSeason).order("farm_name").order("field_name");
+    const { data, error: loadError } = await supabase.from("fields").select("id,user_id,field_name,farm_name,farm_id,farmer_id,season").eq("season", currentSeason).order("farm_name").order("field_name");
     if (loadError) setError(`Could not load your field register: ${loadError.message}`);
     setFields((data || []) as Field[]);
+    const farmResult=await supabase.from("farms").select("id,name,farmer_id,user_id").eq("active",true).order("name");
+    if(farmResult.error)setError(`Could not load saved farms: ${farmResult.error.message}`);else setSavedFarms(farmResult.data||[]);
   }
 
   useEffect(() => {
@@ -108,7 +113,7 @@ export default function BoundaryImportPage() {
       setFeatures(parsed.features.map((feature, index) => {
         const baseName = String(feature.properties[parsed.nameAttribute] ?? `Field ${index + 1}`).trim() || `Field ${index + 1}`;
         const matchingField = fieldLookup.get(normalizeFieldName(baseName));
-        return { key: `${index}`, ...feature, name: baseName, farm_name: farmName.trim(), action: matchingField ? "update" : "create", targetId: matchingField?.id || "" };
+        return { key: `${index}`, ...feature, name: baseName, farm_name: farmName.trim(), farm_id:selectedFarmId, action: matchingField ? "update" : "create", targetId: matchingField?.id || "" };
       }));
       setReviewPage(0);
     } catch (parseError) {
@@ -213,6 +218,7 @@ export default function BoundaryImportPage() {
     if (selected.some((feature) => !feature.name.trim() || !feature.valid)) {
       return setError("This import has invalid coordinates or a missing field name. Correct those rows or skip them before importing.");
     }
+    if(selected.some(feature=>!savedFarms.some(farm=>farm.id===(feature.farm_id||selectedFarmId))))return setError("Choose a saved farm for every imported field. Create additional farms in Farm Setup first.");
     const creates = selected.filter((feature) => feature.action === "create");
     const updates = selected.filter((feature) => feature.action === "update");
     if (!confirm(`Import ${selected.length} field boundaries? This will create ${creates.length} fields and update ${updates.length} existing fields.`)) return;
@@ -225,9 +231,13 @@ export default function BoundaryImportPage() {
       const userId = auth.user?.id;
       if (!userId) throw new Error("Sign in before importing boundaries.");
       const payloadFor = (feature: PreviewFeature) => {
+        const farm=savedFarms.find(item=>item.id===(feature.farm_id||selectedFarmId));
+        if(!farm)throw new Error(`Choose a saved farm for ${feature.name}.`);
+        if(feature.action==="update"&&fields.find(field=>field.id===feature.targetId)?.user_id!==farm.user_id)throw new Error("The selected farm must belong to the same farming account as the existing field.");
         return {
+          user_id:farm.user_id,farm_id:farm.id,farmer_id:farm.farmer_id,
           field_name: feature.name.trim(),
-          farm_name: feature.farm_name.trim() || farmName.trim() || null,
+          farm_name:farm.name,
           crop: crop.trim() || null,
           season: selectedSeason.trim() || null,
           cultivar: cultivar.trim() || null,
@@ -242,7 +252,7 @@ export default function BoundaryImportPage() {
       const updateRows = selected.filter((feature) => feature.action === "update");
       let completed = 0;
       for (let offset = 0; offset < createRows.length; offset += 25) {
-        const batch = createRows.slice(offset, offset + 25).map((feature) => ({ user_id: userId, ...payloadFor(feature) }));
+        const batch = createRows.slice(offset, offset + 25).map((feature) => payloadFor(feature));
         const { error: insertError } = await supabase.from("fields").insert(batch);
         if (insertError) throw new Error(`Saved ${completed} of ${selected.length} boundaries before the database rejected a batch: ${insertError.message}`);
         completed += batch.length;
@@ -291,7 +301,7 @@ export default function BoundaryImportPage() {
         <aside className="space-y-5">
           <Panel title="1 · Choose how to import">
             <label className="field-label">Import mode<select className="field-input" value={mode} onChange={(event) => setMode(event.target.value as ImportMode)}><option value="map-layer">One map layer · best for soil classes</option><option value="field-boundaries">Create or update field boundaries</option></select></label>
-            {mode === "map-layer" ? <><label className="field-label">Map layer type<select className="field-input" value={layerType} onChange={(event) => setLayerType(event.target.value)}>{mapLayerTypes.map((type) => <option key={type}>{type}</option>)}</select></label><label className="field-label">Show this value inside each polygon<select className="field-input" value={displayAttribute} onChange={(event) => setDisplayAttribute(event.target.value)}><option value="">Choose an attribute</option>{attributes.map((attribute) => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label><p className="mt-2 text-xs leading-5 text-white/60">All polygon features and their inside rings remain together in one map layer. The original ZIP is also retained.</p></> : <><label className="field-label">Field-name column<select className="field-input" value={nameAttribute} onChange={(event) => changeNameAttribute(event.target.value)}>{attributes.map((attribute) => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label><Input label="Farm name" value={farmName} set={setFarmName} placeholder="Farm name"/><Input label="Crop (optional)" value={crop} set={setCrop} placeholder="Crop"/><Input label="Cultivar (optional)" value={cultivar} set={setCultivar} placeholder="Cultivar"/><p className="mt-2 text-xs leading-5 text-white/60">Each simple polygon feature becomes one field. Multipart shapes or interior rings must be imported as a map layer to preserve their full shape.</p></>}
+            {mode === "map-layer" ? <><label className="field-label">Map layer type<select className="field-input" value={layerType} onChange={(event) => setLayerType(event.target.value)}>{mapLayerTypes.map((type) => <option key={type}>{type}</option>)}</select></label><label className="field-label">Show this value inside each polygon<select className="field-input" value={displayAttribute} onChange={(event) => setDisplayAttribute(event.target.value)}><option value="">Choose an attribute</option>{attributes.map((attribute) => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label><p className="mt-2 text-xs leading-5 text-white/60">All polygon features and their inside rings remain together in one map layer. The original ZIP is also retained.</p></> : <><label className="field-label">Field-name column<select className="field-input" value={nameAttribute} onChange={(event) => changeNameAttribute(event.target.value)}>{attributes.map((attribute) => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label><label className="field-label">Farm<select required className="field-input" value={selectedFarmId} onChange={event=>{const farm=savedFarms.find(item=>item.id===event.target.value);setSelectedFarmId(event.target.value);setFarmName(farm?.name||'');setFeatures(current=>current.map(feature=>({...feature,farm_id:event.target.value,farm_name:farm?.name||''})))}}><option value="">Choose a saved farm</option>{savedFarms.map(farm=><option key={farm.id} value={farm.id}>{farm.name}</option>)}</select></label><p className="text-xs text-white/70">Create additional farms in Farm Setup before importing.</p><Input label="Crop (optional)" value={crop} set={setCrop} placeholder="Crop"/><Input label="Cultivar (optional)" value={cultivar} set={setCultivar} placeholder="Cultivar"/><p className="mt-2 text-xs leading-5 text-white/60">Each simple polygon feature becomes one field. Multipart shapes or interior rings must be imported as a map layer to preserve their full shape.</p></>}
           </Panel>
 
           <Panel title="2 · Select and preview a ZIP">
@@ -307,7 +317,7 @@ export default function BoundaryImportPage() {
 
         <section className="space-y-4">
           {features.length ? <><MapPreview features={features.filter((feature) => mode === "map-layer" || feature.action !== "skip")} attribute={mode === "map-layer" ? displayAttribute : nameAttribute}/>
-            {mode === "field-boundaries" && <div className="space-y-3"><div className="flex items-center justify-between gap-3 rounded-xl bg-black/15 p-3 text-sm"><span>Showing {Math.min(features.length, reviewPage * fieldReviewPageSize + 1)}–{Math.min(features.length, (reviewPage + 1) * fieldReviewPageSize)} of {features.length} fields</span><div className="flex gap-2"><button type="button" className="secondary" disabled={reviewPage === 0} onClick={() => setReviewPage((page) => Math.max(0, page - 1))}>Previous</button><button type="button" className="secondary" disabled={reviewPage + 1 >= reviewPageCount} onClick={() => setReviewPage((page) => Math.min(reviewPageCount - 1, page + 1))}>Next</button></div></div>{importProgress && <p role="status" className="rounded-lg bg-[var(--brand-leaf)]/10 p-3 text-sm">{importProgress}</p>}{reviewFeatures.map((feature, offset) => { const index = reviewPage * fieldReviewPageSize + offset; return <article key={feature.key} className={`ag-panel rounded-2xl p-4 ${feature.action === "skip" ? "opacity-55" : ""}`}><div className="grid gap-3 lg:grid-cols-[48px_1fr_1fr_150px_1fr_auto]"><div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--brand-leaf)]/15 text-sm font-bold text-[var(--brand-leaf)]">{index + 1}</div><Input label="Field name" value={feature.name} set={(value) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, name: value } : item))}/><Input label="Farm name" value={feature.farm_name} set={(value) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, farm_name: value } : item))}/><label className="field-label">Action<select className="field-input" value={feature.action} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, action: event.target.value as ImportAction } : item))}><option value="create">Create field</option><option value="update">Update existing</option><option value="skip">Skip</option></select></label><label className="field-label">Existing field<select disabled={feature.action !== "update"} className="field-input disabled:opacity-40" value={feature.targetId} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, targetId: event.target.value } : item))}><option value="">Choose field</option>{fields.map((field) => <option key={field.id} value={field.id}>{field.farm_name || "Farm"} · {field.field_name}</option>)}</select></label><div className="self-end pb-3 text-right"><b className="text-[var(--brand-leaf)]">{feature.areaHa.toFixed(2)} ha</b><p className="text-[10px] text-white/55">{feature.vertexCount.toLocaleString()} points</p></div></div>{feature.warning && <p className="mt-2 rounded-lg bg-amber-300/10 p-2 text-xs text-amber-100">{feature.warning}</p>}</article>; })}</div>}
+            {mode === "field-boundaries" && <div className="space-y-3"><div className="flex items-center justify-between gap-3 rounded-xl bg-black/15 p-3 text-sm"><span>Showing {Math.min(features.length, reviewPage * fieldReviewPageSize + 1)}–{Math.min(features.length, (reviewPage + 1) * fieldReviewPageSize)} of {features.length} fields</span><div className="flex gap-2"><button type="button" className="secondary" disabled={reviewPage === 0} onClick={() => setReviewPage((page) => Math.max(0, page - 1))}>Previous</button><button type="button" className="secondary" disabled={reviewPage + 1 >= reviewPageCount} onClick={() => setReviewPage((page) => Math.min(reviewPageCount - 1, page + 1))}>Next</button></div></div>{importProgress && <p role="status" className="rounded-lg bg-[var(--brand-leaf)]/10 p-3 text-sm">{importProgress}</p>}{reviewFeatures.map((feature, offset) => { const index = reviewPage * fieldReviewPageSize + offset; return <article key={feature.key} className={`ag-panel rounded-2xl p-4 ${feature.action === "skip" ? "opacity-55" : ""}`}><div className="grid gap-3 lg:grid-cols-[48px_1fr_1fr_150px_1fr_auto]"><div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--brand-leaf)]/15 text-sm font-bold text-[var(--brand-leaf)]">{index + 1}</div><Input label="Field name" value={feature.name} set={(value) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, name: value } : item))}/><label className="field-label">Farm<select required className="field-input" value={feature.farm_id||selectedFarmId} onChange={event=>{const farm=savedFarms.find(item=>item.id===event.target.value);setFeatures(list=>list.map(item=>item.key===feature.key?{...item,farm_id:event.target.value,farm_name:farm?.name||''}:item))}}><option value="">Choose a saved farm</option>{savedFarms.map(farm=><option key={farm.id} value={farm.id}>{farm.name}</option>)}</select></label><label className="field-label">Action<select className="field-input" value={feature.action} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, action: event.target.value as ImportAction } : item))}><option value="create">Create field</option><option value="update">Update existing</option><option value="skip">Skip</option></select></label><label className="field-label">Existing field<select disabled={feature.action !== "update"} className="field-input disabled:opacity-40" value={feature.targetId} onChange={(event) => setFeatures((list) => list.map((item) => item.key === feature.key ? { ...item, targetId: event.target.value } : item))}><option value="">Choose field</option>{fields.map((field) => <option key={field.id} value={field.id}>{field.farm_name || "Farm"} · {field.field_name}</option>)}</select></label><div className="self-end pb-3 text-right"><b className="text-[var(--brand-leaf)]">{feature.areaHa.toFixed(2)} ha</b><p className="text-[10px] text-white/55">{feature.vertexCount.toLocaleString()} points</p></div></div>{feature.warning && <p className="mt-2 rounded-lg bg-amber-300/10 p-2 text-xs text-amber-100">{feature.warning}</p>}</article>; })}</div>}
           </> : <div className="ag-panel rounded-2xl p-12 text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[var(--brand-leaf)]/15 text-2xl text-[var(--brand-leaf)]">◫</div><h2 className="mt-4 text-xl font-bold">Preview the complete shapefile</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/60">The app will draw every polygon, show the selected inside value and flag geometry issues before saving anything.</p></div>}
         </section>
       </div>
