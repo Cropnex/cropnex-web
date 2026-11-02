@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Activity } from "@/types/activity";
 import { useEffect, useState } from "react";
 import type { Field } from "@/types/field";
@@ -61,7 +62,7 @@ export default function FieldDrawer(props: Props) {
       <div className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#17382E]/95 p-5 backdrop-blur-xl">
         <div className="flex items-start justify-between gap-4"><div><p className="ag-kicker">Field workspace</p><h2 className="mt-1 text-2xl font-extrabold">{field.field_name}</h2><p className="mt-1 text-sm text-[#8d9d94]">{field.farm_name || "Farm"} · {field.crop || "No crop"}</p></div><button type="button" onClick={props.onClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm" aria-label="Close field details">✕</button></div>
         <div className="mt-4 grid grid-cols-3 gap-2"><Fact label="Area" value={`${Number(field.area_ha).toFixed(1)} ha`} /><Fact label="Season" value={field.season || "—"} /><Fact label="Status" value={field.status || "Active"} /></div>
-        <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setEditingDetails(value=>!value)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold">{editingDetails?"Close field editor":"Edit field name / area"}</button><button type="button" onClick={props.onStartBoundaryEdit} className="rounded-xl bg-[#86CF34] px-3 py-2 text-xs font-extrabold text-[#111516]">Redraw boundary</button></div>
+        <Link href={`/advisory?field=${props.field.id}&request=1`} className="mt-3 block rounded-xl border border-[#b6d896]/40 bg-[#29452d] px-3 py-3 text-center text-sm font-bold text-[#efffe5]">Request agronomy service</Link><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setEditingDetails(value=>!value)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold">{editingDetails?"Close field editor":"Edit field name / area"}</button><button type="button" onClick={props.onStartBoundaryEdit} className="rounded-xl bg-[#86CF34] px-3 py-2 text-xs font-extrabold text-[#111516]">Redraw boundary</button></div>
       </div>
 
       <div className="space-y-5 p-5">

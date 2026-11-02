@@ -1,0 +1,110 @@
+CropNex v6.38.0 — Agronomy & Advisory pilot
+Prepared 2 November 2026
+
+This is the FULL project, including all existing app pages, public assets,
+components, libraries, database migrations and tests. Dependency folders,
+generated build output, Git history and private environment files are excluded.
+Keep your existing .git folder and local environment files when replacing the
+project files in Codespaces. Vercel environment variables remain in Vercel.
+
+GET STARTED
+1. The adviser creates a CropNex account and requests Agronomist or Chemical
+   Representative access. The CropNex administrator approves that role in the
+   existing Verification Centre. Account approval remains manual.
+2. The farmer opens Farm Map, clicks a field and selects Request agronomy service.
+   Alternatively open Agronomy & Advisory under Insights and choose a field.
+3. Under Connections, invite the approved adviser by email. Optionally share
+   this field's activity plans, scouting observations or harvest history.
+   This does not grant finance access or access to other fields.
+4. The adviser signs in, opens Agronomy & Advisory and accepts the invitation.
+   Advisers see their permitted fields across clients, independently of their
+   own farm-season selection. They do not need to be made Farmers or admins.
+5. Create a request for chemical soil grids, soil classification, leaf analysis,
+   soil sampling, crop scouting, field inspection or another service. A saved
+   boundary is required. Field boundary, hectares, crop, cultivar and season
+   are captured with the request. Assign an active adviser immediately or later.
+6. The farmer or assigned adviser updates request status and scheduled date.
+   Record visits, descriptions, photographs and results against the field and,
+   optionally, the related request. Completed/cancelled requests remain history.
+7. The adviser creates a recommendation with products, seed or operations,
+   rates per hectare, unit prices, work date and instructions. Save a private
+   draft or submit it to the farmer. Submitted versions cannot be silently edited.
+8. A farmer with advisory editing AND planning approval access can approve,
+   return or decline. Approval creates the costed activity plan once using the
+   CURRENT field hectares and season. It does not actualise work or deduct stock.
+   Open Activities & Planning to review the plan and follow normal actualisation.
+
+REQUESTS AND RESULTS
+- Invitations and requests appear inside CropNex. This release does not send
+  automatic emails, SMS or WhatsApp notifications and does not book a paid lab.
+- Map location and GeoJSON boundary download are available for the field.
+- Upload private PDF, CSV, JPG, PNG, WebP, GeoJSON/JSON, ZIP or TIFF files up to 20 MB.
+  Choose Prepare private attachment, then Open attachment. Prepared download
+  links last five minutes; prepare a new link after expiry.
+- Grid CSV template is available in the upload window. Required columns:
+  sample_id,latitude,longitude,parameter,value,unit,depth_cm,sample_date
+  Use decimal coordinates and YYYY-MM-DD dates. Each parameter/unit/depth/date
+  combination becomes a separate measured-sample layer. Different sampling
+  rounds and units are not combined. Outside-boundary samples require confirmation.
+- Select Show grid results on field to see the measured sampling locations.
+  Colours show relative values, not sufficiency classes or interpolated zones.
+  PDFs, GeoTIFFs, classifications and zipped GIS files are retained as supporting
+  attachments; this pilot does not render those formats as map overlays.
+- Connections are per field. Revoking a connection blocks subsequent reads and
+  writes, and prevents approval of that adviser's submitted recommendations.
+  Previously downloaded files cannot be recalled; already prepared links may
+  remain usable until their five-minute expiry.
+- Organisation members can have view or edit access to the Advisory dashboard.
+  Existing field dashboard grants are copied to Advisory by the migration,
+  preserving view/edit distinctions. Employees remain view-only unless their
+  organisation role and explicit permissions are changed through administration.
+
+ONE NEW MIGRATION
+After the earlier v6.37.0 migrations have succeeded, run only:
+supabase/migrations/202610300001_agronomy_advisory.sql
+
+An identical standalone copy is provided as CropNex-v6.38.0-Migration.sql.
+Use one copy, not both. In Supabase SQL Editor paste the ENTIRE new migration
+and run it as a single query. It enables Row Level Security on every new table,
+creates a private attachment bucket, extends approved roles and adds checked
+workflow functions. It does not drop existing operational tables or records.
+Do not rerun earlier migrations that already succeeded.
+This workspace has NOT applied the migration to your live Supabase project.
+No new environment variable or service-role key is needed for this feature.
+
+AFTER COPYING THE FULL ZIP CONTENTS AND APPLYING THE MIGRATION
+Run in Codespaces:
+
+cd /workspaces/cropnex-web
+npm install &&
+npm run build &&
+git add -A &&
+git commit -m "CropNex v6.38.0 agronomy advisory and field service requests" &&
+git push origin main
+
+The && chain stops if a step fails. Confirm Vercel reports Ready for this commit.
+Then refresh CropNex and confirm version 6.38.0 before testing the new workflow.
+Keep your existing launch setting and account-approval policy unchanged.
+
+VALIDATION AND LIMITS
+- Full-project TypeScript check passed.
+- New advisory components compiled through the in-process webpack check.
+- Advisory lint check passed.
+- All 37 local automated tests passed, including existing boundary and Trials
+  tests, mapped sample validation and calculations, and migration contract checks.
+- Migration checks inspect permissions and workflow contracts; they are NOT a
+  substitute for execution against a real PostgreSQL/Supabase database.
+- Browser preview could not be completed because this session blocked access
+  to the local preview. Full Next.js production builds also require Codespaces:
+  this Windows session restricts build-worker process spawning.
+- Live Supabase authentication, role approval, RLS, storage and recommendation
+  approval were not exercised here because no live test connection was available.
+
+FIRST PILOT CHECK AFTER DEPLOYMENT
+Use one farmer account, one approved adviser account and two fields. Share only
+one field, accept it as the adviser, and confirm the other field is unavailable.
+Request a service, record a visit, upload a sample PDF and a grid CSV, submit a
+costed recommendation and approve it as the farmer. Confirm there is exactly one
+new plan and no stock deduction. Revoke access and verify the adviser cannot
+reload the field or prepare another attachment link. Verify a view-only employee
+cannot create requests, share fields or approve recommendations.

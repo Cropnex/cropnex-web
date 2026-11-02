@@ -199,3 +199,8 @@ textarea {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Advisory uses dark panels; preserve readable foregrounds inside the light app shell. */
+.ag-app-content main.ag-advisory-workspace,
+.ag-app-content main.ag-advisory-workspace .text-white { color: #f3f7f1; }
+.ag-advisory-workspace { color-scheme: dark; }

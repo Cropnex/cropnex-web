@@ -9,10 +9,10 @@ export const actionClass = "rounded-lg bg-[#91d346] px-4 py-2.5 text-sm font-bol
 export const secondaryClass = "rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-[#d3dfd6] hover:bg-white/10 disabled:opacity-50";
 const today = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; };
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+export function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block text-sm font-semibold text-[#cbd8cf]">{label}{children}</label>;
 }
-function DialogForm({ title, children, onClose, onSave }: {
+export function DialogForm({ title, children, onClose, onSave }: {
   title: string; children: React.ReactNode; onClose: () => void; onSave: (data: FormData) => Promise<void>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
