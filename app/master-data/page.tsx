@@ -13,6 +13,12 @@ const cropTypes=["Not applicable","Multi-crop","White Maize","Yellow Maize","Sun
 const units=["L","ml","kg","g","tonne","bag","unit","MK"];
 
 export default function MasterDataPage(){
+ const access=useAccess();
+ if(access.loading)return <main className="p-6">Checking administrator access…</main>;
+ if(!access.isAdmin)return <main className="p-6"><h1 className="text-2xl font-bold">Administrator access required</h1><p className="mt-3">Only CropNex administrators can open and manage Master Data. Approved products remain available in planning and inventory.</p></main>;
+ return <MasterDataWorkspace/>;
+}
+function MasterDataWorkspace(){
  const access=useAccess(),[products,setProducts]=useState<Product[]>([]),[operations,setOperations]=useState<Operation[]>([]),[requests,setRequests]=useState<Request[]>([]),[query,setQuery]=useState(""),[category,setCategory]=useState("All"),[showRequest,setShowRequest]=useState(false),[form,setForm]=useState(empty),[saving,setSaving]=useState(false),[selected,setSelected]=useState<Request|null>(null),[editing,setEditing]=useState<Product|null>(null),[editForm,setEditForm]=useState({name:"",manufacturer:"",product_class:"Unclassified",crop_type:"Not applicable",formulation:"",pack_size:"",pack_unit:"L",status:"Approved"}),[mergeId,setMergeId]=useState(""),[adminNote,setAdminNote]=useState("");
  async function load(){const[a,b,c]=await Promise.all([supabase.from("master_products").select("*").order("name"),supabase.from("product_requests").select("*").order("created_at",{ascending:false}),supabase.from("standard_operations").select("id,catalogue_code,name,description,unit,category,unit_cost,supplier,active").order("name")]);if(a.error)alert(a.error.message);else setProducts((a.data||[]) as Product[]);if(!b.error)setRequests((b.data||[]) as Request[]);if(!c.error)setOperations((c.data||[]) as Operation[])}
  useEffect(()=>{void load()},[]);

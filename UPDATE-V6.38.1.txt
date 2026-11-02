@@ -1,0 +1,42 @@
+CropNex v6.38.1 — Administrator-only Master Data
+
+Adviser registration
+1. Register using the normal CropNex sign-up page and verify the email.
+2. In Account verification, request Agronomist or Chemical Representative.
+3. A CropNex administrator approves that role in the Verification Centre.
+4. Each farmer invites the approved adviser by email to specific fields under
+   Agronomy & Advisory > Connections. The adviser accepts the invitation there.
+5. The adviser can work on those shared fields across clients. Approval of the
+   account alone does not grant access to farmers' fields or finance.
+
+Master Data
+- The Master Data page is now only under Administration.
+- Only CropNex administrators may open it. Farmer, adviser, employee and
+  organisation administrator accounts cannot open it, even with a saved old
+  dashboard grant or a direct URL. Non-admins never mount its data-loading workspace.
+- Master Data is no longer offered as an assignable organisation dashboard.
+- Existing database permissions already restrict shared master-product editing
+  and product-request approval to CropNex administrators; they remain in force.
+- Approved products remain selectable in planning, inventory and other permitted
+  workflows. Farm-specific operations/rates in Farm Setup are separate records;
+  their existing ownership rules are unchanged.
+- Master workbook import/export and request review remain available to admins.
+
+FULL PROJECT ZIP
+This contains the complete v6.38.0 agronomy pilot plus this restriction. Keep
+your existing .git and environment files when replacing source files.
+No NEW migration is required for 6.38.1.
+If you have NOT applied the v6.38.0 advisory migration yet, apply
+supabase/migrations/202610300001_agronomy_advisory.sql once after the earlier
+migrations have succeeded. If it already succeeded, do not run it again.
+
+After copying the full source ZIP into Codespaces:
+cd /workspaces/cropnex-web
+npm install &&
+npm run build &&
+git add -A &&
+git commit -m "CropNex v6.38.1 administrator-only master data" &&
+git push origin main
+
+Confirm Vercel is Ready on that commit and the app displays 6.38.1.
+This workspace has not deployed or modified your live database.
