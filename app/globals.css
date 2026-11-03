@@ -218,3 +218,29 @@ textarea {
 .ag-fields-workspace .ag-field-details input, .ag-fields-workspace .ag-field-details select, .ag-fields-workspace .ag-field-details textarea { background:#fff; color:#17251c; border-color:#26372b40; }
 .ag-app-content main.ag-fields-workspace dialog, .ag-app-content main.ag-fields-workspace dialog.text-white, .ag-app-content main.ag-fields-workspace dialog .text-white { color:#f3f7f1; }
 .ag-fields-workspace dialog { color-scheme:dark; }
+
+/* Dark workspaces and shared modal forms must not inherit light-page ink. */
+.ag-app-content main.ag-trials-workspace,
+.ag-app-content main.ag-trials-workspace .text-white {
+  color: #edf4ee;
+}
+.ag-trials-workspace { color-scheme: dark; }
+.ag-dark-dialog,
+.ag-app-content main:not(.ag-map-workspace) dialog.ag-dark-dialog,
+.ag-app-content main:not(.ag-map-workspace) dialog.ag-dark-dialog .text-white {
+  color: #f3f7f1;
+  color-scheme: dark;
+}
+.ag-dark-dialog :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background-color: #0d1e17;
+  color: #f3f7f1;
+  -webkit-text-fill-color: #f3f7f1;
+  caret-color: #f3f7f1;
+}
+.ag-dark-dialog :is(input, textarea)::placeholder {
+  color: #a9bfb0;
+  -webkit-text-fill-color: #a9bfb0;
+  opacity: 1;
+}
+.ag-dark-dialog option { background-color: #0d1e17; color: #f3f7f1; }
+.ag-dark-dialog :focus-visible { outline-color: #9ada65; }

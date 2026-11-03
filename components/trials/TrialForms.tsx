@@ -19,7 +19,7 @@ export function DialogForm({ title, children, onClose, onSave }: {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   useEffect(() => { const dialog = ref.current; if (!dialog) return; dialog.showModal(); dialog.querySelector<HTMLElement>("input,select,textarea")?.focus(); }, []);
   return <dialog ref={ref} aria-label={title} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
-    className="m-auto max-h-[90dvh] w-[min(94vw,680px)] overflow-y-auto rounded-2xl border border-white/20 bg-[#14261f] p-5 text-white shadow-2xl backdrop:bg-black/75 sm:p-7">
+    className="ag-dark-dialog m-auto max-h-[90dvh] w-[min(94vw,680px)] overflow-y-auto rounded-2xl border border-white/20 bg-[#14261f] p-5 text-white shadow-2xl backdrop:bg-black/75 sm:p-7">
     <div className="mb-5 flex items-center justify-between gap-4"><h2 className="text-xl font-bold">{title}</h2><button type="button" disabled={busy} onClick={onClose} aria-label="Close window" className={secondaryClass}>✕</button></div>
     <form onSubmit={async event => {
       event.preventDefault(); const data = new FormData(event.currentTarget); setBusy(true); setError("");

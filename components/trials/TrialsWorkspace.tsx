@@ -188,7 +188,7 @@ function SeasonTrialsWorkspace() {
     finally { setBusy(false); }
   }
 
-  return <main className="min-h-screen bg-[#14261f] p-4 text-[#edf4ee] sm:p-7">
+  return <main className="ag-trials-workspace min-h-screen bg-[#14261f] p-4 text-[#edf4ee] sm:p-7">
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-[#b3cd9e]">CropNex · {season.currentSeason}</p><h1 className="mt-2 text-3xl font-black">Trials</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#b8cbbf]">Each trial keeps its strips, products, visits, photographs and harvest results together.</p></div><div className="flex flex-wrap gap-2"><button onClick={() => void exportTrials()} disabled={busy || !workspace.trials.length} className={secondaryClass}>{busy ? "Working…" : "Export all trials"}</button>{canEdit && <button disabled={listLoading || Boolean(listError)} onClick={() => setModal({ kind: "trial" })} className={actionClass}>＋ New trial</button>}</div></header>
     {actionError && <p role="alert" className="mb-4 rounded-xl border border-red-300/30 bg-red-400/10 p-4 text-sm text-red-100">{actionError}</p>}
     {listError ? <Status title="Couldn’t load trials" text={listError} retry={() => { setListError(""); setListLoading(true); setListRevision(value => value + 1); }} /> : <div className="grid items-start gap-5 lg:grid-cols-[290px_minmax(0,1fr)]">

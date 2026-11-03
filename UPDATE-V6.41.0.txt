@@ -1,0 +1,91 @@
+CropNex v6.41.0 — Adviser clients, multi-field access and readable forms
+
+WHAT CHANGED
+- Adviser invitation: select multiple fields or All current fields for this
+  client, across the client's farms and seasons. No other client is included.
+- All current fields is a snapshot at invitation time. New fields and new
+  seasonal field records need another invitation; future access is not automatic.
+- Boundary, hectares, crop, cultivar and season accompany the field. Farmers
+  choose which existing plans (including input costs), scouting and harvest
+  history to share. Finance/banking dashboards are not granted by invitations.
+- Connections include field visits, scouting observations, private result and
+  photograph uploads, and recommendations. Advisers cannot change boundaries,
+  directly change field plans, approve their own recommendations, or actualise
+  work using this access. Farmers review recommendations before planned work
+  is created. Existing organisation rights remain separate.
+- Adviser client selector, season selector, farm filter and field search.
+  The latest shared season is shown by default, with older/all seasons selectable.
+- A clickable boundary overview shows permitted fields for that selection.
+  This is a geographic outline overview, not satellite imagery. Individual
+  fields show their boundary and uploaded grid samples, with map-location link.
+- Accept/decline invitations together by client, or individually. Review the
+  field list and shared history first. Farmers can revoke one field or all
+  listed connections for an adviser and client.
+- New Scouting tab records observations in the farmer's existing Scouting
+  records, with observer attribution, date, severity, notes and follow-up.
+  The adviser can see observations they created even if older history is not
+  shared. Access ends when the field connection is revoked. Use Results & files
+  > Scouting photographs for photos; files remain private advisory attachments.
+- Shared dark dialog and Trials workspace text no longer inherits dark ink
+  from the light app shell. Headings, checkbox labels, entered values,
+  placeholders, date/select controls and focus outlines are readable.
+- Account approval, launch settings, payments and subscriptions are unchanged.
+
+HOW THE FARMER SHARES ACCESS
+1. Agronomy & Advisory > choose client, season and field > Connections.
+2. Invite adviser / change sharing. Enter an existing approved adviser email.
+3. Select fields, or choose All current fields for this client.
+4. Check the history sharing options and save. New connections are Pending;
+   existing Active connections retain acceptance and get updated history choices.
+5. Fields not selected keep their existing access; omission does not revoke them.
+6. Revoke one under Connections, or use Manage adviser connections across fields.
+
+HOW THE ADVISER WORKS
+1. Sign in using an account approved as Agronomist or Chemical Representative.
+2. Open Agronomy & Advisory and accept the client's listed field invitations.
+3. Choose Client > Season > Farm > Field, or click a boundary on the overview.
+4. Record scoutings/visits, upload photos and results, and submit recommendations.
+5. The farmer reviews recommendations. Approval creates planned work only.
+
+MIGRATION — APPLY BEFORE DEPLOYING THIS VERSION
+Run supabase/migrations/202611030001_adviser_multi_field_access.sql once
+in Supabase SQL Editor. CropNex-v6.41.0-Migration.sql is an identical copy.
+This assumes all previous migrations through v6.40.0 already succeeded.
+It adds one nullable scouting observer column and permission-checked routines.
+It does not remove data or add broad adviser table-write policies. Existing
+row-level security remains in force. No new environment variables are needed.
+
+FULL PROJECT INSTALL
+Keep .git and your private .env files when replacing source from this FULL ZIP.
+Do not delete them. This is the full project, not a changes-only patch.
+After applying the new migration, run in Codespaces:
+
+cd /workspaces/cropnex-web
+npm install &&
+npm run build &&
+git add -A &&
+git commit -m "CropNex v6.41.0 adviser client workspace and contrast fixes" &&
+git push origin main
+
+Wait for Vercel Ready, then refresh and confirm v6.41.0 is shown.
+
+VALIDATION AND LIMITS
+Full-project TypeScript and 73 local tests passed. Targeted adviser component
+lint passed. Tests cover client/season separation, revoked-field fallback,
+selected-field scope, invitation grouping, map rendering, contrast ratios,
+migration guard contracts and the previous farm/trials/advisory tests.
+SQL guard tests are source-level checks, not live database permission tests.
+The migration has not been executed on your live Supabase database here and
+this version has not been deployed or verified in a signed-in live browser.
+Run the production build in Codespaces before pushing; this Windows environment
+has previously blocked Next build worker processes.
+
+FIRST LIVE CHECK
+Use one approved farmer and one approved adviser test account. Share two
+fields, accept together, verify only those appear, choose client/season/farm,
+record a scouting observation and confirm it in the farmer's Scouting page.
+Upload a private photo and submit a recommendation for farmer review. Revoke
+one field and refresh the adviser view: that field must disappear. Check an
+uninvited client remains inaccessible. Test All current fields and verify a
+newly created field stays private until invited. Open Add trial strip and
+check the heading, typed input and harvested checkbox label remain readable.
