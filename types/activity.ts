@@ -1,5 +1,7 @@
 export type Activity = {
   id: string;
+  field_id?: string | null;
+  season?: string | null;
   user_id?: string;
   activity_type: string;
   field_name: string;

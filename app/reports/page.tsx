@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { Field } from "@/types/field";
@@ -10,6 +10,8 @@ import type { Equipment } from "@/types/equipment";
 import type { Activity } from "@/types/activity";
 import type { WorkOrder } from "@/types/work-order";
 import { useSeason } from "@/components/season/SeasonProvider";
+import {allReportRows,reportEconomics,applicableCommitments,amount,stockNeedsAttention} from '@/lib/reporting';
+import {trialRequest} from '@/lib/trial-request';
 import { downloadManagementWorkbook } from "@/lib/management-workbook";
 import type {
   CategoryTotal,
@@ -37,94 +39,44 @@ export default function ReportsPage() {
   const [rainfall,setRainfall]=useState<RainfallReading[]>([]);
   const [rainGauges,setRainGauges]=useState<RainGauge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError,setLoadError]=useState('');
+  const sequence=useRef(0);
 
   async function loadReports() {
-    if(!currentSeason){setLoading(false);return;}
-    setLoading(true);
-
-    const fieldsResult = await supabase.from("fields").select("*").eq("season",currentSeason).order("field_name");
-    const loadedFields=(fieldsResult.data||[]) as Field[];
-    const priceGroups=new Map(loadedFields.filter(field=>field.user_id&&field.season&&field.crop).map(field=>[`${field.user_id}|${field.season}|${field.crop}`,field]));
-    await Promise.all([...priceGroups.values()].map(field=>supabase.rpc("reprice_grain_harvest",{p_user_id:field.user_id,p_season:field.season,p_crop:field.crop})));
-    const [
-      activitiesResult,
-      transactionsResult,
-      inventoryResult,
-      equipmentResult,
-      jobsResult,
-      harvestResult,
-      performanceResult,
-      commitmentsResult,
-      rainfallResult,
-      gaugesResult,
-    ] = await Promise.all([
-      supabase.from("activities").select("*").eq("season",currentSeason).order("date", {
-        ascending: false,
-      }),
-      supabase
-        .from("financial_transactions")
-        .select("*")
-        .order("transaction_date", { ascending: false }),
-      supabase.from("inventory_items").select("*").eq("season",currentSeason).order("name"),
-      supabase.from("equipment").select("*").order("name"),
-      supabase
-        .from("work_orders")
-        .select("*")
-        .order("planned_date", { ascending: false }),
-      supabase.from("field_harvest_live_summary").select("*").eq("season",currentSeason).order("finished").order("field_name"),
-      supabase.from("field_performance_report").select("*").eq("season",currentSeason).order("field_name"),
-      supabase.from("business_commitment_summary").select("*").order("category"),
-      supabase.from("rainfall_readings").select("id,gauge_id,reading_date,rainfall_mm,notes").order("reading_date", { ascending: false }),
-      supabase.from("rain_gauges").select("id,name,farm_name"),
-    ]);
-
-    const errors = [
-      fieldsResult.error,
-      activitiesResult.error,
-      transactionsResult.error,
-      inventoryResult.error,
-      equipmentResult.error,
-      jobsResult.error,
-      harvestResult.error,
-      performanceResult.error,
-      commitmentsResult.error,
-    ].filter(Boolean);
-
-    if (errors.length > 0) {
-      console.error(errors);
-      alert("Some report data could not be loaded.");
-    }
-
-    setFields(loadedFields);
-    setActivities((activitiesResult.data || []) as Activity[]);
-    // Keep farm-wide transactions (for example living expenses) in cash flow.
-    // Field margin calculations use field_performance_report separately.
-    setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
-    setInventory((inventoryResult.data || []) as InventoryItem[]);
-    setEquipment((equipmentResult.data || []) as Equipment[]);
-    setJobs((jobsResult.data || []) as WorkOrder[]);
-    setHarvestLive((harvestResult.data || []) as HarvestLive[]);
-    setPerformance((performanceResult.data||[]) as FieldPerformance[]);
-    setCommitmentSummary((commitmentsResult.data||[]) as CommitmentSummary[]);
-    setRainfall((rainfallResult.data||[]) as RainfallReading[]);
-    setRainGauges((gaugesResult.data||[]) as RainGauge[]);
-    setLoading(false);
+    const request=++sequence.current;
+    if(!currentSeason){setLoading(false);setLoadError('Choose or create a farm season before opening reports.');return;}
+    setLoading(true);setLoadError('');
+    try {
+      const result=await trialRequest(async signal=>{
+        const read=(table:string,seasonal=false,sort='id')=>allReportRows((from,to)=>{
+          let query=supabase.from(table).select('*');if(seasonal)query=query.eq('season',currentSeason);
+          if(table==='business_commitment_summary')query=query.order('source_id');return query.order(sort).range(from,to).abortSignal(signal);
+        });
+        return await Promise.all([read('fields',true),read('activities',true),read('financial_transactions'),read('inventory_items',true),read('equipment'),read('work_orders'),read('field_harvest_live_summary',true,'field_id'),read('field_performance_report',true,'field_id'),read('business_commitment_summary',false,'name'),read('rainfall_readings'),read('rain_gauges')]);
+      },undefined,60000);
+      if(request!==sequence.current)return;
+      const [f,a,t,i,e,j,h,p,c,r,g]=result;
+      reportEconomics(f as Field[],p as FieldPerformance[],t as FinancialTransaction[],c as CommitmentSummary[],currentSeason);
+      setFields(f as Field[]);setActivities(a as Activity[]);setTransactions(t as FinancialTransaction[]);setInventory((i as InventoryItem[]).filter(item=>item.status!=='Inactive'));setEquipment(e as Equipment[]);setJobs(j as WorkOrder[]);setHarvestLive(h as HarvestLive[]);setPerformance(p as FieldPerformance[]);setCommitmentSummary(c as CommitmentSummary[]);setRainfall(r as RainfallReading[]);setRainGauges(g as RainGauge[]);
+    } catch(error) { if(request===sequence.current)setLoadError(error instanceof Error?error.message:typeof error==='object'&&error&&'message' in error?String(error.message):'Report data could not be loaded. No complete report can be exported.'); }
+    finally {if(request===sequence.current)setLoading(false);}
   }
 
   useEffect(() => {
     if(seasonLoading)return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReports();
+    return()=>{sequence.current++};
   }, [currentSeason,seasonLoading]);
 
   const financialTotals = useMemo(() => {
     const income = transactions
       .filter((item) => item.transaction_type === "Income")
-      .reduce((sum, item) => sum + item.amount, 0);
+      .reduce((sum, item) => sum + amount(item.amount), 0);
 
     const expenses = transactions
       .filter((item) => item.transaction_type === "Expense")
-      .reduce((sum, item) => sum + item.amount, 0);
+      .reduce((sum, item) => sum + amount(item.amount), 0);
 
     return {
       income,
@@ -153,8 +105,9 @@ export default function ReportsPage() {
   }, [fields, performance]);
 
   const projectedTotals=useMemo(()=>fieldSummaries.reduce((totals,row)=>({income:totals.income+row.incomeTotal,expenses:totals.expenses+row.expenseTotal,margin:totals.margin+row.grossMargin}),{income:0,expenses:0,margin:0}),[fieldSummaries]);
-  const commitmentTotal=useMemo(()=>commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason).reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0),[commitmentSummary,currentSeason]);
-  const businessProjectedMargin=projectedTotals.margin-commitmentTotal;
+  const economics=useMemo(()=>reportEconomics(fields,performance,transactions,commitmentSummary,currentSeason),[fields,performance,transactions,commitmentSummary,currentSeason]);
+  const commitmentTotal=economics.commitmentTotal;
+  const businessProjectedMargin=economics.businessMargin;
 
   const categoryTotals: CategoryTotal[] = useMemo(() => {
     const totals = new Map<string, number>();
@@ -164,7 +117,7 @@ export default function ReportsPage() {
       .forEach((item) => {
         totals.set(
           item.category,
-          (totals.get(item.category) || 0) + item.amount
+          (totals.get(item.category) || 0) + amount(item.amount)
         );
       });
 
@@ -185,9 +138,9 @@ export default function ReportsPage() {
       };
 
       if (item.transaction_type === "Income") {
-        current.income += item.amount;
+        current.income += amount(item.amount);
       } else {
-        current.expenses += item.amount;
+        current.expenses += amount(item.amount);
       }
 
       totals.set(month, current);
@@ -205,11 +158,7 @@ export default function ReportsPage() {
     );
   }, [inventory]);
 
-  const lowStockCount = inventory.filter(
-    (item) =>
-      item.minimum_quantity !== null &&
-      item.quantity <= item.minimum_quantity
-  ).length;
+  const lowStockCount = inventory.filter(stockNeedsAttention).length;
 
   const serviceDueCount = equipment.filter((item) => {
     if (
@@ -260,8 +209,8 @@ export default function ReportsPage() {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall, gauges: rainGauges, performance, commitments: commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason) })}
-            disabled={loading}
+            onClick={() => downloadManagementWorkbook({ fields, activities, transactions, inventory, equipment, rainfall, gauges: rainGauges, performance, commitments: applicableCommitments(commitmentSummary,currentSeason), season:currentSeason })}
+            disabled={loading||Boolean(loadError)||!currentSeason}
             className="rounded-xl bg-[#789B58] px-5 py-3 font-bold text-[#17382E] disabled:opacity-50"
           >
             Export management workbook
@@ -289,8 +238,10 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {loading ? (
-        <p className="text-gray-400">Loading reports...</p>
+      {loadError&&<div role="alert" className="mb-5 rounded-xl bg-red-100 p-4 text-red-950">{loadError} <button onClick={()=>void loadReports()} className="underline">Retry reports</button></div>}
+      {!loading&&!loadError&&economics.unassignedTransactions.length>0&&<p className="mb-5 rounded-xl bg-amber-100 p-4 text-amber-950">{economics.unassignedTransactions.length} farm-wide transactions have no assigned season. They remain in the all-dates booked cash report, but are excluded from the seasonal forecast. Assign their season in Business & Finance.</p>}
+      {loading||loadError ? (
+        <p className="text-gray-400">{loadError?'Export unavailable until all report sources load.':'Loading reports…'}</p>
       ) : (
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -302,7 +253,7 @@ export default function ReportsPage() {
             <Summary
               label="Projected business margin"
               value={`R${businessProjectedMargin.toFixed(2)}`}
-              note={`Before commitments R${projectedTotals.margin.toFixed(2)}`}
+              note={`Includes R${economics.overheads.toFixed(2)} recorded farm-wide expenses and commitments. Commitments are budget allowances.`}
             />
             <Summary
               label="Inventory value"
@@ -352,8 +303,8 @@ export default function ReportsPage() {
                 label="Projected gross margin"
                 value={`R${projectedTotals.margin.toFixed(2)}`}
               />
-              <MetricRow
-                label="Equipment + business commitments"
+              <MetricRow label="Recorded farm-wide expenses" value={`R${economics.overheads.toFixed(2)}`}/><MetricRow label="Other recorded farm-wide income" value={`R${economics.otherIncome.toFixed(2)}`}/><MetricRow
+                label="Equipment + business commitment allowances"
                 value={`R${commitmentTotal.toFixed(2)}`}
               />
               <MetricRow
@@ -441,7 +392,7 @@ export default function ReportsPage() {
           </section>
 
           <section className="mt-8 grid gap-6 xl:grid-cols-2">
-            <Panel title="Expenses by Category">
+            <Panel title="Booked expenses by category · all recorded dates">
               {categoryTotals.length === 0 ? (
                 <p className="text-gray-400">
                   No expense data recorded.
@@ -482,7 +433,7 @@ export default function ReportsPage() {
               )}
             </Panel>
 
-            <Panel title="Monthly Cash Flow">
+            <Panel title="Booked cash movement · all recorded dates">
               {monthlyTotals.length === 0 ? (
                 <p className="text-gray-400">
                   No monthly data recorded.

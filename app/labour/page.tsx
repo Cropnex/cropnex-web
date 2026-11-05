@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import {trialRequest} from '@/lib/trial-request';
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { Employee, LabourEntry } from "@/types/labour";
@@ -42,7 +43,7 @@ export default function LabourPage() {
   const [entryForm, setEntryForm] = useState(emptyEntry);
   const [editingEmployeeId, setEditingEmployeeId] =
     useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false);const saveRequest=useRef<{payload:string;id:string}|null>(null);
 
   async function loadAll() {
     if (!currentSeason) return;
@@ -185,68 +186,20 @@ export default function LabourPage() {
         return;
       }
 
-      const hourlyRate = employee.hourly_rate;
-      const totalCost =
-        hourlyRate !== null ? hourlyRate * hours : null;
-
-      const { error } = await supabase
-        .from("labour_entries")
-        .insert({
-          user_id: data.user.id,
-          employee_id: employee.id,
-          field_id: entryForm.field_id || null,
-          work_order_id: entryForm.work_order_id || null,
-          work_date: entryForm.work_date,
-          start_time: entryForm.start_time || null,
-          end_time: entryForm.end_time || null,
-          hours_worked: hours,
-          activity_type: entryForm.activity_type,
-          description: entryForm.description.trim() || null,
-          hourly_rate: hourlyRate,
-          total_cost: totalCost,
-          notes: entryForm.notes.trim() || null,
-        });
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      if (entryForm.field_id && totalCost !== null) {
-        const { error: financialError } = await supabase
-          .from("financial_transactions")
-          .insert({
-            user_id: data.user.id,
-            field_id: entryForm.field_id,
-            transaction_date: entryForm.work_date,
-            transaction_type: "Expense",
-            category: "Labour",
-            description:
-              entryForm.description.trim() ||
-              `Labour - ${employee.full_name}`,
-            quantity: hours,
-            unit: "hours",
-            unit_price: hourlyRate,
-            amount: totalCost,
-            supplier_or_customer: employee.full_name,
-            reference: entryForm.work_order_id || null,
-            notes: entryForm.notes.trim() || null,
-          });
-
-        if (financialError) {
-          alert(financialError.message);
-          return;
-        }
-      }
-
+      const details={date:entryForm.work_date,start:entryForm.start_time,end:entryForm.end_time,hours,activity:entryForm.activity_type,description:entryForm.description.trim(),notes:entryForm.notes.trim(),job:entryForm.work_order_id};
+      const payload=JSON.stringify({employee:employee.id,field:entryForm.field_id,season:currentSeason,details});
+      if(saveRequest.current?.payload!==payload)saveRequest.current={payload,id:crypto.randomUUID()};const requestId=saveRequest.current.id;
+      const{error}=await trialRequest(()=>supabase.rpc('save_labour_entry',{p_request:requestId,p_employee:employee.id,p_field:entryForm.field_id||null,p_season:currentSeason,p_details:details}),undefined,60000);
+      if(error)throw new Error(error.message);saveRequest.current=null;
       setEntryForm(emptyEntry);
       await loadAll();
-    } finally {
+    } catch(e){alert(e instanceof Error?e.message:"Labour could not be saved. Retry the same details after a connection failure.");} finally {
       setSaving(false);
     }
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEntryForm(emptyEntry);
     void loadAll();
   }, [currentSeason]);

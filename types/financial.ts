@@ -11,6 +11,9 @@ export type FieldBudget = {
 
 export type FinancialTransaction = {
   id: string;
+  season?: string | null;
+  commitment_source_id?: string | null;
+  commitment_source_type?: string | null;
   user_id?: string;
   field_id: string | null;
   transaction_date: string;

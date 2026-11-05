@@ -12,7 +12,7 @@ export function trialRequest<T>(run: (signal: AbortSignal) => PromiseLike<T>, si
     };
     const cancel = () => { controller.abort(); finish(new Error("Request cancelled")); };
     const timer = setTimeout(() => {
-      finish(new Error("CropNex did not respond within 15 seconds. Please try again."));
+      finish(new Error(`CropNex did not respond within ${Math.round(timeoutMs/1000)} seconds. Please try again.`));
       controller.abort();
     }, timeoutMs);
     if (signal?.aborted) { cancel(); return; }

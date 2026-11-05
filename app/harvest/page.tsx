@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import {allReportRows} from '@/lib/reporting';
+import {trialRequest} from '@/lib/trial-request';
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { Field } from "@/types/field";
@@ -28,24 +30,13 @@ export default function HarvestPage() {
   const [records, setRecords] = useState<HarvestRecord[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const saveRequest=useRef<{payload:string;id:string}|null>(null);
 
-  async function loadAll() {
-    if(!currentSeason)return;
-    const [fieldsResult, recordsResult] = await Promise.all([
-      supabase.from("fields").select("*").eq("season",currentSeason).order("field_name"),
-      supabase
-        .from("harvest_records")
-        .select("*")
-        .eq("season",currentSeason)
-        .order("harvest_date", { ascending: false }),
-    ]);
-
-    if (fieldsResult.error) alert(fieldsResult.error.message);
-    if (recordsResult.error) alert(recordsResult.error.message);
-
-    setFields((fieldsResult.data || []) as Field[]);
-    setRecords((recordsResult.data || []) as HarvestRecord[]);
-  }
+  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState('');const sequence=useRef(0);
+  async function loadAll(){const request=++sequence.current;if(!currentSeason){setLoading(false);return;}setLoading(true);setLoadError('');try{const [f,r]=await trialRequest(signal=>Promise.all([
+    allReportRows<Field>((a,b)=>supabase.from('fields').select('*').eq('season',currentSeason).order('field_name').order('id').range(a,b).abortSignal(signal)),
+    allReportRows<HarvestRecord>((a,b)=>supabase.from('harvest_records').select('*').eq('season',currentSeason).order('harvest_date',{ascending:false}).order('id').range(a,b).abortSignal(signal))
+  ]),undefined,60000);if(request!==sequence.current)return;setFields(f);setRecords(r);}catch(e){if(request===sequence.current)setLoadError(e instanceof Error?e.message:String((e as {message?:string})?.message||e));}finally{if(request===sequence.current)setLoading(false);}}
 
   async function saveHarvest() {
     if (!form.field_id || !form.harvest_date) {
@@ -66,159 +57,33 @@ export default function HarvestPage() {
     setSaving(true);
 
     try {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        alert("You must be logged in.");
-        return;
-      }
-
-      const pricePerTonne = form.price_per_tonne
-        ? Number(form.price_per_tonne)
-        : null;
-
-      const transportCost = form.transport_cost
-        ? Number(form.transport_cost)
-        : 0;
-
-      const otherCost = form.other_cost
-        ? Number(form.other_cost)
-        : 0;
-
-      const { error } = await supabase
-        .from("harvest_records")
-        .insert({
-          user_id: data.user.id,
-          field_id: field.id,
-          harvest_date: form.harvest_date,
-          crop: field.crop,
-          season: field.season,
-          area_ha: field.area_ha,
-          tonnes_harvested: tonnes,
-          moisture_percent: form.moisture_percent
-            ? Number(form.moisture_percent)
-            : null,
-          quality_grade: form.quality_grade.trim() || null,
-          destination_type: form.destination_type,
-          destination_name: form.destination_name.trim() || null,
-          price_per_tonne: pricePerTonne,
-          transport_cost: transportCost || null,
-          other_cost: otherCost || null,
-          notes: form.notes.trim() || null,
-        });
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      const yieldPerHa = tonnes / field.area_ha;
-
-      const { error: activityError } = await supabase
-        .from("activities")
-        .insert({
-          user_id: data.user.id,
-          activity_type: "Harvesting",
-          field_name: field.field_name,
-          crop: field.crop,
-          date: form.harvest_date,
-          area_ha: field.area_ha,
-          notes: `${tonnes.toFixed(2)} t harvested at ${yieldPerHa.toFixed(
-            2
-          )} t/ha`,
-        });
-
-      if (activityError) {
-        alert(activityError.message);
-        return;
-      }
-
-      if (pricePerTonne !== null) {
-        const grossRevenue = tonnes * pricePerTonne;
-
-        const { error: incomeError } = await supabase
-          .from("financial_transactions")
-          .insert({
-            user_id: data.user.id,
-            field_id: field.id,
-            transaction_date: form.harvest_date,
-            transaction_type: "Income",
-            category: "Crop Sale",
-            description: `${field.crop || "Crop"} harvest - ${
-              field.field_name
-            }`,
-            quantity: tonnes,
-            unit: "t",
-            unit_price: pricePerTonne,
-            amount: grossRevenue,
-            supplier_or_customer:
-              form.destination_name.trim() || null,
-            reference: form.quality_grade.trim() || null,
-            notes: form.notes.trim() || null,
-          });
-
-        if (incomeError) {
-          alert(incomeError.message);
-          return;
-        }
-      }
-
-      const combinedCosts = transportCost + otherCost;
-
-      if (combinedCosts > 0) {
-        const { error: costError } = await supabase
-          .from("financial_transactions")
-          .insert({
-            user_id: data.user.id,
-            field_id: field.id,
-            transaction_date: form.harvest_date,
-            transaction_type: "Expense",
-            category: "Harvest",
-            description: `Harvest and transport costs - ${field.field_name}`,
-            quantity: tonnes,
-            unit: "t",
-            unit_price: combinedCosts / tonnes,
-            amount: combinedCosts,
-            supplier_or_customer: null,
-            reference: null,
-            notes: form.notes.trim() || null,
-          });
-
-        if (costError) {
-          alert(costError.message);
-          return;
-        }
-      }
-
-      if (form.complete_field) {
-        const { error: completionError } = await supabase.rpc("complete_transport_field_harvest", {
-          p_field_id: field.id,
-          p_completion_date: form.harvest_date,
-          p_notes: form.notes.trim() || null,
-        });
-        if (completionError) {
-          alert(`Harvest record saved, but the field could not be marked complete: ${completionError.message}`);
-          return;
-        }
-      }
-
+      const details={tonnes,price:form.price_per_tonne?Number(form.price_per_tonne):null,transport_cost:Number(form.transport_cost||0),other_cost:Number(form.other_cost||0),moisture:form.moisture_percent?Number(form.moisture_percent):null,grade:form.quality_grade.trim(),destination_type:form.destination_type,destination:form.destination_name.trim(),notes:form.notes.trim()};
+      if(![details.tonnes,details.transport_cost,details.other_cost,...(details.price===null?[]:[details.price]),...(details.moisture===null?[]:[details.moisture])].every(Number.isFinite))throw new Error('Enter valid numeric quantities and prices.');
+      const payload=JSON.stringify({field:field.id,date:form.harvest_date,details,complete:form.complete_field});
+      if(saveRequest.current?.payload!==payload)saveRequest.current={payload,id:crypto.randomUUID()};
+      const requestId=saveRequest.current.id;
+      const {error}=await trialRequest(()=>supabase.rpc('save_manual_harvest',{p_request:requestId,p_field:field.id,p_date:form.harvest_date,p_details:details,p_complete:form.complete_field}),undefined,60000);
+      if(error)throw new Error(error.message);
+      saveRequest.current=null;
       setForm(emptyForm);
       await loadAll();
-    } finally {
+    } catch(error) { alert(error instanceof Error?error.message:"Harvest could not be saved. No partial capture should remain. Retry the same details if the connection timed out."); } finally {
       setSaving(false);
     }
   }
 
   useEffect(() => {
-    void loadAll();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAll();return()=>{sequence.current++;};
   }, [currentSeason]);
 
   const totals = useMemo(() => {
     const tonnes = records.reduce(
-      (sum, record) => sum + record.tonnes_harvested,
+      (sum, record) => sum + Number(record.tonnes_harvested),
       0
     );
 
-    const area = Array.from(new Map(records.map(record => [record.field_id, record.area_ha])).values()).reduce((sum, value) => sum + value, 0);
+    const area = Array.from(new Map(records.map(record => [record.field_id, record.area_ha])).values()).reduce((sum, value) => sum + Number(value), 0);
 
     const revenue = records.reduce(
       (sum, record) =>
@@ -250,6 +115,7 @@ export default function HarvestPage() {
     return Array.from(grouped.values()).sort((a,b) => b.latestDate.localeCompare(a.latestDate));
   }, [records,fields]);
 
+  if(loading||loadError)return <main className="p-6"><h1 className="text-3xl font-bold">Harvest & Yield</h1><p role="status" className="my-4">{loadError||'Loading complete harvest records…'}</p>{loadError&&<button className="primary" onClick={()=>void loadAll()}>Retry</button>}</main>;
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">

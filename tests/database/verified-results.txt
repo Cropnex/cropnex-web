@@ -1,0 +1,68 @@
+PASS 202609050001_agcore_v3_additions.sql
+PASS 202609050002_farm_map_anchor.sql
+PASS 202609055000_cropnex_foundation.sql
+PASS 202609060001_planning_actuals_inventory.sql
+PASS 202609060002_standard_lists.sql
+PASS 202609180001_crop_programmes_and_layers.sql
+PASS 202609180002_grain_marketplace.sql
+PASS 202609180003_admin_verification_and_roles.sql
+PASS 202609180004_master_product_catalogue.sql
+PASS 202609180005_seed_master_products.sql
+PASS 202609180006_seed_master_products.sql
+PASS 202609180007_seed_master_products.sql
+PASS 202609180008_seed_master_products.sql
+PASS 202609180009_seed_master_products.sql
+PASS 202609180010_seed_master_products.sql
+PASS 202609220001_catalogue_first_planning.sql
+PASS 202609230001_repair_field_farm_links.sql
+PASS 202609230002_template_activity_due_dates.sql
+PASS 202609230003_inventory_price_refresh.sql
+PASS 202609230004_custom_catalogue_planning.sql
+PASS 202609240001_product_classification.sql
+PASS 202609300001_equipment_service_workflow.sql
+PASS 202609300002_ndvi_scouting.sql
+PASS 202609300003_inventory_network.sql
+PASS 202609300004_organizations_and_assignments.sql
+PASS 202609300005_transport_log.sql
+PASS 202610010001_transport_harvest_reporting.sql
+PASS 202610010002_contract_allocation_and_seasons.sql
+PASS 202610020001_farm_records_scanner_and_pricing.sql
+PASS 202610040001_harvest_plans_and_admin_hectares.sql
+PASS 202610040002_field_reporting_engine.sql
+PASS 202610040003_yield_expectations_and_commitments.sql
+PASS 202610040004_clean_season_rollover.sql
+PASS 202610060001_shed_control_centre.sql
+PASS 202610060002_repair_inventory_transfer_receipt.sql
+PASS 202610060003_activity_source_sheds.sql
+PASS 202610190001_cropnex_map_storage.sql
+PASS 202610190002_cropnex_workspace_defaults.sql
+PASS 202610190003_cropnex_admin_rpc.sql
+PASS 202610200001_cropnex_master_seed_catalogue.sql
+PASS 202610220001_actuals_allow_negative_stock.sql
+PASS 202610220002_cropnex_pre_subscribers.sql
+PASS 202610230001_cropnex_whatsapp_farm_inbox.sql
+PASS 202610260001_grouped_activity_actuals.sql
+PASS 202610270001_harvest_reporting_and_completion.sql
+PASS 202610270002_map_actuals_add_replace_catalogue_items.sql
+PASS 202610270003_organization_dashboard_access.sql
+PASS 202610290001_trials_and_team_roles.sql
+PASS 202610290002_trial_strips_and_visits.sql
+PASS 202610300001_agronomy_advisory.sql
+PASS 202611020001_farm_map_crop_colours.sql
+PASS 202611020002_required_field_farm.sql
+PASS 202611020003_fields_farm_management_access.sql
+PASS 202611030001_adviser_multi_field_access.sql
+PASS 202611030002_workflow_report_integrity.sql
+ALL MIGRATIONS EXECUTED
+PASS actual -> negative stock, activity costs and duplicate retry protection
+PASS manual harvest -> one capture, one income, one expense, season and reconciled field margin
+PASS transport -> Harvest/report tonnes, retry without duplicates, unreconcile removes derived harvest
+PASS completion keeps unconfirmed work planned; Harvest and field report share cost/income/margin
+PASS late save failure rolls back harvest, activity and financial postings
+PASS wrong-season field transactions rejected
+PASS unallocated labour -> one season-specific overhead expense, safe retry
+PASS authenticated RLS: own idempotent save works; another farmer cannot read or change the records
+PASS grouped actual: added catalogue product + operation, two fields, correct per-field quantities and costs, actual date range
+PASS reviewed scanner receipt: one stock posting per request; a bad later line rolls back earlier lines
+PASS contract edits immediately reprice harvested allocations without changing tonnes or needing Reports to open
+DATABASE WORKFLOW SCENARIOS PASSED

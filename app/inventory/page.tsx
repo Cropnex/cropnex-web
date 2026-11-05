@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {stockNeedsAttention} from '@/lib/reporting';
 import { supabase } from "@/lib/supabase";
 import type { InventoryItem, InventoryLocation, InventoryTransaction, InventoryTransfer } from "@/types/inventory";
 import { useSeason } from "@/components/season/SeasonProvider";
@@ -47,8 +48,8 @@ export default function InventoryPage(){
   useEffect(()=>{void load()},[currentSeason]);// eslint-disable-line react-hooks/exhaustive-deps
 
   const locationName=(id:string|null|undefined)=>locations.find(x=>x.id===id)?.name||"Unassigned";
-  const summary=useMemo(()=>({value:items.reduce((s,x)=>s+Number(x.quantity)*Number(x.unit_cost||0),0),low:items.filter(x=>x.minimum_quantity!==null&&Number(x.quantity)<=Number(x.minimum_quantity)).length,inTransit:transfers.filter(x=>x.status==="Dispatched").length}),[items,transfers]);
-  const locationRows=useMemo(()=>locations.map(l=>{const stock=items.filter(i=>i.location_id===l.id);return{...l,itemCount:stock.length,value:stock.reduce((s,x)=>s+Number(x.quantity)*Number(x.unit_cost||0),0),low:stock.filter(x=>x.minimum_quantity!==null&&Number(x.quantity)<=Number(x.minimum_quantity)).length}}),[locations,items]);
+  const summary=useMemo(()=>({value:items.reduce((s,x)=>s+Number(x.quantity)*Number(x.unit_cost||0),0),low:items.filter(stockNeedsAttention).length,inTransit:transfers.filter(x=>x.status==="Dispatched").length}),[items,transfers]);
+  const locationRows=useMemo(()=>locations.map(l=>{const stock=items.filter(i=>i.location_id===l.id);return{...l,itemCount:stock.length,value:stock.reduce((s,x)=>s+Number(x.quantity)*Number(x.unit_cost||0),0),low:stock.filter(stockNeedsAttention).length}}),[locations,items]);
   const matchingProducts=catalogue.filter(p=>!productQuery.trim()||`${p.catalogue_code} ${p.name} ${p.product_class||p.category} ${p.crop_type||""}`.toLowerCase().includes(productQuery.toLowerCase())).slice(0,30);
   const stocktakeItems=items.filter(x=>x.location_id===stocktakeLocation);
   const displayedItems=items.filter(x=>activeLocation==="all"||x.location_id===activeLocation);

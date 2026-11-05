@@ -1,0 +1,25 @@
+CropNex v6.42.0 — FULL PROJECT UPDATE
+
+Keep .git and your environment files. Overwrite the project source with the ZIP contents.
+
+First run ONLY CropNex-v6.42.0-Migration.sql in the existing v6.41.0 Supabase project SQL Editor. It is the same file as supabase/migrations/202611030002_workflow_report_integrity.sql. Do not replay older migrations manually.
+
+Then run in Codespaces:
+
+cd /workspaces/cropnex-web
+npm install
+npm test
+npm run build
+
+Only after every command above succeeds:
+
+git status
+git add -A
+git commit -m "CropNex v6.42.0 workflow and reporting reconciliation"
+git push
+
+Wait for Vercel Ready, then confirm v6.42.0 appears in CropNex. These commands do not apply a database migration automatically.
+
+Local validation: TypeScript and regression/database tests passed; webpack compiled but Windows denied generated prerender folders (EPERM), so the complete production build must pass in Codespaces before publishing.
+
+Read WORKFLOW-AUDIT-V6.42.0.md for fixes, report scope and the two Kalkpan source entries needing review. The live AUDIT ONLY trial does not affect stock or field financial records.

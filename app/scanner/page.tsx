@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import {trialRequest} from '@/lib/trial-request';
 import { ModulePage } from "@/components/layout/ModulePage";
 import { supabase } from "@/lib/supabase";
 import { useSeason } from "@/components/season/SeasonProvider";
@@ -66,6 +67,7 @@ type Mapping = {
     target: string;
 };
 export default function ScannerPage() {
+    const confirmRequest=useRef<{payload:string;id:string}|null>(null);
     const {currentSeason}=useSeason();
     const [type, setType] = useState("Transport delivery note"), [file, setFile] = useState<File | null>(null), [data, setData] = useState<ScanData | null>(null), [fields, setFields] = useState<Field[]>([]), [items, setItems] = useState<Item[]>([]), [masters, setMasters] = useState<Master[]>([]), [locations, setLocations] = useState<Location[]>([]), [fieldId, setFieldId] = useState(""), [locationId, setLocationId] = useState(""), [mappings, setMappings] = useState<Mapping[]>([]), [busy, setBusy] = useState(false), [stage, setStage] = useState("");
     const [listError, setListError] = useState("");
@@ -85,7 +87,9 @@ export default function ScannerPage() {
         } catch (error) { setListError(controller.signal.aborted ? "The scanner’s farm and inventory lists did not respond. Check your connection and retry." : error instanceof Error ? error.message : "CropNex could not load the scanner's farm and inventory lists."); }
         finally { window.clearTimeout(timeout); }
     }
-    useEffect(() => { void loadLists(); }, [currentSeason]);
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void loadLists(); }, [currentSeason]);
     function bestTarget(line: ScanLine) { const text = `${line.product_code || ""} ${line.product_name}`.toLowerCase(), existing = items.find(x => text.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(line.product_name.toLowerCase())); if (existing)
         return `item:${existing.id}`; const master = masters.find(x => text.includes(x.catalogue_code.toLowerCase()) || text.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(line.product_name.toLowerCase())); return master ? `master:${master.id}` : ""; }
     async function prepareImage(source: File) {
@@ -170,79 +174,16 @@ export default function ScannerPage() {
     }
     function setHeader(key: keyof ScanData, value: string) { setData(current => current ? { ...current, [key]: ['net_tonnes','gross_tonnes','tare_tonnes','accepted_tonnes','rejected_tonnes','moisture_percent'].includes(key) ? (value === '' ? null : Number(value)) : value } : current); }
     function setLine(index: number, key: keyof ScanLine, value: string) { setData(current => current ? { ...current, inventory_items: current.inventory_items.map((line, i) => i === index ? { ...line, [key]: ['quantity', 'unit_price', 'confidence'].includes(key) ? (value === '' ? null : Number(value)) : value } : line) } : current); }
-    async function postInventory(uid: string) {
-        if (!data)
-            return { error: "Nothing to post", ids: [] as string[] };
-        const selected = data.inventory_items.map((line, index) => ({ line, map: mappings[index] })).filter(x => x.map?.enabled);
-        if (!selected.length)
-            return { error: "Select at least one product.", ids: [] as string[] };
-        if (!locationId)
-            return { error: "Choose the receiving shed or warehouse.", ids: [] as string[] };
-        if (selected.some(x => !x.map.target))
-            return { error: "Match every selected product to an existing inventory item or approved catalogue product.", ids: [] as string[] };
-        const ids: string[] = [];
-        for (const { line, map } of selected) {
-            let item: Item | undefined;
-            if (map.target.startsWith("item:"))
-                item = items.find(x => x.id === map.target.slice(5));
-            else {
-                const master = masters.find(x => x.id === map.target.slice(7)), location = locations.find(x => x.id === locationId);
-                if (!master)
-                    return { error: `Catalogue match missing for ${line.product_name}.`, ids };
-                const created = await supabase.from("inventory_items").insert({ user_id: uid, season:currentSeason, master_product_id: master.id, name: master.name, category: master.product_class || master.category, unit: line.unit || master.pack_unit || "unit", quantity: 0, unit_cost: line.unit_price, minimum_quantity: null, supplier: data.supplier, batch_number: line.batch_number, location: location?.name || null, location_id: locationId, status: "Active", notes: "Created from AI-scanned receipt", owner_type: "Farmer", stock_status: "Available" }).select("id,name,unit,quantity,unit_cost,location_id").single();
-                if (created.error)
-                    return { error: created.error.message, ids };
-                item = created.data as Item;
-            }
-            if (!item || line.quantity <= 0)
-                return { error: `Confirm a valid quantity for ${line.product_name}.`, ids };
-            const tx = await supabase.rpc("post_inventory_movement",{p_item_id:item.id,p_transaction_date:data.document_date||new Date().toISOString().slice(0,10),p_movement:"Receipt",p_quantity:line.quantity,p_unit_cost:line.unit_price??item.unit_cost,p_reference:data.reference||data.ticket_number,p_reason:`AI Scanner · ${data.supplier||"Receipt"} · ${line.product_name}`,p_field_id:null});
-            if (tx.error)return { error: tx.error.message, ids };
-            ids.push(item.id);
-        }
-        return { error: "", ids };
-    }
-    async function confirm() {
-        if (!data || !file)
-            return;
-        const { data: auth } = await supabase.auth.getSession(), uid = auth.session?.user.id;
-        if (!uid)
-            return;
-        setBusy(true);
-        let ids: string[] = [];
-        let errorMessage = "";
-        if (data.document_type === "Transport delivery note") {
-            const field = fields.find(x => x.id === fieldId);
-            if (!field || data.net_tonnes === null || data.net_tonnes <= 0) {
-                setBusy(false);
-                return alert("Choose the field and confirm a net weight.");
-            }
-            const load = await supabase.from("transport_loads").insert({ user_id: uid, load_number: data.load_number || data.ticket_number || `SCAN-${Date.now()}`, load_date: data.document_date || new Date().toISOString().slice(0, 10), destination_name: data.destination_name, truck_registration: data.truck_registration, trailer_registration: data.trailer_registration, transporter: data.transporter, driver_name: data.driver_name, ticket_number: data.ticket_number, gross_tonnes: data.gross_tonnes, tare_tonnes: data.tare_tonnes, net_tonnes: data.net_tonnes, accepted_tonnes: data.accepted_tonnes, rejected_tonnes: data.rejected_tonnes, moisture_percent: data.moisture_percent, grade: data.grade, status: "Reconciled", source: "AI Scanner", created_by: uid, notes: [data.notes, data.reference ? `Reference: ${data.reference}` : null, data.supplier ? `Supplier: ${data.supplier}` : null].filter(Boolean).join(" · ") || null }).select("id").single();
-            if (load.error)
-                errorMessage = load.error.message;
-            else {
-                ids = [load.data.id];
-                const allocation = await supabase.from("transport_load_allocations").insert({ user_id: uid, load_id: load.data.id, field_id: field.id, allocated_tonnes: data.net_tonnes, crop_snapshot: field.crop, season_snapshot: field.season });
-                if (allocation.error)
-                    errorMessage = allocation.error.message;
-            }
-        }
-        else {
-            const posted = await postInventory(uid);
-            errorMessage = posted.error;
-            ids = posted.ids;
-        }
-        if (!errorMessage) {
-            await supabase.from("document_scans").insert({ user_id: uid, document_type: data.document_type, file_name: file.name, scan_status: "Confirmed", extracted_data: { ...data, posted_record_ids: ids }, confidence: data.confidence, target_record_id: ids[0] || null, confirmed_at: new Date().toISOString() });
-        }
-        setBusy(false);
-        if (errorMessage)
-            return alert(errorMessage);
-        setData(null);
-        setFile(null);
-        await loadLists();
-        alert(`${ids.length} record${ids.length === 1 ? "" : "s"} confirmed and posted to CropNex.`);
-    }
+    async function confirm(){if(!data||!file)return;setBusy(true);try{
+      const selected=data.inventory_items.map((line,index)=>({line,map:mappings[index]})).filter(x=>x.map?.enabled);
+      if(data.document_type==='Transport delivery note'&&(!fieldId||!data.net_tonnes||data.net_tonnes<=0))throw new Error('Choose a field and confirm valid net tonnes.');
+      if(data.document_type==='Inventory receipt'&&(!locationId||!selected.length||selected.some(x=>!x.map.target)))throw new Error('Choose a receiving shed and match every selected receipt line.');
+      const lines=selected.map(({line,map})=>({...line,item_id:map.target.startsWith('item:')?map.target.slice(5):null,master_id:map.target.startsWith('master:')?map.target.slice(7):null}));
+      const payload=JSON.stringify({filename:file.name,document:data,field:fieldId,location:locationId,season:currentSeason,lines});
+      if(confirmRequest.current?.payload!==payload)confirmRequest.current={payload,id:crypto.randomUUID()};const requestId=confirmRequest.current.id;
+      const result=await trialRequest(()=>supabase.rpc('confirm_document_scan',{p_request:requestId,p_filename:file.name,p_document:data,p_field:fieldId||null,p_location:locationId||null,p_season:currentSeason,p_lines:lines}),undefined,60000);
+      if(result.error)throw new Error(result.error.message);confirmRequest.current=null;setData(null);setFile(null);await loadLists();alert('Document confirmed and all selected records saved.');
+    }catch(e){alert(e instanceof Error?e.message:'The document could not be posted. Retry the same details after a connection failure.');}finally{setBusy(false);}}
     return <ModulePage eyebrow="CropNex AI" title="Document Scanner" description="Scan delivery documents, review every extracted line, and confirm them into Transport or Inventory.">
         <div className="grid gap-6 xl:grid-cols-[390px_1fr]">
             <section className="ag-panel h-fit rounded-2xl p-5">

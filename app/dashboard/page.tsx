@@ -1,7 +1,9 @@
 "use client";
 
+import {allReportRows,reportEconomics,type PerformanceRow,type CommitmentRow} from '@/lib/reporting';
+import {trialRequest} from '@/lib/trial-request';
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Field } from "@/types/field";
 import type { FinancialTransaction } from "@/types/financial";
@@ -15,6 +17,7 @@ const money = new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR
 
 export default function DashboardPage() {
   const{currentSeason}=useSeason();
+  const [performance,setPerformance]=useState<PerformanceRow[]>([]);const [commitments,setCommitments]=useState<CommitmentRow[]>([]);const sequence=useRef(0);
   const [fields, setFields] = useState<Field[]>([]);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -24,65 +27,34 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  async function loadDashboard() {
-    setLoading(true);
-    setLoadError("");
-    if (!currentSeason) {
-      setFields([]); setTransactions([]); setInventory([]); setEquipment([]); setJobs([]); setActivities([]);
-      setLoading(false);
-      return;
-    }
-
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const results = await Promise.race([
-        Promise.all([
-          // Dashboard cards need summary columns only; field boundary GeoJSON can be very large.
-          supabase.from("fields").select("id,area_ha,crop").eq("season",currentSeason),
-          supabase.from("financial_transactions").select("field_id,transaction_type,amount").order("transaction_date", { ascending: false }),
-          supabase.from("inventory_items").select("quantity,unit_cost,minimum_quantity").eq("season",currentSeason),
-          supabase.from("equipment").select("status,service_interval,last_service_hours,engine_hours"),
-          supabase.from("work_orders").select("id,status,title,planned_date,field_name").order("planned_date", { ascending: true }),
-          supabase.from("activities").select("activity_type,field_name,date,notes").eq("season",currentSeason).order("date", { ascending: false }).limit(8),
-        ]),
-        new Promise<never>((_, reject) => {
-          timeout = setTimeout(() => reject(new Error("Farm data is taking too long to respond. Check your connection and try again.")), 15000);
-        }),
-      ]);
-      const activeFields=(results[0].data || []) as Field[];
-      const fieldIds=new Set(activeFields.map(field=>field.id));
-      setFields(activeFields);
-      setTransactions(((results[1].data || []) as FinancialTransaction[]).filter(row=>row.field_id&&fieldIds.has(row.field_id)));
-      setInventory((results[2].data || []) as InventoryItem[]);
-      setEquipment((results[3].data || []) as Equipment[]);
-      setJobs((results[4].data || []) as WorkOrder[]);
-      setActivities((results[5].data || []) as Activity[]);
-      const failed = results.find((result) => result.error)?.error;
-      if (failed) setLoadError(`Some farm data could not be loaded: ${failed.message}`);
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Farm data could not be loaded. Please retry.");
-    } finally {
-      if (timeout) clearTimeout(timeout);
-      setLoading(false);
-    }
+  async function loadDashboard(){const request=++sequence.current;setLoading(true);setLoadError('');if(!currentSeason){setFields([]);setLoading(false);return;}
+    try{const result=await trialRequest(()=>Promise.all([
+      allReportRows<Field>((a,b)=>supabase.from('fields').select('id,user_id,field_name,farm_name,season,area_ha,crop').eq('season',currentSeason).order('id').range(a,b).returns<Field[]>()),
+      allReportRows<FinancialTransaction>((a,b)=>supabase.from('financial_transactions').select('*').order('id').range(a,b)),
+      allReportRows<InventoryItem>((a,b)=>supabase.from('inventory_items').select('*').eq('season',currentSeason).neq('status','Inactive').order('id').range(a,b)),
+      allReportRows<Equipment>((a,b)=>supabase.from('equipment').select('*').order('id').range(a,b)),
+      allReportRows<WorkOrder>((a,b)=>supabase.from('work_orders').select('*').order('planned_date').order('id').range(a,b)),
+      supabase.from('activities').select('*').eq('season',currentSeason).order('date',{ascending:false}).limit(8).then(result=>{if(result.error)throw result.error;return result.data as Activity[];}),
+      allReportRows<PerformanceRow>((a,b)=>supabase.from('field_performance_report').select('*').eq('season',currentSeason).order('field_id').range(a,b)),
+      allReportRows<CommitmentRow>((a,b)=>supabase.from('business_commitment_summary').select('*').order('source_id').order('source').range(a,b))
+    ]),undefined,60000);if(request!==sequence.current)return;
+    reportEconomics(result[0],result[6],result[1],result[7],currentSeason);setFields(result[0]);setTransactions(result[1]);setInventory(result[2]);setEquipment(result[3]);setJobs(result[4]);setActivities(result[5]);setPerformance(result[6]);setCommitments(result[7]);
+    }catch(e){if(request===sequence.current)setLoadError(e instanceof Error?e.message:String((e as {message?:string})?.message||e));}finally{if(request===sequence.current)setLoading(false);}
   }
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadDashboard();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSeason]);
-
+  useEffect(()=>{
+ // eslint-disable-next-line react-hooks/set-state-in-effect
+ void loadDashboard();return()=>{sequence.current++;};},[currentSeason]);
+  const economics=useMemo(()=>fields.length&&performance.length?reportEconomics(fields,performance,transactions,commitments,currentSeason||''):null,[fields,performance,transactions,commitments,currentSeason]);
   const totals = useMemo(() => {
     const area = fields.reduce((sum, field) => sum + Number(field.area_ha || 0), 0);
     const income = transactions.filter((row) => row.transaction_type === "Income").reduce((sum, row) => sum + Number(row.amount), 0);
     const expenses = transactions.filter((row) => row.transaction_type === "Expense").reduce((sum, row) => sum + Number(row.amount), 0);
     const inventoryValue = inventory.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unit_cost || 0), 0);
-    const lowStock = inventory.filter((item) => item.minimum_quantity !== null && item.quantity <= item.minimum_quantity).length;
+    const lowStock = inventory.filter((item) => Number(item.quantity)<0 || (item.minimum_quantity !== null && Number(item.quantity) <= Number(item.minimum_quantity))).length;
     const serviceDue = equipment.filter((item) => item.status === "Service Due" || (item.service_interval !== null && item.last_service_hours !== null && item.engine_hours - item.last_service_hours >= item.service_interval)).length;
     const openJobs = jobs.filter((job) => job.status !== "Completed").length;
-    return { area, income, expenses, margin: income - expenses, inventoryValue, lowStock, serviceDue, openJobs };
-  }, [fields, transactions, inventory, equipment, jobs]);
+    return { area, income, expenses, margin: economics?.businessMargin??0, inventoryValue, lowStock, serviceDue, openJobs };
+  }, [fields, transactions, inventory, equipment, jobs, economics]);
 
   const crops = useMemo(() => {
     const groups = new Map<string, number>();
@@ -108,10 +80,10 @@ export default function DashboardPage() {
       </header>
 
       {!loading && loadError && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[.08] p-4 text-sm text-amber-100"><span>{loadError}</span><button type="button" onClick={loadDashboard} className="rounded-lg border border-amber-200/25 px-3 py-2 font-bold">Retry</button></div>}
-      {!loading && !currentSeason ? <section className="ag-panel rounded-2xl p-8"><p className="ag-kicker">Your workspace is ready</p><h2 className="mt-2 text-2xl font-bold">Start with your first farm season</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#8b9b92]">There is no season or farm data in this CropNex workspace yet. Create a season in the Farm Map, then add or import your field boundaries.</p><Link href="/farm-map" className="mt-5 inline-flex rounded-xl bg-[#789B58] px-4 py-3 text-sm font-extrabold text-[#17382E]">Open Farm Map</Link></section> : loading ? <div className="ag-panel rounded-2xl p-8 text-[#8b9b92]">Preparing your farm overview…</div> : <>
+      {!loading && !currentSeason ? <section className="ag-panel rounded-2xl p-8"><p className="ag-kicker">Your workspace is ready</p><h2 className="mt-2 text-2xl font-bold">Start with your first farm season</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[#8b9b92]">There is no season or farm data in this CropNex workspace yet. Create a season in the Farm Map, then add or import your field boundaries.</p><Link href="/farm-map" className="mt-5 inline-flex rounded-xl bg-[#789B58] px-4 py-3 text-sm font-extrabold text-[#17382E]">Open Farm Map</Link></section> : loading || loadError ? <div className="ag-panel rounded-2xl p-8 text-[#8b9b92]">{loadError?'Farm totals are unavailable until all report sources load.':'Preparing your farm overview…'}</div> : <>
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Farmed area" value={`${totals.area.toFixed(1)} ha`} note={`${fields.length} registered fields`} tone="lime" />
-          <Metric label="Gross margin" value={money.format(totals.margin)} note={`${money.format(totals.income)} income`} tone="white" />
+          <Metric label="Projected business margin" value={money.format(totals.margin)} note={`${money.format(economics?.income??0)} projected field income`} tone="white" />
           <Metric label="Inventory value" value={money.format(totals.inventoryValue)} note={`${totals.lowStock} items need attention`} tone="white" />
           <Metric label="Outstanding jobs" value={String(totals.openJobs)} note={`${totals.serviceDue} machines require service`} tone="amber" />
         </section>

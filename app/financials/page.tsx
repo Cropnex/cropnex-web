@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {allReportRows,reportEconomics,applicableCommitments,type CommitmentRow,type PerformanceRow} from '@/lib/reporting';
+import {trialRequest} from '@/lib/trial-request';
 import type { Field } from "@/types/field";
 import type {
   FieldBudget,
@@ -20,11 +22,13 @@ type CropRevenueForecast = {
   forecast_income: number;
   weighted_price_per_tonne: number | null;
 };
-type FieldPerformance={field_id:string;field_name:string;crop:string|null;area_ha:number;activity_count:number;total_cost:number;projected_tonnes:number;projected_income:number;projected_margin:number;average_price_per_tonne:number};
-type CommitmentSummary={source:string;category:string;name:string;season:string|null;seasonal_amount:number};
+type FieldPerformance=PerformanceRow&{field_id:string;field_name:string;crop:string|null;area_ha:number;activity_count:number;total_cost:number;projected_tonnes:number;projected_income:number;projected_margin:number;average_price_per_tonne:number};
+type CommitmentSummary=CommitmentRow;
 type BusinessCommitment={id:string;name:string;category:string;amount:number;frequency:string;season:string|null;active:boolean};
 
 const emptyTransaction = {
+  owner_id:"",
+  commitment:"",
   field_id: "",
   transaction_date: "",
   transaction_type: "Expense",
@@ -64,46 +68,27 @@ export default function FinancialsPage() {
   const [budgetForm, setBudgetForm] = useState(emptyBudget);
   const [commitmentForm,setCommitmentForm]=useState(emptyCommitment);
   const [saving, setSaving] = useState(false);
+  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState('');
+  const loadSequence=useRef(0);
 
   async function loadAll() {
-    if(!currentSeason)return;
-    const [fieldsResult, transactionsResult, budgetsResult, cropForecastResult,performanceResult,commitmentSummaryResult,commitmentsResult] =
-      await Promise.all([
-        supabase.from("fields").select("*").eq("season",currentSeason).order("field_name"),
-        supabase
-          .from("financial_transactions")
-          .select("*")
-          .order("transaction_date", { ascending: false }),
-        supabase
-          .from("field_budgets")
-          .select("*")
-          .eq("season",currentSeason)
-          .order("season", { ascending: false }),
-        supabase
-          .from("crop_revenue_forecast")
-          .select("*")
-          .eq("season",currentSeason)
-          .order("season", { ascending: false }),
-        supabase.from("field_performance_report").select("*").eq("season",currentSeason).order("field_name"),
-        supabase.from("business_commitment_summary").select("*").order("category"),
-        supabase.from("business_commitments").select("*").order("created_at",{ascending:false}),
-      ]);
-
-    if (fieldsResult.error) alert(fieldsResult.error.message);
-    if (transactionsResult.error) alert(transactionsResult.error.message);
-    if (budgetsResult.error) alert(budgetsResult.error.message);
-
-    const activeFields=(fieldsResult.data || []) as Field[];
-    setFields(activeFields);
-    setTransactions((transactionsResult.data || []) as FinancialTransaction[]);
-    setBudgets((budgetsResult.data || []) as FieldBudget[]);
-    setCropForecasts((cropForecastResult.data || []) as CropRevenueForecast[]);
-    setPerformance((performanceResult.data||[]) as FieldPerformance[]);
-    setCommitmentSummary((commitmentSummaryResult.data||[]) as CommitmentSummary[]);
-    setCommitments((commitmentsResult.data||[]) as BusinessCommitment[]);
+    const request=++loadSequence.current;
+    if(!currentSeason){setLoading(false);setLoadError('Choose or create a season first.');return;}
+    setLoading(true);setLoadError('');
+    try{
+      const result=await trialRequest(signal=>{
+        const read=(table:string,seasonal=false,sort='id')=>allReportRows((from,to)=>{let q=supabase.from(table).select('*');if(seasonal)q=q.eq('season',currentSeason);if(table==='business_commitment_summary')q=q.order('source_id');return q.order(sort).range(from,to).abortSignal(signal)});
+        return Promise.all([read('fields',true),read('financial_transactions'),read('field_budgets',true),read('crop_revenue_forecast',true,'crop'),read('field_performance_report',true,'field_id'),read('business_commitment_summary',false,'name'),read('business_commitments')]);
+      },undefined,60000);
+      if(request!==loadSequence.current)return;
+      const [f,t,b,c,p,s,commit]=result;
+      reportEconomics(f as Field[],p as FieldPerformance[],t as FinancialTransaction[],s as CommitmentSummary[],currentSeason);
+      setFields(f as Field[]);setTransactions(t as FinancialTransaction[]);setBudgets(b as FieldBudget[]);setCropForecasts(c as CropRevenueForecast[]);setPerformance(p as FieldPerformance[]);setCommitmentSummary(s as CommitmentSummary[]);setCommitments(commit as BusinessCommitment[]);
+    }catch(error){if(request===loadSequence.current)setLoadError(error instanceof Error?error.message:typeof error==='object'&&error&&'message' in error?String(error.message):'Financial report data could not load.');}
+    finally{if(request===loadSequence.current)setLoading(false);}
   }
 
-  async function saveCommitment(){if(!commitmentForm.name.trim()||Number(commitmentForm.amount)<=0){alert("Enter a name and amount.");return}setSaving(true);try{const{data}=await supabase.auth.getUser();if(!data.user)return alert("You must be logged in.");const{error}=await supabase.from("business_commitments").insert({user_id:data.user.id,name:commitmentForm.name.trim(),category:commitmentForm.category,amount:Number(commitmentForm.amount),frequency:commitmentForm.frequency,season:commitmentForm.season.trim()||null,notes:commitmentForm.notes.trim()||null});if(error)throw error;setCommitmentForm(emptyCommitment);await loadAll()}catch(error){alert(error instanceof Error?error.message:"The commitment could not be saved.")}finally{setSaving(false)}}
+  async function saveCommitment(){if(commitmentForm.frequency==="Once-off"&&!commitmentForm.season.trim()){alert("Choose a specific season for a once-off commitment.");return;}if(!commitmentForm.name.trim()||Number(commitmentForm.amount)<=0){alert("Enter a name and amount.");return}setSaving(true);try{const{data}=await supabase.auth.getUser();if(!data.user)return alert("You must be logged in.");const{error}=await supabase.from("business_commitments").insert({user_id:data.user.id,name:commitmentForm.name.trim(),category:commitmentForm.category,amount:Number(commitmentForm.amount),frequency:commitmentForm.frequency,season:commitmentForm.season.trim()||null,notes:commitmentForm.notes.trim()||null});if(error)throw error;setCommitmentForm(emptyCommitment);await loadAll()}catch(error){alert(error instanceof Error?error.message:"The commitment could not be saved.")}finally{setSaving(false)}}
 
   async function saveTransaction() {
     if (
@@ -133,7 +118,10 @@ export default function FinancialsPage() {
       const { error } = await supabase
         .from("financial_transactions")
         .insert({
-          user_id: data.user.id,
+          user_id: fields.find(f=>f.id===transactionForm.field_id)?.user_id||transactionForm.owner_id||data.user.id,
+          season:currentSeason,
+          commitment_source_type:transactionForm.commitment?transactionForm.commitment.split(':')[0]:null,
+          commitment_source_id:transactionForm.commitment?transactionForm.commitment.split(':')[1]:null,
           field_id: transactionForm.field_id || null,
           transaction_date: transactionForm.transaction_date,
           transaction_type: transactionForm.transaction_type,
@@ -215,6 +203,7 @@ export default function FinancialsPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAll();
   }, [currentSeason]);
 
@@ -285,9 +274,12 @@ export default function FinancialsPage() {
     0
   );
   const projectedFieldCosts=performance.reduce((sum,row)=>sum+Number(row.total_cost||0),0);
-  const businessCommitmentCost=commitmentSummary.filter(row=>row.source==="Equipment finance"||!row.season||row.season===currentSeason).reduce((sum,row)=>sum+Number(row.seasonal_amount||0),0);
-  const businessProjectedMargin=forecastIncome-projectedFieldCosts-businessCommitmentCost;
+  const economics=reportEconomics(fields,performance,transactions,commitmentSummary,currentSeason);
+  const businessCommitmentCost=economics.commitmentTotal;
+  const businessProjectedMargin=economics.businessMargin;
 
+  async function assignSeason(id:string){const {data,error}=await supabase.from('financial_transactions').update({season:currentSeason}).eq('id',id).select('id');if(error||!data?.length){alert(error?.message||'The record could not be updated. Check your editing access.');return;}await loadAll();}
+  if(loading||loadError)return <main className="p-6"><h1 className="text-3xl font-bold">Business & Finance</h1><p role={loadError?'alert':'status'} className="my-4">{loadError||'Loading complete financial records…'}</p>{loadError&&<button onClick={()=>void loadAll()} className="primary">Retry</button>}</main>;
   return (
     <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -313,15 +305,15 @@ export default function FinancialsPage() {
 
       <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Summary
-          label="Projected crop income"
-          value={`R${forecastIncome.toFixed(2)}`}
+          label="Projected field income"
+          value={`R${economics.income.toFixed(2)}`}
         />
         <Summary
           label="Field operating costs"
           value={`R${projectedFieldCosts.toFixed(2)}`}
         />
         <Summary
-          label="Business commitments"
+          label="Remaining commitment allowances"
           value={`R${businessCommitmentCost.toFixed(2)}`}
         />
         <Summary
@@ -330,6 +322,8 @@ export default function FinancialsPage() {
         />
       </div>
 
+      <p className="mb-5 text-sm">Season {currentSeason}: business margin includes R{economics.overheads.toFixed(2)} recorded farm-wide expenses and R{economics.otherIncome.toFixed(2)} other farm-wide income. Commitment amounts are annualised allowances. Enter field expenses only when they are additional to costs already in your activity actuals. Inventory purchases and diesel issues are not automatically treated as extra cash payments. Link expense payments to their commitment below so the same payment is not counted twice. Finance terms use the season’s starting year.</p>
+      {economics.unassignedTransactions.length>0&&<section className="mb-6 rounded-xl bg-amber-100 p-4 text-amber-950"><h2 className="font-bold">Farm-wide transactions needing a season</h2><p>These remain in the all-dates booked cash report but do not enter a season’s forecast until assigned.</p>{economics.unassignedTransactions.map(t=><div key={t.id} className="my-2 flex flex-wrap gap-3"><span>{t.transaction_date} · {t.description} · R{Number(t.amount).toFixed(2)}</span><button className="underline" disabled={saving} onClick={()=>void assignSeason(t.id)}>Assign to {currentSeason}</button></div>)}</section>}
       {cropForecasts.length > 0 && (
         <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6">
           <h2 className="text-2xl font-bold text-green-400">Contract and planning-price forecast</h2>
@@ -354,6 +348,8 @@ export default function FinancialsPage() {
           </h2>
 
           <div className="grid gap-4 md:grid-cols-2">
+            <Select label="Farming account for general transactions" value={transactionForm.owner_id} onChange={value=>setTransactionForm({...transactionForm,owner_id:value,field_id:'',commitment:''})}><option value="">My account</option>{[...new Map(fields.filter(f=>f.user_id).map(f=>[f.user_id,{id:f.user_id,name:f.farm_name||f.field_name}])).values()].map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</Select>
+            <Select label="Commitment payment (expenses only)" value={transactionForm.commitment} onChange={value=>setTransactionForm({...transactionForm,commitment:value})}><option value="">Not linked</option>{applicableCommitments(commitmentSummary,currentSeason).filter(c=>c.source_id).map(c=><option key={c.source+':'+c.source_id} value={c.source+':'+c.source_id}>{c.name} · {c.source}</option>)}</Select>
             <Select
               label="Field"
               value={transactionForm.field_id}
@@ -364,7 +360,7 @@ export default function FinancialsPage() {
                 })
               }
             >
-              <option value="">General / unallocated</option>
+              <option value="">General / farm-wide</option>
               {fields.map((field) => (
                 <option key={field.id} value={field.id}>
                   {field.field_name}
@@ -629,7 +625,7 @@ export default function FinancialsPage() {
           <Select label="Applies to" value={commitmentForm.season} onChange={value=>setCommitmentForm({...commitmentForm,season:value})}><option value="">Every season · carries forward</option>{currentSeason&&<option value={currentSeason}>{currentSeason} only</option>}</Select>
         </div>
         <button type="button" onClick={saveCommitment} disabled={saving} className="mt-5 rounded-xl bg-green-500 px-6 py-3 font-bold text-black disabled:opacity-50">Add commitment</button>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{commitmentSummary.filter(item=>item.source==="Equipment finance"||!item.season||item.season===currentSeason).map((item,index)=><article key={`${item.source}-${item.name}-${index}`} className="rounded-xl bg-black/20 p-4"><div className="flex justify-between gap-3"><div><b>{item.name}</b><p className="text-xs text-gray-500">{item.category} · {item.source}{item.season?` · ${item.season}`:" · Every season"}</p></div><strong className="text-green-400">R{Number(item.seasonal_amount).toLocaleString("en-ZA",{maximumFractionDigits:0})}</strong></div></article>)}{!commitmentSummary.length&&<p className="text-sm text-gray-400">No business commitments recorded yet.</p>}</div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{applicableCommitments(commitmentSummary,currentSeason).map((item,index)=><article key={`${item.source}-${item.name}-${index}`} className="rounded-xl bg-black/20 p-4"><div className="flex justify-between gap-3"><div><b>{item.name}</b><p className="text-xs text-gray-500">{item.category} · {item.source}{item.season?` · ${item.season}`:" · Every season"}</p></div><strong className="text-green-400">R{Number(item.seasonal_amount).toLocaleString("en-ZA",{maximumFractionDigits:0})}</strong></div></article>)}{!commitmentSummary.length&&<p className="text-sm text-gray-400">No business commitments recorded yet.</p>}</div>
       </section>
 
       <section className="mt-8">
