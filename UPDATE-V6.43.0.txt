@@ -1,0 +1,44 @@
+CropNex v6.43.0 — Login loading and Settings readability
+
+FULL PROJECT ZIP: CropNex-Full-Project-V6.43.0.zip
+
+This release includes all v6.42.0 source plus the login and Settings changes.
+Keep your .git folder and local environment files. Overwrite source files with the ZIP contents.
+
+If the v6.42.0 database migration was already applied, there is NO new database migration for v6.43.0.
+If it was not applied, follow the v6.42.0 migration instructions before using its workflow changes.
+
+Run in Codespaces:
+
+cd /workspaces/cropnex-web
+npm install
+npm test
+npm run build
+
+Only after the checks above succeed:
+
+git status
+git add -A
+git commit -m "CropNex v6.43.0 login loading and Settings contrast"
+git push
+
+Wait for Vercel Ready, then refresh CropNex and confirm v6.43.0 in the app footer.
+
+What changed:
+- The login/register form is rendered in the initial server response instead of being replaced by a browser-only Suspense loading message.
+- Login and account creation links on the landing page use normal document navigation.
+- Auth SDK loading is deferred until a user requests an action. Login SDK loading and sign-in requests have timeouts.
+- The service worker no longer caches or serves offline copies of login/auth pages. Auth responses request no-store caching.
+- Settings uses readable dark text on white surfaces for the currency selector, its options, account email, labels and description.
+
+Verification:
+- 91 automated regression tests passed, including 5 authentication-entry tests.
+- TypeScript checks passed.
+- New Settings text contrast ratios checked at 15.94:1 for account/currency text, 9.65:1 for labels, and 6.13:1 for Sign out.
+- The current production landing-page Log in link loaded successfully in the available browser. The client's particular Edge failure was not reproduced.
+- A complete production build must pass in Codespaces before pushing. The earlier Windows build environment denied creation of generated output folders; no store/deployment readiness claim is made here.
+
+Immediate check for the affected client:
+Open https://www.cropnex.com/login directly in an Edge InPrivate window. If it works there, review cached CropNex site data and extensions in the regular Edge profile. No account deletion is needed.
+
+The missing confirmation-email report is a separate issue: Supabase's live email/SMTP settings and delivery logs still need checking. This release does not configure an email provider or add password reset.

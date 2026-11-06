@@ -1,4 +1,4 @@
-const CACHE_NAME = "cropnex-shell-v6-42";
+const CACHE_NAME = "cropnex-shell-v6-43";
 
 const CORE_FILES = [
   "/offline",
@@ -44,6 +44,9 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) {
     return;
   }
+
+  // Auth pages must never fall back to cached HTML from a previous deployment.
+  if (url.pathname === '/login' || url.pathname.startsWith('/auth/')) return;
 
   // Pages: fresh when connected, last successful screen when offline.
   if (request.mode === "navigate") {

@@ -244,3 +244,7 @@ textarea {
 }
 .ag-dark-dialog option { background-color: #0d1e17; color: #f3f7f1; }
 .ag-dark-dialog :focus-visible { outline-color: #9ada65; }
+
+/* Settings uses light surfaces consistently, including the native option menu. */
+.ag-settings-workspace { color-scheme: light; }
+.ag-settings-workspace :is(input, select, option) { background-color: #fff; color: #17251c; }
