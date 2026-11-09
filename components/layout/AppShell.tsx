@@ -6,6 +6,7 @@ import TopBar from "@/components/layout/TopBar";
 import ServiceWorkerRegistration from "@/components/pwa/ServiceWorkerRegistration";
 import { AccessGate, AccessProvider, useAccess } from "@/components/auth/AccessProvider";
 import LegalFooter from "@/components/layout/LegalFooter";
+import FarmerStartGate from "@/components/season/FarmerStartGate";
 import { SeasonProvider } from "@/components/season/SeasonProvider";
 import Link from "next/link";
 import { CROPNEX_LAUNCHED } from "@/lib/app-meta";
@@ -26,7 +27,7 @@ function LaunchAwareShell({children,sidebarOpen,onOpenMenu,onCloseMenu}:{childre
   // before the public launch. Verified self-service Farmers are also admitted.
   if (!CROPNEX_LAUNCHED && !access.isAdmin && !access.roles.includes("Farmer") && !access.modules.length && !access.registration) return <PreLaunchGate />;
 
-  return <AccessGate><SeasonProvider>
+  return <AccessGate><SeasonProvider><FarmerStartGate>
     <div className="ag-app-shell min-h-screen bg-[#F2F0E8] text-[#181a15]">
       <ServiceWorkerRegistration />
 
@@ -44,7 +45,7 @@ function LaunchAwareShell({children,sidebarOpen,onOpenMenu,onCloseMenu}:{childre
         <LegalFooter />
       </div>
     </div>
-  </SeasonProvider></AccessGate>;
+  </FarmerStartGate></SeasonProvider></AccessGate>;
 }
 
 function PreLaunchGate() {

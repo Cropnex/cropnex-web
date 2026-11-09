@@ -1,9 +1,9 @@
 "use client";
 
 import { GoogleMap, GroundOverlayF, Marker, OverlayViewF, Polygon, Polyline, useLoadScript } from "@react-google-maps/api";
-import Link from "next/link";
+import MapFieldIdentity from "@/components/map/MapFieldIdentity";
 import type { Libraries } from "@react-google-maps/api";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FieldDrawer from "@/components/map/FieldDrawer";
 import MapLegend from "@/components/map/MapLegend";
 import CropColourSettings from "@/components/map/CropColourSettings";
@@ -89,6 +89,7 @@ export default function FarmMapPage() {
   const [showNewField,setShowNewField]=useState(false);
   const [newField,setNewField]=useState({farmer_id:"",farm_id:"",new_farm_name:"",field_name:"",area_mode:"calculated" as "calculated"|"manual",manual_area:""});
   const [savingField,setSavingField]=useState(false);
+ const [mapDataError,setMapDataError]=useState("");const fieldSaveRetry=useRef<{payload:string;key:string}|null>(null),autoStarted=useRef(""),loadSequence=useRef(0),historySequence=useRef(0);
   const [ndviLayers,setNdviLayers]=useState<NdviLayer[]>([]);
   const [ndviUrls,setNdviUrls]=useState<Record<string,string>>({});
   const [selectedNdviId,setSelectedNdviId]=useState("");
@@ -102,7 +103,9 @@ export default function FarmMapPage() {
 
   async function loadFields() {
     if(!currentSeason)return;
-    const [{ data, error }, planResult, productResult,operationResult,inventoryResult,locationResult,catalogueResult,standardOperationResult,farmerResult,farmResult,ndviResult,thematicResult] = await Promise.all([
+    const request=++loadSequence.current;
+    try{
+    const [{ data, error }, planResult, productResult,operationResult,inventoryResult,locationResult,catalogueResult,standardOperationResult,farmerResult,farmResult,ndviResult,thematicResult] = await trialRequest(()=>Promise.all([
       supabase.from("fields").select("*").eq("season",currentSeason).order("field_name", { ascending: true }),
       supabase.from("activity_plans").select("*").eq("season",currentSeason).order("planned_date"),
       supabase.from("activity_plan_products").select("*").order("created_at"),
@@ -115,8 +118,10 @@ export default function FarmMapPage() {
       supabase.from("farms").select("id,name,farmer_id,user_id").eq("active",true).order("name"),
       supabase.from("map_layers").select("id,field_id,field_name,captured_date,storage_path,file_format,metadata").eq("layer_type","NDVI").eq("season",currentSeason).in("file_format",["PNG","JPG","JPEG"]).order("captured_date",{ascending:false}),
       supabase.from("map_layers").select("id,file_name,layer_type,storage_path,metadata").eq("season",currentSeason).order("created_at",{ascending:false}),
-    ]);
-    if (error) return console.error("Could not load fields:", error);
+    ]));
+    if(request!==loadSequence.current)return;
+    if(error||farmerResult.error||farmResult.error)throw error||farmerResult.error||farmResult.error;
+    setMapDataError("");
     setFields((data || []) as Field[]);
     setPlans((planResult.data || []) as ActivityPlan[]);
     setPlanProducts((productResult.data || []) as ActivityPlanProduct[]);
@@ -138,8 +143,10 @@ export default function FarmMapPage() {
     setNewField(current=>({
       ...current,
       farmer_id:current.farmer_id||loadedFarmers[0]?.id||"",
-      farm_id:current.farm_id||loadedFarms.find(item=>item.farmer_id===(current.farmer_id||loadedFarmers[0]?.id))?.id||"",
+      farm_id:current.farm_id||loadedFarms.find(item=>item.farmer_id===(current.farmer_id||loadedFarmers[0]?.id))?.id||"__new__",
     }));
+    if(!data?.length&&access.roles.includes('Farmer')&&!access.isAdmin&&!access.organizationRoles.length&&autoStarted.current!==currentSeason){autoStarted.current=currentSeason;beginNewField();}
+    }catch(e){if(request===loadSequence.current)setMapDataError(e instanceof Error?e.message:String((e as {message?:string}).message||'Could not load map records.'));}
   }
 
   async function loadFarmPin() {
@@ -154,11 +161,16 @@ export default function FarmMapPage() {
     setRainGauges((data||[]) as RainGauge[]);
   }
 
-  async function loadFieldActivities(fieldName: string) {
+  async function loadFieldActivities(field:Field) {
+    const request=++historySequence.current,owner=field.user_id||access.userId;
+    const ambiguous=fields.some(other=>other.id!==field.id&&(other.user_id||access.userId)===owner&&other.season===field.season&&other.field_name===field.field_name);
     setLoadingActivities(true);
-    const { data, error } = await supabase.from("activities").select("id, activity_type, field_name, date, notes, created_at").eq("field_name", fieldName).eq("season",currentSeason).order("date", { ascending: false }).limit(12);
-    setFieldActivities(error ? [] : (data || []) as Activity[]);
-    setLoadingActivities(false);
+    try{const [linked,legacy]=await trialRequest(signal=>Promise.all([
+      supabase.from('activities').select('id,activity_type,field_name,date,notes,created_at').eq('field_id',field.id).eq('user_id',owner).order('date',{ascending:false}).limit(12).abortSignal(signal),
+      ambiguous?Promise.resolve({data:[],error:null}):supabase.from('activities').select('id,activity_type,field_name,date,notes,created_at').is('field_id',null).eq('user_id',owner).eq('field_name',field.field_name).eq('season',field.season||currentSeason).order('date',{ascending:false}).limit(12).abortSignal(signal)
+    ]));if(linked.error||legacy.error)throw linked.error||legacy.error;
+    if(request===historySequence.current)setFieldActivities([...(linked.data||[]),...(legacy.data||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,12) as Activity[]);
+    }catch(e){if(request===historySequence.current){setFieldActivities([]);console.error('Could not load field history',e);}}finally{if(request===historySequence.current)setLoadingActivities(false)}
   }
 
   function fitField(field: Field) {
@@ -173,7 +185,7 @@ export default function FarmMapPage() {
     setSelectedField(field);
     setShowActivityForm(false);
     setListOpen(false);
-    void loadFieldActivities(field.field_name);
+    void loadFieldActivities(field);
     fitField(field);
     if (!openDetails) setSelectedField(null);
   }
@@ -279,36 +291,27 @@ export default function FarmMapPage() {
   }
 
   function beginNewField(){
-    setSelectedField(null); setSelectedFieldId(""); setPoints([]); setCalculatedAreaHa(null); setShowNewField(true); setDrawing(false); setSplitting(false); setSplitPoints([]); setPlacingFarmPin(false);
+    if(!access.canEditModule('farm-map'))return;fieldSaveRetry.current=null;setListOpen(false);
+    setSelectedField(null); setSelectedFieldId(""); setPoints([]); setCalculatedAreaHa(null); setShowNewField(true); setDrawing(true); setSplitting(false); setSplitPoints([]); setPlacingFarmPin(false);
   }
 
   async function saveNewField(){
-    const farmer=farmers.find(item=>item.id===newField.farmer_id);
-    let farm=farms.find(item=>item.id===newField.farm_id);
-    const requestedFarmName=newField.farm_id==="__new__"?newField.new_farm_name.trim():farm?.name;
-    if(!farmer||!requestedFarmName||!newField.field_name.trim())return alert("Select the farmer and farm, then enter the field name.");
-    if(points.length<3)return alert("Select Start drawing, then place at least three boundary points on the map.");
-    if(newField.area_mode==="manual"&&Number(newField.manual_area)<=0)return alert("Enter a valid official hectare value.");
-    setSavingField(true);
-    try{
-      const {data}=await supabase.auth.getSession(); const userId=data.session?.user.id;
-      if(!userId)return alert("You must be logged in.");
-      const ownerId=farmer.user_id||userId;
-      const calculatedArea=calculateAreaHa(points);
-      const area=newField.area_mode==="manual"?Number(newField.manual_area):calculatedArea;
-      if(newField.farm_id==="__new__"||newField.farm_id.startsWith("legacy:")){
-        const {data:existing}=await supabase.from("farms").select("id,name,farmer_id").eq("farmer_id",farmer.id).ilike("name",requestedFarmName).maybeSingle();
-        if(existing)farm=existing as Farm;else{const{data:createdFarm,error:farmError}=await supabase.from("farms").insert({user_id:ownerId,farmer_id:farmer.id,name:requestedFarmName,active:true}).select("id,name,farmer_id").single();if(farmError)return alert(farmError.message);farm=createdFarm as Farm}
-      }
-      if(!farm||farm.farmer_id!==farmer.id)return alert("Select a saved farm belonging to this farmer.");
-      const {data:created,error}=await supabase.from("fields").insert({
-        user_id:ownerId,farmer_id:farmer.id,farm_id:farm.id,field_name:newField.field_name.trim(),farm_name:farm.name,
-        area_ha:Number(area.toFixed(2)),boundary:points,status:"Unplanned",season:currentSeason,crop:null,cultivar:null,cultivar_id:null,
-      }).select("*").single();
-      if(error)return alert(error.message);
-      setShowNewField(false);setDrawing(false);setPoints([]);setCalculatedAreaHa(null);setNewField(value=>({...value,field_name:"",new_farm_name:"",manual_area:"",area_mode:"calculated"}));
-      await loadFields(); if(created)selectField(created as Field); alert(`${newField.field_name.trim()} created · ${area.toFixed(2)} ha${newField.area_mode==="manual"?` (drawn area ${calculatedArea.toFixed(2)} ha)`:""}.`);
-    }finally{setSavingField(false)}
+    if(!access.canEditModule('farm-map'))return;
+    const farmer=farmers.find(item=>item.id===newField.farmer_id),farm=farms.find(item=>item.id===newField.farm_id);
+    const createFarm=newField.farm_id==='__new__'||newField.farm_id.startsWith('legacy:');
+    const name=createFarm?(newField.farm_id.startsWith('legacy:')?farm?.name:newField.new_farm_name.trim()):null;
+    if(!newField.field_name.trim()||createFarm&&!name||!createFarm&&!farm)return alert('Choose or name the farm, then enter the field name.');
+    if(points.length<3)return alert('Draw at least three boundary points first.');
+    const measured=calculateAreaHa(points),area=newField.area_mode==='manual'?Number(newField.manual_area):measured;
+    if(!Number.isFinite(area)||Number(area.toFixed(2))<=0)return alert('Enter positive hectares.');
+    const args={p_farmer:farmer?.id||null,p_farm:createFarm?null:farm!.id,p_new_farm:name||null,p_field_name:newField.field_name.trim(),p_season:currentSeason,p_area:Number(area.toFixed(2)),p_boundary:points};
+    const payload=JSON.stringify(args);if(fieldSaveRetry.current?.payload!==payload)fieldSaveRetry.current={payload,key:crypto.randomUUID()};
+    setSavingField(true);try{
+      const result=await trialRequest(signal=>supabase.rpc('save_mapped_field',{...args,p_request_key:fieldSaveRetry.current!.key}).abortSignal(signal));if(result.error)throw result.error;
+      const created=result.data as Field;
+      setShowNewField(false);setDrawing(false);setPoints([]);setCalculatedAreaHa(null);setNewField(value=>({...value,farmer_id:created.farmer_id||value.farmer_id,farm_id:created.farm_id||value.farm_id,field_name:'',new_farm_name:'',manual_area:'',area_mode:'calculated'}));
+      await loadFields();selectField(created);alert(created.field_name+' created under '+created.farm_name+' · '+Number(created.area_ha).toFixed(2)+' ha.');
+    }catch(e){alert(e instanceof Error?e.message:String((e as {message?:string}).message||'Could not save the field. Your boundary is kept; try again.'));}finally{setSavingField(false)}
   }
 
   async function saveFieldActivity() {
@@ -318,9 +321,9 @@ export default function FarmMapPage() {
       const { data } = await supabase.auth.getSession();
       if (!data.session?.user) return alert("You must be logged in.");
       const statusLabel = activityMode === "planned" ? "Planned" : "Actual";
-      const { error } = await supabase.from("activities").insert({ user_id: data.session.user.id, activity_type: activityType, field_name: selectedField.field_name, crop: selectedField.crop, season:currentSeason, date: activityDate, area_ha: selectedField.area_ha, notes: `${statusLabel}${activityNotes.trim() ? ` · ${activityNotes.trim()}` : ""}` });
+      const { error } = await supabase.from("activities").insert({ user_id: selectedField.user_id||data.session.user.id, field_id:selectedField.id, activity_type: activityType, field_name: selectedField.field_name, crop: selectedField.crop, season:currentSeason, date: activityDate, area_ha: selectedField.area_ha, notes: `${statusLabel}${activityNotes.trim() ? ` · ${activityNotes.trim()}` : ""}` });
       if (error) return alert(error.message);
-      await loadFieldActivities(selectedField.field_name);
+      await loadFieldActivities(selectedField);
       setShowActivityForm(false); setActivityNotes(""); alert(`${statusLabel} activity saved.`);
     } finally { setSavingActivity(false); }
   }
@@ -331,13 +334,13 @@ export default function FarmMapPage() {
     try {
       const { error } = await supabase.rpc("actualise_activity_group_v1", { p_actual_start_date:startDate,p_actual_end_date:endDate,p_plans:entries,p_actual_notes:`Confirmed from Farm Map · ${entries.length} fields` });
       if (error) return alert(error.message);
-      await loadFields(); await loadFieldActivities(plan.field_name); alert(`Activity actualised on ${entries.length} field${entries.length===1?"":"s"}. Shed usage and costs were allocated to each field. Check Inventory alerts for negative balances.`);
+      await loadFields(); if(selectedField)await loadFieldActivities(selectedField); alert(`Activity actualised on ${entries.length} field${entries.length===1?"":"s"}. Shed usage and costs were allocated to each field. Check Inventory alerts for negative balances.`);
     } finally { setActualisingPlanId(null); }
   }
 
   // These loaders update state only after their Supabase requests resolve.
   // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => {if(!currentSeason)return;void loadFields(); void loadFarmPin(); void loadRainGauges(); void loadCropColours();}, [currentSeason]);
+  useEffect(() => {if(!currentSeason)return;setSelectedField(null);setSelectedFieldId('');setShowNewField(false);setDrawing(false);setPoints([]);setCalculatedAreaHa(null);setSplitting(false);setSplitPoints([]);void loadFields(); void loadFarmPin(); void loadRainGauges(); void loadCropColours();return()=>{loadSequence.current++};}, [currentSeason]);
   useEffect(() => {
     if (!map) return;
     map.setMapTypeId(google.maps.MapTypeId.SATELLITE);
@@ -391,7 +394,7 @@ export default function FarmMapPage() {
     const source=seasonFilter||currentSeason;
     const copy=source?confirm(`Use ${source}'s field boundaries?\n\nOK = copy the previous fields without crop plans.\nCancel = start this season with no fields.`):false;
     const{data,error}=await supabase.rpc("create_farm_season",{p_name:name.trim(),p_source_season:copy?source:null,p_copy_fields:copy});if(error)return alert(error.message);
-    await refreshSeasons();const result=data as {fields_copied?:number};alert(`Season ${name.trim()} created. ${result?.fields_copied||0} field boundaries copied. Crop and activity templates remain available, but no plans, prices, stock or harvest data were copied.`);
+    setSeasonFilter(name.trim());setFarmFilter("All farms");await refreshSeasons();const result=data as {fields_copied?:number};alert(`Season ${name.trim()} created. ${result?.fields_copied||0} field boundaries copied. Crop and activity templates remain available, but no plans, prices, stock or harvest data were copied.`);
   }
 
   const farmNamePins=[...filteredFields.reduce((groups,field)=>{
@@ -441,9 +444,10 @@ export default function FarmMapPage() {
           <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={showFarmNames} onChange={e=>setShowFarmNames(e.target.checked)}/>Farm pins</label>
           <button type="button" onClick={fitAll} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Fit all</button>
           <button type="button" onClick={() => setPlacingFarmPin((value) => !value)} className={`rounded-lg px-3 py-2 text-xs font-bold ${placingFarmPin ? "bg-amber-400 text-black" : "bg-white/[0.06]"}`}>{placingFarmPin ? "Tap farm location" : farmPin ? "Move farm pin" : "Set farm pin"}</button>
-          <button type="button" onClick={beginNewField} className="rounded-lg bg-[#789B58] px-3 py-2 text-xs font-bold text-[#17382E]">+ Create new field</button>
+          <button type="button" disabled={!access.canEditModule('farm-map')} onClick={beginNewField} className="rounded-lg bg-[#789B58] px-3 py-2 text-xs font-bold text-[#17382E]">+ Create new field</button>
           <button type="button" onClick={createSeason} className="rounded-lg border border-[#789B58]/35 bg-[#789B58]/10 px-3 py-2 text-xs font-bold text-[#b8e77d]">+ New season</button>
           {selectedFieldId&&!drawing&&!splitting&&<button type="button" onClick={beginBoundaryEdit} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Edit boundary</button>}
+          {drawing&&showNewField&&<><span className="rounded-lg bg-black/40 p-2 text-xs">Tap around your field · {points.length} points</span><button type="button" disabled={points.length<3} onClick={()=>setDrawing(false)} className="rounded-lg bg-[#86cf34] p-3 text-xs font-bold text-[#111516] disabled:opacity-40">Next: name farm & field</button><button type="button" onClick={()=>{setShowNewField(false);setDrawing(false);setPoints([]);setCalculatedAreaHa(null)}} className="rounded-lg border border-white/20 p-2 text-xs">Cancel drawing</button></>}
           {drawing&&!showNewField&&<><span className="rounded-lg bg-black/40 px-3 py-2 text-xs">Tap around the boundary · {points.length} points</span><button type="button" onClick={()=>{setDrawing(false);setPoints([]);setCalculatedAreaHa(null)}} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Cancel</button><button type="button" disabled={points.length<3} onClick={saveBoundary} className="rounded-lg bg-[#86CF34] px-3 py-2 text-xs font-extrabold text-[#111516] disabled:opacity-40">Save edited boundary</button><button type="button" onClick={() => { setPoints([]); setCalculatedAreaHa(null); }} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Clear</button></>}
           {splitting&&<><span className="rounded-lg bg-black/40 px-3 py-2 text-xs">Tap two points across the field · {splitPoints.length}/2</span><button type="button" onClick={cancelSplit} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Cancel split</button><button type="button" onClick={()=>setSplitPoints([])} className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-bold">Clear line</button></>}
         </div>
@@ -456,17 +460,14 @@ export default function FarmMapPage() {
         <MapLegend items={legendItems} />
       </aside>
 
+      {mapDataError&&<div role="alert" className="absolute bottom-3 left-3 right-3 z-40 rounded-xl bg-[#4c2924] p-4 text-[#ffe4dd]">{mapDataError} <button className="font-bold underline" onClick={()=>void loadFields()}>Reload map records</button></div>}
       {paletteError&&<div role="alert" className="absolute bottom-3 left-3 right-3 z-20 rounded-xl bg-[#4c2924] p-3 text-sm text-[#ffe4dd] lg:left-[336px]">Saved crop colours could not load; default colours are shown. Apply the v6.39.0 migration if needed. <button onClick={()=>void loadCropColours()} className="font-bold underline">Retry</button></div>}
       {showColourSettings&&<CropColourSettings fields={fields} colours={cropColours} userId={access.userId} canEdit={access.canEditModule('farm-map')} onSave={saveCropColour} onClose={()=>setShowColourSettings(false)}/>}
       {calculatedAreaHa !== null && <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 rounded-xl border border-[#789B58]/30 bg-[#17382E]/95 px-5 py-3 text-center shadow-xl"><p className="text-[10px] uppercase tracking-widest text-[#77887e]">Measured area</p><p className="font-display text-xl font-black text-[#B6CB8D]">{calculatedAreaHa.toFixed(2)} ha</p></div>}
 
-      {showNewField&&<section className="absolute right-3 top-20 z-30 max-h-[calc(100%-6rem)] w-[calc(100%-1.5rem)] max-w-sm overflow-y-auto rounded-2xl border border-white/10 bg-[#17382E]/95 p-5 shadow-2xl backdrop-blur-xl">
+      {showNewField&&!drawing&&<section className="absolute right-3 top-20 z-30 max-h-[calc(100%-6rem)] w-[calc(100%-1.5rem)] max-w-sm overflow-y-auto rounded-2xl border border-white/10 bg-[#17382E]/95 p-5 shadow-2xl backdrop-blur-xl">
         <div className="flex items-start justify-between"><div><p className="ag-kicker">Map field creator</p><h2 className="mt-1 text-xl font-extrabold">Create new field</h2></div><button type="button" onClick={()=>{setShowNewField(false);setDrawing(false);setPoints([]);setCalculatedAreaHa(null)}} className="rounded-lg p-2 text-gray-400">✕</button></div>
-        {(!farmers.length||!farms.length)&&<div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-200/10 p-4"><p className="font-bold text-amber-100">Set up your farm first</p><p className="mt-1 text-sm leading-5 text-white/75">Add your farmer or business, then add a farm under that farmer. You’ll return here to create the field.</p><Link href="/fields" className="mt-3 inline-flex rounded-lg bg-[#D6A64C] px-4 py-2 text-sm font-bold text-[#171812]">Open Fields & Farms</Link></div>}
-        <label className="field-label">Farmer<select className="field-input" value={newField.farmer_id} onChange={event=>{const farmer_id=event.target.value;setNewField(value=>({...value,farmer_id,farm_id:farms.find(item=>item.farmer_id===farmer_id)?.id||"",new_farm_name:""}))}}><option value="">Select farmer</option>{farmers.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="field-label">Existing farm or new farm<select className="field-input" value={newField.farm_id} onChange={event=>setNewField(value=>({...value,farm_id:event.target.value,new_farm_name:event.target.value==="__new__"?value.new_farm_name:""}))}><option value="">Select farm</option>{farms.filter(item=>item.farmer_id===newField.farmer_id).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new__">+ Create new farm</option></select></label>
-        {newField.farm_id==="__new__"&&<label className="field-label">New farm name<input className="field-input" value={newField.new_farm_name} onChange={event=>setNewField(value=>({...value,new_farm_name:event.target.value}))} placeholder="Preston"/></label>}
-        <label className="field-label">Field name<input className="field-input" value={newField.field_name} onChange={event=>setNewField(value=>({...value,field_name:event.target.value}))} placeholder="WO1" /></label>
+        <MapFieldIdentity operations={farmers} farms={farms} value={newField} operationName={access.registration?.business_name||'Your farming operation'} onChange={patch=>setNewField(value=>({...value,...patch}))}/>
         <div className="mt-4 rounded-xl bg-white/[0.04] p-3 text-sm"><div className="flex justify-between"><span className="text-[#8d9d94]">Boundary points</span><strong>{points.length}</strong></div><div className="mt-1 flex justify-between"><span className="text-[#8d9d94]">Map-calculated area</span><strong className="text-[#B6CB8D]">{calculatedAreaHa?.toFixed(2)||"0.00"} ha</strong></div></div>
         <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setNewField(value=>({...value,area_mode:"calculated"}))} className={`rounded-xl border px-3 py-2 text-xs font-bold ${newField.area_mode==="calculated"?"border-[#789B58]/40 bg-[#789B58]/15 text-[#B6CB8D]":"border-white/10"}`}>Use map hectares</button><button type="button" onClick={()=>setNewField(value=>({...value,area_mode:"manual"}))} className={`rounded-xl border px-3 py-2 text-xs font-bold ${newField.area_mode==="manual"?"border-[#789B58]/40 bg-[#789B58]/15 text-[#B6CB8D]":"border-white/10"}`}>Use own hectares</button></div>
         {newField.area_mode==="manual"&&<label className="field-label">Official hectares<input className="field-input" type="number" min="0.01" step="0.01" value={newField.manual_area} onChange={event=>setNewField(value=>({...value,manual_area:event.target.value}))} placeholder="61.26"/></label>}

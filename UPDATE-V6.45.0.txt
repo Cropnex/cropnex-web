@@ -1,0 +1,93 @@
+CropNex v6.45.0 — Season first, draw immediately, simpler Fields & Farms
+
+FULL PROJECT: CropNex-Full-Project-V6.45.0.zip
+
+This is the complete source project with every previous release entry retained,
+including the public assets, app, components, lib, types, tests and migrations.
+Installed dependencies, generated build folders, .git and private credentials
+are excluded. Keep your existing .git folder, environment files and Supabase link.
+
+INSTALL
+1. Copy the full ZIP contents over the existing Codespaces project. Let file
+   copying finish before running commands. Do not delete .git or your credentials.
+2. Open the correct CropNex project in Supabase SQL Editor. Run the supplied
+   CropNex-v6.45.0-Migrations.sql file ONCE. It includes the v6.44.0 registration/
+   adviser migration and the new v6.45.0 quick-start migration in order. It is
+   safe if the v6.44.0 migration was already applied; reapplication was tested.
+   If you prefer individual source migration files and v6.44.0 was applied,
+   only supabase/migrations/202611090002_quick_farmer_start.sql is new.
+   The new table explicitly enables Row Level Security. These migrations do not
+   delete existing accounts, seasons, fields, farms, stock or harvest records.
+3. Keep NEXT_PUBLIC_CROPNEX_LAUNCHED=true in Vercel Production. No additional
+   environment variable is needed. Keep email confirmation enabled.
+4. Run in Codespaces:
+
+cd /workspaces/cropnex-web
+npm install
+npm test
+npm run build
+
+Only after these checks succeed:
+
+git status
+git add -A
+git commit -m "CropNex v6.45.0 season-first farmer setup and simple fields register"
+git push
+
+5. Wait for Vercel Ready, refresh CropNex and confirm v6.45.0 in the footer.
+
+NEW FARMER FLOW
+- After email confirmation/sign-in, a new standalone Farmer with no season sees
+  Start your first season. Enter consecutive years such as 2026/2027.
+- The company/farming-operation name comes from the registered profile. CropNex
+  creates its internal operation record automatically; no separate setup tab.
+- Save season & draw first field opens Farm Map in drawing mode.
+- Pan/zoom to the field, then tap at least three points around its boundary.
+  While drawing, the naming panel stays hidden so it does not cover the map.
+- Click Next: name farm & field. Enter the first farm name and field name, then
+  use the measured hectares or enter official hectares and save.
+- Farm and field are saved together. The second field defaults to the saved farm
+  dropdown. Add another farm explicitly from that dropdown when needed.
+- Repeated submissions do not duplicate the farm or field; invalid boundaries,
+  names, permissions and failed field inserts do not leave an orphan farm.
+- Existing seasons and records are retained. Established farmers are not asked
+  to recreate them. Advisers, buyers, transporters, employees and administrators
+  retain their own workspaces. Settings and Help remain accessible.
+- A farmer with a saved season but no boundary opens Farm Map from the initial
+  dashboard. Other permitted tabs remain accessible after the season is saved.
+
+FIELDS & FARMS
+- A compact register grouped by farm: farm, field name and hectares.
+- Edit Field changes the name, saved farm assignment and hectares.
+- Edit farm name renames a farm across its seasons and linked plan labels.
+- New farms and fields are added while saving boundaries on Farm Map.
+- Soil type, cultivar, planting date, yield target and notes are not repeated in
+  this register. Existing values remain in the database; editing identity does
+  not clear those values or overwrite plan/actual costs.
+- Crop programmes and inputs remain in Activities & Planning, budgets in
+  Business & Finance, agronomy results in Agronomy & Advisory, and harvest
+  results in Harvest and reports.
+- Existing boundary-file imports still select saved farms. New named farms are
+  saved with their first drawn boundary on Farm Map.
+
+CHECK AFTER DEPLOYMENT
+Use a clearly named test Farmer account, confirm its email and sign in.
+Create 2026/2027, draw TEST ONLY WO1, name TEST ONLY Farm, and save.
+Draw TEST ONLY WO2 and confirm TEST ONLY Farm is a dropdown choice.
+Open Fields & Farms: only the compact identity/area information should appear.
+Edit a test field and rename its test farm; confirm their map labels update.
+Do not create or change real stock/harvest records for this check.
+
+VALIDATION
+- 101 automated tests passed; TypeScript and focused ESLint checks passed.
+- All migrations executed in an isolated PostgreSQL-compatible database.
+- Existing actuals, stock, harvest, transport, reports, registration and adviser
+  scenarios passed alongside the new first-season, boundary/farm creation,
+  duplicate retry, failed-save rollback, role restrictions, identity edits,
+  preserved agronomy/history/costs and migration reapplication checks.
+- No live production records were changed. Live browser testing of this new
+  version still follows deployment.
+- A complete production build must pass in Codespaces before pushing. This
+  local workspace previously blocked production builds through linked-package,
+  output-folder and Google Fonts download restrictions. No successful local
+  production build or deployment is claimed.
