@@ -18,25 +18,12 @@ export default function AuthCallbackPage() {
       window.setTimeout(() => { if (active) setFailed(true); }, 0);
       return () => { active = false; };
     }
-    const finish = async () => {
+    // Profile activation runs once through the server registration flow. Avoid
+    // extra auth calls inside the confirmation event before opening the app.
+    const finish = () => {
       if (!active || completed) return;
       completed = true;
-      try {
-        const user = (await supabase.auth.getUser()).data.user;
-        if (user?.user_metadata?.pre_subscribe === true) {
-          const { error } = await supabase.from("profiles").upsert({
-            id: user.id,
-            full_name: typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : null,
-            farm_name: typeof user.user_metadata.farm_name === "string" && user.user_metadata.farm_name.trim() ? user.user_metadata.farm_name : null,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "id" });
-          if (error) console.error("Could not save the new CropNex profile details:", error.message);
-        }
-      } catch (error) {
-        console.error("Could not save the new CropNex profile details:", error);
-      } finally {
-        router.replace("/dashboard");
-      }
+      router.replace("/dashboard");
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {

@@ -237,7 +237,7 @@ export default function WeatherPage() {
   }, [weather]);
 
   return (
-    <main className="min-h-screen bg-[#14261F] p-6 text-white md:p-8">
+    <main className="ag-weather-workspace min-h-screen bg-[#14261F] p-6 text-[#17251c] md:p-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">
@@ -336,7 +336,7 @@ export default function WeatherPage() {
               </p>
             </div>
           </div>
-          <p className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[.06] p-4 text-xs leading-5 text-amber-100">
+          <p className="mt-4 rounded-xl ag-weather-notice border border-[#b88828] bg-[#fff4d6] p-4 text-sm leading-6 text-[#63420b]">
             Decision-support recommendation only. Weather models and field conditions can differ. CropNex does not authorise an application. The operator remains responsible for checking current on-site conditions, the registered product label, applicable law and any required professional advice.
           </p>
 

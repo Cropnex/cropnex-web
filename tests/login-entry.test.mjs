@@ -12,7 +12,7 @@ function load(file,mocks={}){
  const {outputText,diagnostics}=ts.transpileModule(source,{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022,esModuleInterop:true},reportDiagnostics:true});
  assert.equal(diagnostics.length,0);
  const mod={exports:{}};
- vm.runInNewContext(outputText,{module:mod,exports:mod.exports,require:name=>{if(name==='@/lib/supabase')throw Error('Auth SDK is unavailable during initial page load');if(name==='@/lib/trial-request')return load('lib/trial-request.ts');return Object.hasOwn(mocks,name)?mocks[name]:require(name);},setTimeout,clearTimeout,AbortController,console:{error(){}}},{filename:file});
+ vm.runInNewContext(outputText,{module:mod,exports:mod.exports,require:name=>{if(name==='@/lib/supabase')throw Error('Auth SDK is unavailable during initial page load');if(name==='@/lib/registration')return load('lib/registration.ts');if(name==='@/lib/trial-request')return load('lib/trial-request.ts');return Object.hasOwn(mocks,name)?mocks[name]:require(name);},setTimeout,clearTimeout,AbortController,console:{error(){}}},{filename:file});
  return mod.exports;
 }
 const {parseAuthEntry}=load('lib/auth-entry.ts');

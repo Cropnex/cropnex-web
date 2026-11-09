@@ -1,3 +1,5 @@
-import {Suspense} from "react";
-import AdvisoryWorkspace from "@/components/advisory/AdvisoryWorkspace";
-export default function Page(){return <Suspense fallback={<p className="p-6">Opening advisory workspace…</p>}><AdvisoryWorkspace/></Suspense>}
+import AdvisoryWorkspace from '@/components/advisory/AdvisoryWorkspace';
+export default async function Page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
+ const params=await searchParams,value=(key:string)=>typeof params[key]==='string'?params[key] as string:'';
+ return <AdvisoryWorkspace key={value('client')+value('field')+value('request')} initialClient={value('client')} initialField={value('field')} requestOnOpen={value('request')==='1'}/>;
+}

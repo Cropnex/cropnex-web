@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LEGAL_VERSION } from "@/lib/app-meta";
 import CropNexLogo from "@/components/brand/CropNexLogo";
+import {registrationRoles,validateRegistration} from '@/lib/registration';
 import {trialRequest} from '@/lib/trial-request';
 
 type Props={initialMode:"login"|"register";preSubscribe:boolean};
@@ -24,6 +25,7 @@ const [resending, setResending] = useState(false);
 const [acceptedLegal, setAcceptedLegal] = useState(false);
 const [fullName, setFullName] = useState("");
 const [farmName, setFarmName] = useState("");
+const [phone,setPhone]=useState(""),[vat,setVat]=useState(""),[accountType,setAccountType]=useState("Farmer");
 
 const handleLogin = async () => {
   setMessage("");
@@ -55,21 +57,8 @@ const handleLogin = async () => {
 
 const handleRegister = async () => {
   setMessage("");
-  if (!email.trim() || password.length < 8) {
-    setMessage("Enter a valid email and a password of at least 8 characters.");
-    setMessageIsError(true);
-    return;
-  }
-  if (!fullName.trim()) {
-    setMessage("Enter your name to create your CropNex profile.");
-    setMessageIsError(true);
-    return;
-  }
-  if (password !== confirmPassword) {
-    setMessage("The passwords do not match.");
-    setMessageIsError(true);
-    return;
-  }
+  const problem=validateRegistration({name:fullName,phone,company:farmName,email,password,confirmation:confirmPassword,role:accountType});
+  if(problem){setMessage(problem);setMessageIsError(true);return;}
   if (!acceptedLegal) {
     setMessage("Please accept the Terms and Privacy Notice to create an account.");
     setMessageIsError(true);
@@ -78,7 +67,7 @@ const handleRegister = async () => {
   setLoading(true);
   try {
     const supabase=await authClient();
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await trialRequest(()=>supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -87,11 +76,12 @@ const handleRegister = async () => {
           legal_version: LEGAL_VERSION,
           legal_accepted_at: new Date().toISOString(),
           full_name: fullName.trim(),
+          account_type:accountType,phone:phone.trim(),business_name:farmName.trim(),vat_number:vat.trim()||null,
           farm_name: farmName.trim(),
           pre_subscribe: preSubscribe,
         },
       },
-    });
+    }),undefined,20000);
     if (error) {
       setMessage(error.message);
       setMessageIsError(true);
@@ -100,14 +90,14 @@ const handleRegister = async () => {
     if (data.session) {
       await supabase.from("profiles").upsert({
         id: data.session.user.id,
-        full_name: fullName.trim(),
+        full_name: fullName.trim(),phone:phone.trim(),business_name:farmName.trim(),vat_number:vat.trim()||null,
         farm_name: farmName.trim() || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "id" });
       router.push("/dashboard");
       router.refresh();
     } else {
-      setMessage("Your registration request was received. If an email is issued, follow its confirmation link, then request access. Every account is reviewed before farm access is approved.");
+      setMessage("Your registration was received. Confirm your email using the link in your inbox. Farmer accounts open after confirmation; buyer, transporter, adviser and agent accounts require administrator approval.");
       setMessageIsError(false);
       setMode("login");
       setPassword("");
@@ -139,7 +129,7 @@ const resendConfirmation = async () => {
   setMessage("");
   try {
     const supabase=await authClient();
-    const { error } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    const { error } = await trialRequest(()=>supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } }),undefined,20000);
     if (error) {
       setMessage(error.message);
       setMessageIsError(true);
@@ -160,7 +150,7 @@ const resendConfirmation = async () => {
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#1A2022] p-6 sm:p-8 shadow-2xl">
         <div className="mb-8 flex flex-col items-center text-center">
           <CropNexLogo className="justify-center" />
-          <p className="mt-3 text-gray-400">{mode === "login" ? "Sign in to your CropNex workspace" : preSubscribe ? "Create your profile now. App access opens at launch." : "Create an account and request verified access"}</p>
+          <p className="mt-3 text-gray-400">{mode === "login" ? "Sign in to your CropNex workspace" : "Create an account. Confirm your email to continue."}</p>
         </div>
 
         <form
@@ -168,14 +158,17 @@ const resendConfirmation = async () => {
           onSubmit={handleSubmit}
 >
           {mode === "register" && <>
+          <div><label htmlFor="auth-account-type" className="text-sm text-gray-300">Account type</label><select id="auth-account-type" value={accountType} onChange={e=>setAccountType(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-[#111516] px-4 py-3 text-white">{registrationRoles.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select><p className="mt-2 text-xs leading-5 text-gray-300">{accountType==='Farmer'?'Confirm your email and start using CropNex. No administrator approval is needed.':'Confirm your email, then wait for administrator approval for this account type.'}</p></div>
           <div>
             <label htmlFor="auth-full-name" className="text-sm text-gray-300">Your name</label>
             <input id="auth-full-name" type="text" autoComplete="name" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" />
           </div>
           <div>
-            <label htmlFor="auth-farm-name" className="text-sm text-gray-300">Farm or business name <span className="text-gray-500">(optional)</span></label>
-            <input id="auth-farm-name" type="text" autoComplete="organization" value={farmName} onChange={(e) => setFarmName(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" />
+            <label htmlFor="auth-farm-name" className="text-sm text-gray-300">Company / farm business name</label>
+            <input id="auth-farm-name" required type="text" autoComplete="organization" value={farmName} onChange={(e) => setFarmName(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" />
           </div>
+          <div><label htmlFor="auth-phone" className="text-sm text-gray-300">Contact number</label><input id="auth-phone" type="tel" autoComplete="tel" required value={phone} onChange={e=>setPhone(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" /></div>
+          <div><label htmlFor="auth-vat" className="text-sm text-gray-300">VAT number (optional)</label><input id="auth-vat" type="text" value={vat} onChange={e=>setVat(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3" /></div>
           </>}
 
           <div>
@@ -239,7 +232,7 @@ const resendConfirmation = async () => {
   disabled={loading}
   className="w-full rounded-xl bg-[#86CF34] px-5 py-3 font-bold text-[#111516] transition hover:bg-[#9ADB49]"
 >
-            {loading ? (mode === "login" ? "Signing in..." : "Creating profile...") : (mode === "login" ? "Login" : preSubscribe ? "Pre-subscribe" : "Create account")}
+            {loading ? (mode === "login" ? "Signing in..." : "Creating profile...") : (mode === "login" ? "Login" : "Create account")}
 </button>
         </form>
 

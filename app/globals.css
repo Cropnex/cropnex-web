@@ -248,3 +248,7 @@ textarea {
 /* Settings uses light surfaces consistently, including the native option menu. */
 .ag-settings-workspace { color-scheme: light; }
 .ag-settings-workspace :is(input, select, option) { background-color: #fff; color: #17251c; }
+
+/* Weather uses the light application surface; values and safety notices stay readable. */
+.ag-weather-workspace :is(.text-gray-300,.text-gray-400,.text-gray-500){color:#42545d!important;}
+.ag-weather-workspace .ag-weather-notice{background:#fff4d6;color:#63420b;border-color:#b88828;}

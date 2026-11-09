@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { homeItem, navigationGroups as allNavigationGroups, organizationModuleForRoute } from "@/components/layout/navigation";
 import { useAccess } from "@/components/auth/AccessProvider";
 import { APP_STAGE, APP_VERSION } from "@/lib/app-meta";
+import AdviserClientNav from "@/components/advisory/AdviserClientNav";
 import CropNexLogo from "@/components/brand/CropNexLogo";
 
 type SidebarProps = {
@@ -60,6 +61,7 @@ export default function Sidebar({
 
         <nav className="relative z-10 flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-2">
+{access.roles.some(role=>["Agronomist","Chemical Representative"].includes(role))&&<AdviserClientNav key={access.userId} onClose={onClose}/>}
             {((fullFarmAccess||access.modules.includes("dashboard"))?[homeItem]:[]).map((item) => {
               const active =
                 pathname === item.href ||

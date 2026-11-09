@@ -1,7 +1,7 @@
 import type { FieldBoundary } from "@/types/field";
 export type AdvisoryField = { id:string; owner_id:string; field_name:string; farm_name:string|null; client_name:string; area_ha:number; crop:string|null; cultivar:string|null; season:string|null; boundary:FieldBoundary|null; can_manage:boolean; can_write:boolean; can_approve:boolean };
 export type AdvisoryLink = { id:string; field_id:string; owner_id:string; advisor_id:string; advisor_email:string; advisor_name:string; field_name:string; client_name:string; status:string; share_plans:boolean; share_scouting:boolean; share_yield:boolean };
-export type AdvisoryRequest = { id:string; field_id:string; owner_id:string; advisor_id:string|null; service_type:string; status:string; requested_date:string|null; scheduled_date:string|null; notes:string|null; field_snapshot:AdvisoryField; created_at:string };
+export type AdvisoryRequest = { group_id?:string|null; id:string; field_id:string; owner_id:string; advisor_id:string|null; service_type:string; status:string; requested_date:string|null; scheduled_date:string|null; notes:string|null; field_snapshot:AdvisoryField; created_at:string };
 export type AdvisoryVisit = { id:string; field_id:string; author_id:string; request_id:string|null; visit_date:string; title:string; notes:string|null };
 export type GridPoint = { sample_id:string; latitude:number; longitude:number; parameter:string; value:number; unit:string; depth_cm:number; sample_date:string };
 export type AdvisoryDocument = { id:string; field_id:string; request_id:string|null; author_id:string; category:string; file_name:string; storage_path:string; notes:string|null; sample_date:string|null; depth_cm:number|null; grid_points:GridPoint[]; created_at:string };

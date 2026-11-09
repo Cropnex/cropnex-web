@@ -1,0 +1,86 @@
+CropNex v6.44.0 — Farmer entry, adviser clients and multi-field service requests
+
+FULL PROJECT: CropNex-Full-Project-V6.44.0.zip
+
+This is the COMPLETE source project, including all source folders, public assets,
+tests and database migrations. It includes the previous release files. Installed
+dependencies, generated build output, .git and private credentials are excluded.
+
+INSTALL ORDER
+1. Copy the ZIP contents over the existing Codespaces project. Keep your existing
+   .git folder, environment files and Supabase project link. Do not delete them.
+2. Apply ONLY the new SQL file, assuming earlier migrations are already applied:
+   supabase/migrations/202611090001_farmer_onboarding_and_service_groups.sql
+   The same SQL is supplied separately as CropNex-v6.44.0-Migration.sql.
+   Run it in the correct Supabase project's SQL Editor. Both new tables explicitly
+   enable Row Level Security. The migration replaces functions, policies and one
+   trigger; it does not delete farm, inventory, harvest or account records.
+3. Keep NEXT_PUBLIC_CROPNEX_LAUNCHED=true in Vercel Production.
+4. Keep Supabase email confirmation enabled. Check that your public signup email
+   provider actually delivers confirmation links before directing new users to it.
+   This update changes access rules; it does not configure or verify live email delivery.
+5. Run these commands in Codespaces:
+
+cd /workspaces/cropnex-web
+npm install
+npm test
+npm run build
+
+ONLY after all checks above succeed:
+
+git status
+git add -A
+git commit -m "CropNex v6.44.0 farmer onboarding and adviser workflows"
+git push
+
+6. Wait for Vercel to show Ready. Refresh CropNex and confirm v6.44.0 in the footer.
+
+NEW REGISTRATION FLOW
+- Click Log in -> Create account -> select account type.
+- Farmer: name, contact number, email, company/farm business name, password and
+  legal acceptance. VAT is optional. Confirm email, then enter the app directly.
+- Buyer, Transporter, Adviser/Agronomist and Agent/Chemical Representative:
+  confirm email, then administrator approval remains required.
+- Agent uses the existing Chemical Representative role and its adviser permissions.
+- Existing active accounts retain their roles and organisation dashboard permissions.
+  Existing verified farmers awaiting approval can enter after completing missing details.
+- Rejected, suspended and revoked Farmer accounts are not automatically reactivated.
+- Legacy Farmer accounts with missing details see a simple completion form.
+
+ADVISER AND FARMER WORKFLOW
+- Invite/share fields with an approved adviser. The adviser must accept the invitation.
+  Creating a service request does not automatically share additional fields.
+- Advisers see My clients in the left navigation. Select a client and season.
+- Client overview shows permitted field count/hectares, open work, grouped service
+  requests, requested hectares, individual field progress and field boundary maps.
+- Fields & maps opens the client's permitted field map. Click a field or choose
+  Field records to reach scouting, visits, results/photos and recommendations.
+- Farmer: Client overview -> Request service for multiple fields. The same form opens
+  from a field's Requests section and Farm Map's Request agronomy service shortcut.
+- Choose several fields, one service, preferred date, adviser and instructions.
+  The form shows the combined requested hectares. Each request covers one client
+  and season. Fields need positive hectares and a saved boundary.
+- Assignment is available only when the adviser has active access to EVERY selected
+  field. Otherwise save unassigned, connect the adviser, then assign field requests.
+- The job appears once in Client overview. Each field retains its own request record,
+  snapshot, status, visits, results and recommendations. Open a field to update or
+  schedule its work. Existing individual requests remain visible.
+- Retrying the same submission does not duplicate the job. Invalid field selections
+  fail as one transaction. Revoked/unshared fields and their hectares are not exposed
+  through another field in the same job.
+
+READABILITY
+- Weather forecast values use dark text on the light application surface.
+- The decision-support notice uses dark amber text on a pale amber background.
+
+VALIDATION AND LIMITS
+- 95 automated regression tests passed.
+- TypeScript checks and focused ESLint checks passed.
+- All migrations executed in an isolated PostgreSQL-compatible database. Actuals,
+  stock, harvest, transport and report scenarios passed, together with confirmed/
+  unconfirmed registration, moderated roles, revoked access, organisation Employee
+  permissions, grouped requests, retries and adviser sharing/revocation scenarios.
+- This was not live testing in your production database. No live records were changed.
+- A complete production build must pass in Codespaces before publishing. Local builds
+  encountered linked dependency/output-folder restrictions and blocked Google Fonts
+  downloads. No successful production build or live deployment is claimed here.
