@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { getOfflineItems } from "@/lib/offline-db";
 import { syncOfflineItems } from "@/lib/offline-sync";
 import { getQueuedRestMutations } from "@/lib/offline-platform";
 
 export default function SyncStatus() {
+  const { userId } = useAccess();
   const [online, setOnline] = useState(true);
   const [count, setCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setOnline(navigator.onLine);
     const [scouting, operations] = await Promise.all([
-      getOfflineItems(),
-      getQueuedRestMutations(),
+      getOfflineItems(userId),
+      getQueuedRestMutations(userId),
     ]);
     setCount(scouting.length + operations.length);
-  }
+  }, [userId]);
 
-  async function syncNow() {
+  const syncNow = useCallback(async () => {
     if (!navigator.onLine) return;
 
     setSyncing(true);
@@ -29,10 +31,10 @@ export default function SyncStatus() {
       setSyncing(false);
       await refresh();
     }
-  }
+  }, [refresh]);
 
   useEffect(() => {
-    void refresh();
+    void Promise.resolve().then(refresh);
 
     const onlineHandler = () => {
       setOnline(true);
@@ -60,7 +62,7 @@ export default function SyncStatus() {
         refreshHandler
       );
     };
-  }, []);
+  }, [refresh, syncNow]);
 
   return (
     <div className="flex items-center gap-2">

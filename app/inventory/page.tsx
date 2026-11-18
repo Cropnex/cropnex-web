@@ -5,6 +5,7 @@ import Link from "next/link";
 import {stockNeedsAttention} from '@/lib/reporting';
 import { supabase } from "@/lib/supabase";
 import type { InventoryItem, InventoryLocation, InventoryTransaction, InventoryTransfer } from "@/types/inventory";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { useSeason } from "@/components/season/SeasonProvider";
 import type { Field } from "@/types/field";
 
@@ -20,6 +21,8 @@ const blankMove={transaction_date:today(),transaction_type:"Stock In",quantity:"
 
 export default function InventoryPage(){
   const{currentSeason}=useSeason();
+  const access=useAccess();
+  const ownOnly=!access.isAdmin && (access.roles.includes("Farmer") || access.organizationRoles.includes("Farmer"));
   const[tab,setTab]=useState<Tab>("dashboard"),[items,setItems]=useState<InventoryItem[]>([]),[locations,setLocations]=useState<InventoryLocation[]>([]),[transfers,setTransfers]=useState<InventoryTransfer[]>([]),[transferLines,setTransferLines]=useState<TransferLine[]>([]),[catalogue,setCatalogue]=useState<MasterProduct[]>([]),[fields,setFields]=useState<Field[]>([]);
   const[locationForm,setLocationForm]=useState(blankLocation),[itemForm,setItemForm]=useState(blankItem),[productQuery,setProductQuery]=useState(""),[saving,setSaving]=useState(false);
   const[receiptMasterId,setReceiptMasterId]=useState(""),[receiptLocationId,setReceiptLocationId]=useState(""),[receiptQty,setReceiptQty]=useState(""),[receiptCost,setReceiptCost]=useState(""),[receiptReference,setReceiptReference]=useState(""),[receiptNotes,setReceiptNotes]=useState("");
@@ -29,14 +32,23 @@ export default function InventoryPage(){
   const[activeLocation,setActiveLocation]=useState("all"),[movementItemId,setMovementItemId]=useState(""),[movementQty,setMovementQty]=useState(""),[movementCost,setMovementCost]=useState(""),[movementReason,setMovementReason]=useState(""),[movementReference,setMovementReference]=useState(""),[movementFieldId,setMovementFieldId]=useState(""),[movementDate,setMovementDate]=useState(today());
 
   async function load(){
-    if(!currentSeason)return;
-    const[a,b,c,d,e,f]=await Promise.all([
-      supabase.from("inventory_items").select("*").eq("season",currentSeason).neq("status","Inactive").order("name"),
-      supabase.from("inventory_locations").select("*").eq("active",true).order("name"),
-      supabase.from("inventory_transfers").select("*").eq("season",currentSeason).order("created_at",{ascending:false}),
-      supabase.from("inventory_transfer_lines").select("*").order("created_at",{ascending:false}),
+    if(!currentSeason||!access.userId)return;
+    const stockQuery = supabase.from("inventory_items").select("*").eq("season", currentSeason).neq("status", "Inactive").order("name");
+    const shedQuery = supabase.from("inventory_locations").select("*").eq("active", true).order("name");
+    const transferQuery = supabase.from("inventory_transfers").select("*").eq("season", currentSeason).order("created_at", { ascending: false });
+    const transferLineQuery = supabase.from("inventory_transfer_lines").select("*").order("created_at", { ascending: false });
+    const fieldQuery = supabase.from("fields").select("*").eq("season", currentSeason).order("field_name");
+    if (ownOnly) {
+      stockQuery.eq("user_id", access.userId);
+      shedQuery.eq("user_id", access.userId);
+      transferQuery.eq("user_id", access.userId);
+      transferLineQuery.eq("user_id", access.userId);
+      fieldQuery.eq("user_id", access.userId);
+    }
+    const [a,b,c,d,e,f] = await Promise.all([
+      stockQuery, shedQuery, transferQuery, transferLineQuery,
       supabase.from("master_products").select("id,catalogue_code,name,category,product_class,crop_type,pack_unit").eq("status","Approved").order("name"),
-      supabase.from("fields").select("*").eq("season",currentSeason).order("field_name")
+      fieldQuery
     ]);
     const error=a.error||b.error||c.error||d.error||e.error||f.error;if(error)return alert(error.message);
     const loadedLocations=(b.data||[]) as InventoryLocation[];
@@ -45,7 +57,7 @@ export default function InventoryPage(){
     if(!receiptLocationId&&loadedLocations[0])setReceiptLocationId(loadedLocations[0].id);
     if(!stocktakeLocation&&loadedLocations[0])setStocktakeLocation(loadedLocations[0].id);
   }
-  useEffect(()=>{void load()},[currentSeason]);// eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{void Promise.resolve().then(load)},[currentSeason, access.userId, ownOnly]);// eslint-disable-line react-hooks/exhaustive-deps
 
   const locationName=(id:string|null|undefined)=>locations.find(x=>x.id===id)?.name||"Unassigned";
   const summary=useMemo(()=>({value:items.reduce((s,x)=>s+Number(x.quantity)*Number(x.unit_cost||0),0),low:items.filter(stockNeedsAttention).length,inTransit:transfers.filter(x=>x.status==="Dispatched").length}),[items,transfers]);

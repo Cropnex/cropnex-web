@@ -1,5 +1,6 @@
 export type OfflineQueueItem = {
   id: string;
+  accountId: string;
   status: "pending" | "failed";
   attempts: number;
   last_error: string | null;

@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabase";
 import {
   deleteOfflineItem,
   getOfflineItems,
@@ -9,7 +10,6 @@ import {
   removeQueuedRestMutation,
   updateQueuedRestMutation,
 } from "@/lib/offline-platform";
-import { supabaseAnonKey } from "@/lib/supabase";
 
 const PHOTO_BUCKET = "scouting-photos";
 
@@ -29,7 +29,12 @@ export async function syncOfflineItems() {
   const { data } = await supabase.auth.getUser();
   if (!data.user) throw new Error("You must be logged in.");
 
-  const items = await getOfflineItems();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  if (!session || session.user.id !== data.user.id) throw new Error("Your account changed. Sign in again to sync.");
+  const accessToken = session.access_token;
+  const accountClient = createClient(supabaseUrl, supabaseAnonKey, { accessToken: async () => accessToken });
+  const items = await getOfflineItems(data.user.id);
   let synced = 0;
   let failed = 0;
 
@@ -51,7 +56,7 @@ export async function syncOfflineItems() {
           item.photo_name
         );
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await accountClient.storage
           .from(PHOTO_BUCKET)
           .upload(uploadedPath, storedPhoto, {
             contentType:
@@ -62,7 +67,7 @@ export async function syncOfflineItems() {
         if (uploadError) throw uploadError;
       }
 
-      const { error } = await supabase
+      const { error } = await accountClient
         .from("scouting_observations")
         .insert({
           user_id: data.user.id,
@@ -72,13 +77,13 @@ export async function syncOfflineItems() {
 
       if (error) throw error;
 
-      const { data: field } = await supabase
+      const { data: field } = await accountClient
         .from("fields")
         .select("field_name, crop, area_ha")
         .eq("id", item.payload.field_id)
         .maybeSingle();
 
-      await supabase.from("activities").insert({
+      await accountClient.from("activities").insert({
         user_id: data.user.id,
         activity_type: "Scouting",
         field_name: field?.field_name || "Unknown field",
@@ -92,7 +97,7 @@ export async function syncOfflineItems() {
       synced += 1;
     } catch (error) {
       if (uploadedPath) {
-        await supabase.storage
+        await accountClient.storage
           .from(PHOTO_BUCKET)
           .remove([uploadedPath]);
       }
@@ -111,12 +116,14 @@ export async function syncOfflineItems() {
     }
   }
 
-  const genericItems = await getQueuedRestMutations();
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
+  const genericItems = await getQueuedRestMutations(data.user.id);
 
   for (const item of genericItems) {
     try {
+      const target = new URL(item.url);
+      if (target.origin !== new URL(supabaseUrl).origin || !target.pathname.startsWith("/rest/v1/")) {
+        throw new Error("Invalid sync destination.");
+      }
       const headers = new Headers(item.headers);
       headers.set("apikey", supabaseAnonKey);
       if (accessToken) headers.set("authorization", `Bearer ${accessToken}`);

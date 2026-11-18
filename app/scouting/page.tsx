@@ -8,6 +8,7 @@ import { boundaryGeoJson, boundaryHasShape } from "@/lib/field-boundary";
 import type { ScoutingObservation } from "@/types/scouting";
 import { saveOfflineItem } from "@/lib/offline-db";
 import type { OfflineQueueItem } from "@/types/offline";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { useSeason } from "@/components/season/SeasonProvider";
 import {
   getOfflineFields,
@@ -43,6 +44,7 @@ const emptyForm = {
 };
 
 export default function ScoutingPage() {
+  const { userId: accountId } = useAccess();
   const { currentSeason } = useSeason();
   const [fields, setFields] = useState<Field[]>([]);
   const [observations, setObservations] =
@@ -349,11 +351,13 @@ async function loadAll() {
 
   // Save locally first when offline.
   if (!navigator.onLine) {
+    if (!accountId) return alert("Sign in before saving an offline observation.");
     // ArrayBuffer survives iOS PWA/IndexedDB restarts more reliably than File.
     const photoData = photoFile
       ? await photoFile.arrayBuffer()
       : null;
     const item: OfflineQueueItem = {
+      accountId,
       id: crypto.randomUUID(),
       status: "pending",
       attempts: 0,

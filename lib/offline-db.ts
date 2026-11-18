@@ -34,7 +34,7 @@ export async function saveOfflineItem(
   db.close();
 }
 
-export async function getOfflineItems(): Promise<
+export async function getOfflineItems(accountId: string): Promise<
   OfflineQueueItem[]
 > {
   const db = await openDb();
@@ -51,7 +51,7 @@ export async function getOfflineItems(): Promise<
   );
 
   db.close();
-  return items.sort((a, b) =>
+  return items.filter(item => accountId && item.accountId === accountId).sort((a, b) =>
     a.created_at.localeCompare(b.created_at)
   );
 }

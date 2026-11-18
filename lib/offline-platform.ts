@@ -11,6 +11,7 @@ export type CachedRestResponse = {
 
 export type QueuedRestMutation = {
   id: string;
+  accountId: string;
   url: string;
   method: string;
   body: string | null;
@@ -21,7 +22,7 @@ export type QueuedRestMutation = {
 };
 
 const DATABASE = "agcore-platform-v3";
-const VERSION = 1;
+const VERSION = 2;
 const CACHE_STORE = "rest-cache";
 const MUTATION_STORE = "mutation-queue";
 
@@ -41,12 +42,17 @@ function openDatabase(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(CACHE_STORE)) {
         db.createObjectStore(CACHE_STORE, { keyPath: "key" });
+      } else {
+        request.transaction!.objectStore(CACHE_STORE).clear();
       }
       if (!db.objectStoreNames.contains(MUTATION_STORE)) {
         db.createObjectStore(MUTATION_STORE, { keyPath: "id" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    };
     request.onerror = () => reject(request.error);
   });
 }
@@ -86,14 +92,14 @@ export async function queueRestMutation(value: QueuedRestMutation) {
   window.dispatchEvent(new CustomEvent("agcore-sync-updated"));
 }
 
-export async function getQueuedRestMutations() {
+export async function getQueuedRestMutations(accountId: string) {
   if (!available()) return [];
   const items = await transact<QueuedRestMutation[]>(
     MUTATION_STORE,
     "readonly",
     (store) => store.getAll(),
   );
-  return items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return items.filter(item => accountId && item.accountId === accountId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function removeQueuedRestMutation(id: string) {
@@ -105,8 +111,19 @@ export async function updateQueuedRestMutation(item: QueuedRestMutation) {
   await transact(MUTATION_STORE, "readwrite", (store) => store.put(item));
 }
 
-function cacheKey(url: string, headers: Headers) {
-  return `${url}|${headers.get("accept-profile") || "public"}`;
+// These claims partition local data. Supabase verifies the token on the server.
+function requestSession(headers: Headers) {
+  const match = /^Bearer ([^.]+)\.([^.]+)\.[^.]+$/i.exec(headers.get("authorization") || "");
+  if (!match) return null;
+  try {
+    const claims = JSON.parse(atob(match[2].replace(/-/g, "+").replace(/_/g, "/")));
+    if (claims.role !== "authenticated" || typeof claims.sub !== "string" ||
+        typeof claims.session_id !== "string" || !claims.sub || !claims.session_id ||
+        typeof claims.exp !== "number" || claims.exp * 1000 <= Date.now()) return null;
+    return { accountId: claims.sub, sessionId: claims.session_id };
+  } catch {
+    return null;
+  }
 }
 
 function safeHeaders(headers: Headers) {
@@ -115,17 +132,21 @@ function safeHeaders(headers: Headers) {
   );
 }
 
-export function createOfflineFetch(baseFetch: typeof fetch = fetch): typeof fetch {
+export function createOfflineFetch(supabaseUrl: string, baseFetch: typeof fetch = fetch): typeof fetch {
+  const origin = new URL(supabaseUrl).origin;
   return async (input, init) => {
     const request = new Request(input, init);
-    const isRestRequest =
-      request.url.includes(".supabase.co/rest/v1/") ||
-      request.url.includes("/rest/v1/");
-
-    if (!isRestRequest || !available()) return baseFetch(request);
+    const url = new URL(request.url);
+    if (url.origin !== origin || !url.pathname.startsWith("/rest/v1/") || !available()) {
+      return baseFetch(request);
+    }
+    const session = requestSession(request.headers);
+    if (!session) return baseFetch(request);
 
     if (request.method === "GET" || request.method === "HEAD") {
-      const key = cacheKey(request.url, request.headers);
+      const key = JSON.stringify([session.accountId, session.sessionId, request.url,
+        request.headers.get("accept-profile"), request.headers.get("accept"),
+        request.headers.get("range"), request.headers.get("prefer")]);
       try {
         const response = await baseFetch(request);
         if (response.ok && request.method === "GET") {
@@ -137,11 +158,12 @@ export function createOfflineFetch(baseFetch: typeof fetch = fetch): typeof fetc
             statusText: clone.statusText,
             headers: Array.from(clone.headers.entries()),
             cachedAt: new Date().toISOString(),
-          });
+          }).catch(() => {});
         }
         return response;
       } catch (error) {
-        const cached = await getCachedResponse(key);
+        if (request.signal.aborted || navigator.onLine || request.method !== "GET") throw error;
+        const cached = await getCachedResponse(key).catch(() => undefined);
         if (cached) {
           return new Response(cached.body, {
             status: cached.status,
@@ -157,9 +179,10 @@ export function createOfflineFetch(baseFetch: typeof fetch = fetch): typeof fetc
     try {
       return await baseFetch(request);
     } catch (error) {
-      if (navigator.onLine) throw error;
+      if (request.signal.aborted || navigator.onLine || url.pathname.startsWith("/rest/v1/rpc/")) throw error;
       await queueRestMutation({
         id: crypto.randomUUID(),
+        accountId: session.accountId,
         url: request.url,
         method: request.method,
         body: queuedBody,

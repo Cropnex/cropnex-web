@@ -1,0 +1,51 @@
+CropNex v6.46.0 farmer privacy hotfix
+
+1. Open the production CropNex project in Supabase SQL Editor and run the entire
+   CropNex-v6.46.0-Privacy-Hotfix.sql file. This protects database requests from
+   the currently deployed app as soon as the transaction commits. The SQL file
+   assumes the existing CropNex schema. Apply it before publishing the browser
+   update. Verify the SQL Editor reports success.
+
+2. Copy the full ZIP contents over the CropNex Codespaces project. Keep .git and
+   your existing environment files. Check that NEXT_PUBLIC_SUPABASE_ANON_KEY
+   uses the Supabase publishable or legacy anon key. A Supabase secret or
+   service-role key bypasses database policies and must be kept server-side.
+   If one was exposed in the browser, rotate it in Supabase and update the
+   server configuration.
+
+3. In the Codespaces terminal, run:
+
+cd /workspaces/cropnex-web
+npm install
+npm test
+npm run build
+
+After the checks pass, publish using your existing Git deployment workflow:
+
+git status
+git add -A
+git commit -m "CropNex v6.46.0 isolate farmer records"
+git push
+
+4. Once the deployment is ready, use two separate, non-admin Farmer accounts
+   in separate browser profiles. Give each a distinguishable test shed and
+   stock item in the same season. Sign in as each farmer and check the Shed
+   list, stock, field map and reports. Each account should see its own records.
+   Review the active administrators in CropNex Admin if either account can
+   still see both farms. A platform administrator has cross-farm privileges.
+
+Farmer accounts remain private even with an organisation membership or an
+assignment to another farm. Separate authorised staff accounts can access
+linked farms through their existing dashboard permissions. Explicit advisory
+sharing and published marketplace listings use their own workflows.
+
+Offline reads now belong to the current account and sign-in session. Reopen
+CropNex online after deploying. Older queued changes that lack an account
+identifier are retained on the device and excluded from automatic replay.
+If someone has unsynced changes from the previous version, keep their local
+browser data for recovery. The update clears the old shared REST read cache.
+
+The isolated database checks used two Farmer accounts in the same organisation,
+a staff account with read access and a deliberately permissive legacy policy.
+102 automated tests and TypeScript checks passed. Production application of
+the hotfix and verification with two live accounts remain pending.

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import {
   deleteOfflineItem,
   getOfflineItems,
@@ -14,22 +15,23 @@ import {
 } from "@/lib/offline-platform";
 
 export default function OfflineSyncPage() {
+  const { userId } = useAccess();
   const [items, setItems] = useState<OfflineQueueItem[]>([]);
   const [operations, setOperations] = useState<QueuedRestMutation[]>([]);
   const [syncing, setSyncing] = useState(false);
 
-  async function loadItems() {
+  const loadItems = useCallback(async () => {
     const [scouting, queuedOperations] = await Promise.all([
-      getOfflineItems(),
-      getQueuedRestMutations(),
+      getOfflineItems(userId),
+      getQueuedRestMutations(userId),
     ]);
     setItems(scouting);
     setOperations(queuedOperations);
-  }
+  }, [userId]);
 
   useEffect(() => {
-    void loadItems();
-  }, []);
+    void Promise.resolve().then(loadItems);
+  }, [loadItems]);
 
   async function syncNow() {
     setSyncing(true);

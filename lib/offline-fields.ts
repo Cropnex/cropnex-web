@@ -1,6 +1,6 @@
 import type { Field } from "@/types/field";
 
-const CACHE_PREFIX = "agcore-fields";
+const CACHE_PREFIX = "agcore-fields-v2";
 
 function cacheKey(userId: string) {
   return `${CACHE_PREFIX}-${userId}`;

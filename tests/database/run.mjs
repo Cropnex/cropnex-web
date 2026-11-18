@@ -17,6 +17,7 @@ for(const name of fs.readdirSync(path.join(root,'supabase/migrations')).filter(n
 }
 console.log('ALL MIGRATIONS EXECUTED');
 try{
+ if(process.argv.includes('--isolation'))await (await import('./farmer-isolation.mjs')).farmerIsolationScenarios(db);
  if(process.argv.includes('--scenarios'))await (await import('./scenarios.mjs')).scenarios(db);
  if(process.argv.includes('--onboarding-scenarios'))await (await import('./onboarding-advisory.mjs')).onboardingAdvisoryScenarios(db);
  if(process.argv.includes('--quick-start-scenarios'))await (await import('./quick-farmer-start.mjs')).quickFarmerStartScenarios(db);
@@ -29,3 +30,4 @@ try{
  }
 }catch(error){console.error('DATABASE SCENARIO FAILED',error.message,error.query||'',error.where||'');process.exitCode=1;}
 await db.close();
+
